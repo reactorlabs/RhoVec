@@ -1,0 +1,26 @@
+\documentclass{article}
+
+\title{\texttt{dplyr} Semantics}
+\author{Ming-Ho Yee}
+
+\usepackage{amsmath}
+\usepackage{supertabular}
+\usepackage{ottlayout}
+
+% include generated LaTeX from Ott
+\input{ds_}
+
+% overrides to use ottlayout
+\renewcommand{\ottpremise}[1]{\premiseSTY{#1}}
+\renewcommand{\ottusedrule}[1]{\usedruleSTY{#1}}
+\renewcommand{\ottdrule}[4][]{\druleSTY[#1]{#2}{#3}{#4}}
+\renewenvironment{ottdefnblock}[3][]{\defnblockSTY[#1]{#2}{#3}}{\enddefnblockSTY}
+
+\begin{document}
+
+\maketitle
+
+% print all Ott-generated LaTeX
+\ottall{}
+
+\end{document}
