@@ -1,38 +1,52 @@
-metavar termvar, x ::=
-  {{ tex \mathit{[[termvar]]} }}
+metavar termvar, x ::= {{ tex \mathit{[[termvar]]} }} {{ com metavariables }}
 
+metavar num ::= {{ lex numeral  }} {{ com numbers }}
+metavar str ::= {{ lex alphanum }} {{ com strings }}
+
+indexvar n ::= {{ com index variables }}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 grammar
-t :: 't_' ::=                               {{ com term    }}
-  | x            ::  :: Var                   {{ com variable}}
-  | \ x . t      ::  :: Lam                   {{ com lambda  }}
-  | t t'         ::  :: App                   {{ com app     }}
-  | ( t )        :: S:: Paren
-  | { t / x } t' :: M:: Tsub
 
-v :: 'v_' ::=                               {{ com value   }}
-  | \ x . t      ::  :: Lam                   {{ com lambda  }}
+%%% Expressions %%%
+e :: 'e_' ::=                               {{ com expressions }}
+  | lit                   :: :: Lit           {{ com literal     }}
+  | Vec ( e1 , .. , en )  :: :: VecCtor       {{ com vector ctor }}
+  | v                     :: :: Val           {{ com value       }}
 
+%%% LITERALS %%%
+lit :: 'lit_' ::=                           {{ com literals }}
+  | num                   :: :: Int           {{ com integer }}
+
+%%% VALUES %%%
+v :: 'v_' ::=                               {{ com values }}
+  | [ lit1 .. litn ] , T  :: :: Vec           {{ com vector }}
+
+%%% TYPES %%%
+T :: 'T_' ::=                               {{ com types }}
+  | Int                   :: :: Int           {{ com integer }}
+
+%%% TERMINALS %%%
 terminals :: 'terminals_' ::=
-  | \            ::  :: lambda  {{ tex \lambda }}
-  | -->          ::  :: red     {{ tex \longrightarrow }}
+  | -->       :: :: reduce     {{ tex \longrightarrow }}
 
-subrules
-  v <:: t
+%%% FORMULAS %%%
+formula :: 'formula_' ::=
+  | judgement               :: :: judgement
+  | formula1 .. formulan    :: :: dots
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 defns
-Jop :: '' ::=
+OperationalSemantics :: '' ::=
 
- defn
- t1 --> t2 :: ::reduce::'' {{ com $[[t1]]$ reduces to $[[t2]]$}} by
+  defn
+  e1 --> e2 :: :: reduce :: E_ {{ com $[[e1]]$ reduces to $[[e2]]$ }} by
 
+    ------------------- :: LitCtor
+    num --> [ num ],Int
 
-    --------------------------  :: ax_app
-    (\x.t12) v2 -->  {v2/x}t12
+    e1 --> num1 .. en --> numn
+    -------------------------------------- :: VecCtor
+    Vec(e1, .., en) --> [num1 .. numn],Int
 
-    t1 --> t1'
-    -------------- :: ctx_app_fun
-    t1 t --> t1' t
-
-    t1 --> t1'
-    -------------- :: ctx_app_arg
-    v t1 --> v t1'

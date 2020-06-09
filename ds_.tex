@@ -27,92 +27,100 @@
 \newcommand{\ottafterlastrule}{\\}
 \newcommand{\ottmetavars}{
 \ottmetavartabular{
- $ \mathit{termvar} ,\, \mathit{x} $ &  \\
+ $ \mathit{termvar} ,\, \mathit{x} $ & \ottcom{metavariables} \\
+ $ \ottmv{num} $ & \ottcom{numbers} \\
+ $ \ottmv{str} $ & \ottcom{strings} \\
+ $ \ottmv{n} $ & \ottcom{index variables} \\
 }}
 
-\newcommand{\ottt}{
-\ottrulehead{\ottnt{t}}{::=}{\ottcom{term}}\ottprodnewline
-\ottfirstprodline{|}{\mathit{x}}{}{}{}{\ottcom{variable}}\ottprodnewline
-\ottprodline{|}{\lambda  \mathit{x}  \ottsym{.}  \ottnt{t}}{}{}{}{\ottcom{lambda}}\ottprodnewline
-\ottprodline{|}{\ottnt{t} \, \ottnt{t'}}{}{}{}{\ottcom{app}}\ottprodnewline
-\ottprodline{|}{\ottsym{(}  \ottnt{t}  \ottsym{)}} {\textsf{S}}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottsym{\{}  \ottnt{t}  \ottsym{/}  \mathit{x}  \ottsym{\}}  \ottnt{t'}} {\textsf{M}}{}{}{}}
+\newcommand{\otte}{
+\ottrulehead{\ottnt{e}}{::=}{\ottcom{expressions}}\ottprodnewline
+\ottfirstprodline{|}{\ottnt{lit}}{}{}{}{\ottcom{literal}}\ottprodnewline
+\ottprodline{|}{\ottkw{Vec} \, \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}}{}{}{}{\ottcom{vector ctor}}\ottprodnewline
+\ottprodline{|}{\ottnt{v}}{}{}{}{\ottcom{value}}}
+
+\newcommand{\ottlit}{
+\ottrulehead{\ottnt{lit}}{::=}{\ottcom{literals}}\ottprodnewline
+\ottfirstprodline{|}{\ottmv{num}}{}{}{}{\ottcom{integer}}}
 
 \newcommand{\ottv}{
-\ottrulehead{\ottnt{v}}{::=}{\ottcom{value}}\ottprodnewline
-\ottfirstprodline{|}{\lambda  \mathit{x}  \ottsym{.}  \ottnt{t}}{}{}{}{\ottcom{lambda}}}
+\ottrulehead{\ottnt{v}}{::=}{\ottcom{values}}\ottprodnewline
+\ottfirstprodline{|}{\ottsym{[}  \ottnt{lit_{{\mathrm{1}}}} \, .. \, \ottnt{lit_{\ottmv{n}}}  \ottsym{]}  \ottsym{,}  \ottnt{T}}{}{}{}{\ottcom{vector}}}
+
+\newcommand{\ottT}{
+\ottrulehead{\ottnt{T}}{::=}{\ottcom{types}}\ottprodnewline
+\ottfirstprodline{|}{\ottkw{Int}}{}{}{}{\ottcom{integer}}}
 
 \newcommand{\ottterminals}{
 \ottrulehead{\ottnt{terminals}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ \lambda }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \longrightarrow }{}{}{}{}}
+\ottfirstprodline{|}{ \longrightarrow }{}{}{}{}}
 
 \newcommand{\ottformula}{
 \ottrulehead{\ottnt{formula}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{\ottnt{judgement}}{}{}{}{}}
+\ottfirstprodline{|}{\ottnt{judgement}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{formula_{{\mathrm{1}}}} \quad .. \quad \ottnt{formula_{\ottmv{n}}}}{}{}{}{}}
 
-\newcommand{\ottJop}{
-\ottrulehead{\ottnt{Jop}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{\ottnt{t_{{\mathrm{1}}}}  \longrightarrow  \ottnt{t_{{\mathrm{2}}}}}{}{}{}{\ottcom{$\ottnt{t_{{\mathrm{1}}}}$ reduces to $\ottnt{t_{{\mathrm{2}}}}$}}}
+\newcommand{\ottOperationalSemantics}{
+\ottrulehead{\ottnt{OperationalSemantics}}{::=}{}\ottprodnewline
+\ottfirstprodline{|}{\ottnt{e_{{\mathrm{1}}}}  \longrightarrow  \ottnt{e_{{\mathrm{2}}}}}{}{}{}{\ottcom{$\ottnt{e_{{\mathrm{1}}}}$ reduces to $\ottnt{e_{{\mathrm{2}}}}$}}}
 
 \newcommand{\ottjudgement}{
 \ottrulehead{\ottnt{judgement}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{\ottnt{Jop}}{}{}{}{}}
+\ottfirstprodline{|}{\ottnt{OperationalSemantics}}{}{}{}{}}
 
 \newcommand{\ottuserXXsyntax}{
 \ottrulehead{\ottnt{user\_syntax}}{::=}{}\ottprodnewline
 \ottfirstprodline{|}{\mathit{termvar}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{t}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottmv{num}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottmv{str}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottmv{n}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{e}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{lit}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{v}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{terminals}}{}{}{}{}}
+\ottprodline{|}{\ottnt{T}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{terminals}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{formula}}{}{}{}{}}
 
 \newcommand{\ottgrammar}{\ottgrammartabular{
-\ottt\ottinterrule
+\otte\ottinterrule
+\ottlit\ottinterrule
 \ottv\ottinterrule
+\ottT\ottinterrule
 \ottterminals\ottinterrule
 \ottformula\ottinterrule
-\ottJop\ottinterrule
+\ottOperationalSemantics\ottinterrule
 \ottjudgement\ottinterrule
 \ottuserXXsyntax\ottafterlastrule
 }}
 
 % defnss
-% defns Jop
+% defns OperationalSemantics
 %% defn reduce
-\newcommand{\ottdruleaxXXapp}[1]{\ottdrule[#1]{%
+\newcommand{\ottdruleEXXLitCtor}[1]{\ottdrule[#1]{%
 }{
-\ottsym{(}  \lambda  \mathit{x}  \ottsym{.}  \ottnt{t_{{\mathrm{12}}}}  \ottsym{)} \, \ottnt{v_{{\mathrm{2}}}}  \longrightarrow  \ottsym{\{}  \ottnt{v_{{\mathrm{2}}}}  \ottsym{/}  \mathit{x}  \ottsym{\}}  \ottnt{t_{{\mathrm{12}}}}}{%
-{\ottdrulename{ax\_app}}{}%
+\ottmv{num}  \longrightarrow  \ottsym{[}  \ottmv{num}  \ottsym{]}  \ottsym{,}  \ottkw{Int}}{%
+{\ottdrulename{E\_LitCtor}}{}%
 }}
 
 
-\newcommand{\ottdrulectxXXappXXfun}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{t_{{\mathrm{1}}}}  \longrightarrow  \ottnt{t'_{{\mathrm{1}}}}}%
+\newcommand{\ottdruleEXXVecCtor}[1]{\ottdrule[#1]{%
+\ottpremise{\ottnt{e_{{\mathrm{1}}}}  \longrightarrow  \ottmv{num_{{\mathrm{1}}}} \quad .. \quad \ottnt{e_{\ottmv{n}}}  \longrightarrow  \ottmv{num_{\ottmv{n}}}}%
 }{
-\ottnt{t_{{\mathrm{1}}}} \, \ottnt{t}  \longrightarrow  \ottnt{t'_{{\mathrm{1}}}} \, \ottnt{t}}{%
-{\ottdrulename{ctx\_app\_fun}}{}%
+\ottkw{Vec} \, \ottsym{(}  \ottnt{e_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{e_{\ottmv{n}}}  \ottsym{)}  \longrightarrow  \ottsym{[}  \ottmv{num_{{\mathrm{1}}}} \, .. \, \ottmv{num_{\ottmv{n}}}  \ottsym{]}  \ottsym{,}  \ottkw{Int}}{%
+{\ottdrulename{E\_VecCtor}}{}%
 }}
 
-
-\newcommand{\ottdrulectxXXappXXarg}[1]{\ottdrule[#1]{%
-\ottpremise{\ottnt{t_{{\mathrm{1}}}}  \longrightarrow  \ottnt{t'_{{\mathrm{1}}}}}%
-}{
-\ottnt{v} \, \ottnt{t_{{\mathrm{1}}}}  \longrightarrow  \ottnt{v} \, \ottnt{t'_{{\mathrm{1}}}}}{%
-{\ottdrulename{ctx\_app\_arg}}{}%
-}}
-
-\newcommand{\ottdefnreduce}[1]{\begin{ottdefnblock}[#1]{$\ottnt{t_{{\mathrm{1}}}}  \longrightarrow  \ottnt{t_{{\mathrm{2}}}}$}{\ottcom{$\ottnt{t_{{\mathrm{1}}}}$ reduces to $\ottnt{t_{{\mathrm{2}}}}$}}
-\ottusedrule{\ottdruleaxXXapp{}}
-\ottusedrule{\ottdrulectxXXappXXfun{}}
-\ottusedrule{\ottdrulectxXXappXXarg{}}
+\newcommand{\ottdefnreduce}[1]{\begin{ottdefnblock}[#1]{$\ottnt{e_{{\mathrm{1}}}}  \longrightarrow  \ottnt{e_{{\mathrm{2}}}}$}{\ottcom{$\ottnt{e_{{\mathrm{1}}}}$ reduces to $\ottnt{e_{{\mathrm{2}}}}$}}
+\ottusedrule{\ottdruleEXXLitCtor{}}
+\ottusedrule{\ottdruleEXXVecCtor{}}
 \end{ottdefnblock}}
 
 
-\newcommand{\ottdefnsJop}{
+\newcommand{\ottdefnsOperationalSemantics}{
 \ottdefnreduce{}}
 
 \newcommand{\ottdefnss}{
-\ottdefnsJop
+\ottdefnsOperationalSemantics
 }
 
 \newcommand{\ottall}{\ottmetavars\\[0pt]
