@@ -94,6 +94,13 @@
     v_1[v_2] --> [],T
 
 
+    v_1 = [lit_1 .. lit_n],T
+    v_2 = [bool_1 .. bol_n],T_Bool
+    v_3 = get_at_true(v_1, v_2)
+    ------------------------------  :: E_Subset1
+    v_1[v_2] --> v_3
+
+
     v_1 = [lit_1 ... lit_n],T
     v_2 = [m],Int
     m in 1...n
@@ -115,6 +122,9 @@
   * `E_Subset1_Zero`: Subsetting a vector with `0` returns an empty vector of
      the same type.
 
+  * `E_Subset1`: Subsetting takes a boolean vector of the same length, and
+     selects elements where the corresponding boolean value is `True`.
+
   * `E_Subset2`: Subsetting a vector with `[[` returns a single-element vector.
     The vector must contain at least one element, and the index must be within
     bounds; it cannot be `0` or nothing.
@@ -122,13 +132,43 @@
 
 ### Auxiliary Functions
 
-    ---------------------  :: Aux_TypeofBool
+    ---------------------  :: Aux_Typeof_Bool
     typeof(bool) = T_Bool
 
 
-    -------------------  :: Aux_TypeofInt
+    -------------------  :: Aux_Typeof_Int
     typeof(num) = T_Int
 
+
+    typeof(lit) = T
+    v = [lit_1 .. lit_n],T
+    ---------------------------------------  :: Aux_Concat
+    concat(lit, v) = [lit lit_1 .. lit_n],T
+
+
+    v_1 = [],T
+    v_2 = [],T_Bool
+    ----------------------------  :: Aux_GetAtTrue_Base
+    get_at_true(v_1, v_2) = [],T
+
+
+    v_1 = [lit_0 lit_1 .. lit_n],T
+    v_2 = [True bool_1 .. bool_n],T_Bool
+    v_1' = [lit_1 .. lit_n],T
+    v_2' = [bool_1 .. bool_n],T_Bool
+    v_3' = get_at_true(v_1', v_2')
+    v = concat(lit_0, v_3')
+    ------------------------------------  :: Aux_GetAtTrue1
+    get_at_true(v_1, v_2) = v
+
+
+    v_1 = [lit_0 lit_1 .. lit_n],T
+    v_2 = [False bool_1 .. bool_n],T_Bool
+    v_1' = [lit_1 .. lit_n],T
+    v_2' = [bool_1 .. bool_n],T_Bool
+    v = get_at_true(v_1', v_2')
+    -------------------------------------  :: Aux_GetAtTrue2
+    get_at_true(v_1, v_2) = v
 
 ## TODO
 
@@ -136,7 +176,6 @@
 
 These features are likely required.
 
-  * logical subsetting
   * missing values
   * subset assignment
   * recycling
