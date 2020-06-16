@@ -16,6 +16,7 @@
 
   * `..` denotes a possibly empty sequence, i.e., `e_1, .., e_n` may be a list
     of zero expressions.
+  * `...` denotes a sequence containing at least one element.
   * `[` extracts a smaller vector, while `[[` extracts a single element. Note
     that "a single element" may be a one-element vector.
   * Bare values `v` are not available in the surface syntax; they are required
@@ -25,6 +26,7 @@
 ### Literals
 
     lit ::=
+        | bool                                  # boolean
         | num                                   # integer
 
 
@@ -37,11 +39,13 @@
 
   * There are no scalar values, because scalars are actually one-element
     vectors.
+  * Vectors are homogeneous; every element in a vector has the same type.
 
 
 ### Types
 
     T ::=
+        | T_Bool                                # boolean
         | T_Int                                 # integer
 
 
@@ -69,31 +73,32 @@
 
 `e_1` reduces to `e_2`
 
-    -------------------  :: E_Scalar2Vec
-    num --> [num],T_Int
+    typeof(lit) = T
+    ---------------  :: E_Scalar2Vec
+    lit --> [lit],T
 
 
-    (v_1 = [num_1_1 .. num_1_m1],T_Int) .. (v_n = [num_n_1 .. num_n_mn],T_Int)
-    --------------------------------------------------------------------------  :: E_VecCtor
-    Vec(v_1, .., v_n) --> [num_1_1 .. num_1_m1 .. num_n_1 .. num_n_mn],T_Int
+    (v_1 = [lit_1_1 .. lit_1_m1],T) .. (v_n = [lit_n_1 .. lit_n_mn],T)
+    --------------------------------------------------------------------  :: E_VecCtor
+    Vec(v_1, .., v_n) --> [lit_1_1 .. lit_1_m1 .. lit_n_1 .. lit_n_mn],T
 
 
-    v = [num_1 .. num_n],Int
-    ------------------------  :: E_Subset1_Nothing
+    v = [lit_1 .. lit_n],T
+    ----------------------  :: E_Subset1_Nothing
     v[] --> v
 
 
-    v_1 = [num_1 .. num_n],Int
+    v_1 = [lit_1 .. lit_n],T
     v_2 = [0],Int
-    --------------------------  :: E_Subset1_Zero
-    v_1[v_2] --> [],Int
+    ------------------------  :: E_Subset1_Zero
+    v_1[v_2] --> [],T
 
 
-    v_1 = [num_1 .. num_n],Int
+    v_1 = [lit_1 ... lit_n],T
     v_2 = [m],Int
-    1 <= m <= n
-    --------------------------  :: E_Subset2
-    v_1[[v_2]] --> [num_m],Int
+    m in 1...n
+    ------------------------  :: E_Subset2
+    v_1[[v_2]] --> [num_m],T
 
 #### Notes
 
@@ -111,7 +116,18 @@
      the same type.
 
   * `E_Subset2`: Subsetting a vector with `[[` returns a single-element vector.
-    The index for `[[` must be within bounds; it cannot be `0` or nothing.
+    The vector must contain at least one element, and the index must be within
+    bounds; it cannot be `0` or nothing.
+
+
+### Auxiliary Functions
+
+    ---------------------  :: Aux_TypeofBool
+    typeof(bool) = T_Bool
+
+
+    -------------------  :: Aux_TypeofInt
+    typeof(num) = T_Int
 
 
 ## TODO
@@ -120,10 +136,11 @@
 
 These features are likely required.
 
-  * boolean literals/types/vectors
   * logical subsetting
   * missing values
   * subset assignment
+  * recycling
+  * expressions
   * symbols
   * tibbles
 
