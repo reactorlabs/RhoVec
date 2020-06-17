@@ -177,8 +177,12 @@
 These features are likely required.
 
   * missing values
+      * use an auxiliary function to get NA of the right type
+  * recycling (lgl index vector too short) and lgl index vector too long
+  * positive and negative (including -0) subsetting
+      * generalization doesn't work because you can do v[c(1,1,1)]
+  * subsetting with missing and out-of-bounds indices
   * subset assignment
-  * recycling
   * expressions
   * symbols
   * tibbles
@@ -188,9 +192,6 @@ These features are likely required.
 These might not be necessary, but are nice to have, or will be implemented
 because other features depend on them.
 
-  * positive and negative (including -0) subsetting
-      * generalization of logical subsetting
-  * subsetting with missing and out-of-bounds indices
   * named vectors and subsetting
   * general assignment to variables
 
