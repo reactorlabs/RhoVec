@@ -180,7 +180,8 @@ These features are likely required.
       * use an auxiliary function to get NA of the right type
   * recycling (lgl index vector too short) and lgl index vector too long
   * positive and negative (including -0) subsetting
-      * generalization doesn't work because you can do v[c(1,1,1)]
+  * generalization: convert boolean/negative indexing to positive (positional)
+    indexing
   * subsetting with missing and out-of-bounds indices
   * subset assignment
   * expressions
