@@ -29,6 +29,24 @@
         | bool                                  # boolean
         | num                                   # integer
 
+    bool ::=
+        | False                                 # false
+        | True                                  # true
+        | NA_b                                  # missing
+
+    num ::=
+        | /[0-9]+/                              # number
+        | NA_i                                  # missing
+
+#### Notes
+
+  * R represents missing values with `NA` (not applicable). Each type has its
+    own missing value. I.e. there are three boolean values: `True`, `False`, and
+    `NA_b`.
+  * We use regular expression notation to specify what kind of literals are
+    allowed. `/[0-9]+/` describes one or more occurrences of the digits from
+    0 to 9.
+
 
 ### Values
 
@@ -122,8 +140,11 @@
   * `E_Subset1_Zero`: Subsetting a vector with `0` returns an empty vector of
      the same type.
 
-  * `E_Subset1`: Subsetting takes a boolean vector of the same length, and
-     selects elements where the corresponding boolean value is `True`.
+  * `E_Subset1`: Subsetting takes a boolean vector of the same length. If the
+     boolean vector contains `True`, then the element at the corresponding
+     location is selected; if it contains `False`, then the corresponding
+     element is skipped; and if it contains `NA_b`, then `NA` (of the
+     appropriate type) is selected.
 
   * `E_Subset2`: Subsetting a vector with `[[` returns a single-element vector.
     The vector must contain at least one element, and the index must be within
@@ -140,10 +161,18 @@
     typeof(num) = T_Int
 
 
+    -----------------  :: Aux_NA_Bool
+    NA(T_Bool) = NA_b
+
+
+    ----------------  :: Aux_NA_Int
+    NA(T_Int) = NA_i
+
+
     typeof(lit) = T
     v = [lit_1 .. lit_n],T
-    ---------------------------------------  :: Aux_Concat
-    concat(lit, v) = [lit lit_1 .. lit_n],T
+    ----------------------------------------  :: Aux_Prepend
+    prepend(lit, v) = [lit lit_1 .. lit_n],T
 
 
     v_1 = [],T
@@ -157,7 +186,7 @@
     v_1' = [lit_1 .. lit_n],T
     v_2' = [bool_1 .. bool_n],T_Bool
     v_3' = get_at_true(v_1', v_2')
-    v = concat(lit_0, v_3')
+    v = prepend(lit_0, v_3')
     ------------------------------------  :: Aux_GetAtTrue1
     get_at_true(v_1, v_2) = v
 
@@ -170,19 +199,28 @@
     -------------------------------------  :: Aux_GetAtTrue2
     get_at_true(v_1, v_2) = v
 
+
+    v_1 = [lit_0 lit_1 .. lit_n],T
+    v_2 = [NA_b bool_1 .. bool_n],T_Bool
+    v_1' = [lit_1 .. lit_n],T
+    v_2' = [bool_1 .. bool_n],T_Bool
+    v_3' = get_at_true(v_1', v_2')
+    v = prepend(NA(T), v_3')
+    ------------------------------------  :: Aux_GetAtTrue3
+    get_at_true(v_1, v_2) = v
+
+
 ## TODO
 
 ### Higher priority
 
 These features are likely required.
 
-  * missing values
-      * use an auxiliary function to get NA of the right type
   * recycling (lgl index vector too short) and lgl index vector too long
   * positive and negative (including -0) subsetting
   * generalization: convert boolean/negative indexing to positive (positional)
     indexing
-  * subsetting with missing and out-of-bounds indices
+  * subsetting with out-of-bounds indices
   * subset assignment
   * expressions
   * symbols
@@ -195,6 +233,7 @@ because other features depend on them.
 
   * named vectors and subsetting
   * general assignment to variables
+  * core syntax and sugar?
 
 ### Lower priority
 
