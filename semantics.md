@@ -113,16 +113,17 @@
 
 
     v_1 = [lit_1 .. lit_n],T
-    v_2 = [bool_1 .. bol_n],T_Bool
-    v_3 = get_at_true(v_1, v_2)
-    ------------------------------  :: E_Subset1_Bool
+    v_2 = [num_1 .. num_m],T_Int
+    v_3 = get_at_pos(v_1, v_2)
+    ------------------------------  :: E_Subset1_Positive
     v_1[v_2] --> v_3
 
 
     v_1 = [lit_1 .. lit_n],T
-    v_2 = [num_1 ... num_m],T_Int
-    v_3 = get_at_pos(v_1, v_2)
-    ------------------------------  :: E_Subset1_Positive
+    v_2 = [bool_1 .. bool_n],T_Bool
+    v_2' = bool_vec_to_pos(v_2, 1)
+    v_3 = get_at_pos(v_1, v_2')
+    -------------------------------  :: E_Subset1_Bool
     v_1[v_2] --> v_3
 
 
@@ -147,16 +148,17 @@
   * `E_Subset1_Zero`: Subsetting a vector with `0` returns an empty vector of
     the same type.
 
+  * `E_Subset1_Positive`: Subsetting takes a positional vector of positive
+    integers, which describes the index of elements to return. The index vector
+    non-empty. Indices that are out of bounds or denoted by `NA_i` select `NA`
+    (of the appropriate type).
+
   * `E_Subset1_Bool`: Subsetting takes a boolean vector of the same length. If
     the boolean vector contains `True`, then the element at the corresponding
     location is selected; if it contains `False`, then the corresponding element
     is skipped; and if it contains `NA_b`, then `NA` (of the appropriate type)
-    is selected.
-
-  * `E_Subset1_Positive`: Subsetting takes a vector of positive integers, which
-    describes the index of elements to return. The index vector non-empty.
-    Indices that are out of bounds or denoted by `NA_i` select `NA` (of the
-    appropriate type).
+    is selected. Internally, we convert a boolean vector into a positional
+    vector (see previous case).
 
   * `E_Subset2`: Subsetting a vector with `[[` returns a single-element vector.
     The vector must contain at least one element, and the index must be within
@@ -187,41 +189,6 @@
     prepend(lit, v) = [lit lit_1 .. lit_n],T
 
 
-    v_1 = [],T
-    v_2 = [],T_Bool
-    ----------------------------  :: Aux_GetAtTrue_Base
-    get_at_true(v_1, v_2) = [],T
-
-
-    v_1 = [lit_0 lit_1 .. lit_n],T
-    v_2 = [True bool_1 .. bool_n],T_Bool
-    v_1' = [lit_1 .. lit_n],T
-    v_2' = [bool_1 .. bool_n],T_Bool
-    v_3 = get_at_true(v_1', v_2')
-    v = prepend(lit_0, v_3)
-    ------------------------------------  :: Aux_GetAtTrue_TrueCase
-    get_at_true(v_1, v_2) = v
-
-
-    v_1 = [lit_0 lit_1 .. lit_n],T
-    v_2 = [False bool_1 .. bool_n],T_Bool
-    v_1' = [lit_1 .. lit_n],T
-    v_2' = [bool_1 .. bool_n],T_Bool
-    v = get_at_true(v_1', v_2')
-    -------------------------------------  :: Aux_GetAtTrue_FalseCase
-    get_at_true(v_1, v_2) = v
-
-
-    v_1 = [lit_0 lit_1 .. lit_n],T
-    v_2 = [NA_b bool_1 .. bool_n],T_Bool
-    v_1' = [lit_1 .. lit_n],T
-    v_2' = [bool_1 .. bool_n],T_Bool
-    v_3 = get_at_true(v_1', v_2')
-    v = prepend(NA(T), v_3)
-    ------------------------------------  :: Aux_GetAtTrue_NACase
-    get_at_true(v_1, v_2) = v
-
-
     v_1 = [lit_1 .. lit_n],T
     v_2 = [],T_Int
     ---------------------------  :: Aux_GetAtPos_Base
@@ -248,6 +215,34 @@
     get_at_pos(v_1, v_2) = v
 
 
+    v_1 = [],T
+    ----------------------------------  :: Aux_BoolVecToPos_Base
+    bool_vec_to_pos(v_1, i) = [],T_Int
+
+
+    v_1 = [True bool_1 .. bool_n],T_Bool
+    v_1' = [bool_1 .. bool_n],T_Bool
+    v_2 = bool_vec_to_pos(v_1', i+1)
+    v = prepend(i, v_2)
+    ------------------------------------   :: Aux_BoolVecToPos_TrueCase
+    bool_vec_to_pos(v_1, i) = v
+
+
+    v_1 = [False bool_1 .. bool_n],T_Bool
+    v_1' = [bool_1 .. bool_n],T_Bool
+    v = bool_vec_to_pos(v_1', i+1)
+    ------------------------------------  :: Aux_BoolVecToPos_FalseCase
+    bool_vec_to_pos(v_1, i) = v
+
+
+    v_1 = [NA_b bool_1 .. bool_n],T_Bool
+    v_1' = [bool_1 .. bool_n],T_Bool
+    v_2 = bool_vec_to_pos(v_1', i+1)
+    v = prepend(NA_i, v_2)
+    ------------------------------------   :: Aux_BoolVecToPos_NACase
+    bool_vec_to_pos(v_1, i) = v
+
+
 ## TODO
 
 ### Higher priority
@@ -256,9 +251,7 @@ These features are likely required.
 
   * negative (including -0) subsetting
   * generalization
-    * convert boolean to positive (positional)
     * convert negative to positive (positional)
-    indexing
   * recycling (lgl index vector too short) and lgl index vector too long
   * subsetting with out-of-bounds indices
   * subset assignment
