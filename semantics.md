@@ -120,9 +120,12 @@
 
 
     v_1 = [lit_1 .. lit_n],T
-    v_2 = [bool_1 .. bool_n],T_Bool
-    v_2' = bool_vec_to_pos(v_2, 1)
-    v_3 = get_at_pos(v_1, v_2')
+    v_2 = [bool_1 .. bool_m],T_Bool
+    l = max(n, m)
+    v_1' = extend(v_1, l-n)
+    v_2' = recycle(v_2, v_2, v_2, l-m)
+    v_2'' = bool_vec_to_pos(v_2', 1)
+    v_3 = get_at_pos(v_1, v_2'')
     -------------------------------  :: E_Subset1_Bool
     v_1[v_2] --> v_3
 
@@ -157,8 +160,13 @@
     the boolean vector contains `True`, then the element at the corresponding
     location is selected; if it contains `False`, then the corresponding element
     is skipped; and if it contains `NA_b`, then `NA` (of the appropriate type)
-    is selected. Internally, we convert a boolean vector into a positional
-    vector (see previous case).
+    is selected.
+    * If the boolean vector is too long, we extend the other vector with `NA`s
+      (of the appropriate type) until both vectors have the same length.
+    * If the boolean vector is too short, we recycle its elements until both
+      vectors have the same length.
+    * Internally, we convert a boolean vector into a positional vector (see
+      previous case).
 
   * `E_Subset2`: Subsetting a vector with `[[` returns a single-element vector.
     The vector must contain at least one element, and the index must be within
@@ -187,6 +195,12 @@
     v = [lit_1 .. lit_n],T
     ----------------------------------------  :: Aux_Prepend
     prepend(lit, v) = [lit lit_1 .. lit_n],T
+
+
+    typeof(lit) = T
+    v = [lit_1 .. lit_n],T
+    ---------------------------------------  :: Aux_Append
+    append(v, lit) = [lit_1 .. lit_n lit],T
 
 
     v_1 = [lit_1 .. lit_n],T
@@ -243,6 +257,40 @@
     bool_vec_to_pos(v_1, i) = v
 
 
+    --------------------  :: Aux_Extend_BaseCase
+    extend(v_1, 0) = v_1
+
+
+    v_1 = [lit_1 .. lit_n],T
+    v_1' = append(v_1, NA(T))
+    v = extend(v_1', m-1)
+    m > 0
+    -------------------------  :: Aux_Extend_RecurseCase
+    extend(v_1, m) = v
+
+
+    -------------------------------  :: Aux_Recycle_BaseCase
+    recycle(v_1, v_2, v_3, 0) = v_1
+
+
+    v_1 = [lit_i .. lit_j],T
+    v_2 = [],T
+    v = recycle(v_1, v_3, v_3, m)
+    m > 0
+    -----------------------------  :: Aux_Recycle_CycleCase
+    recycle(v_1, v_2, v_3, m) = v
+
+
+    v_1 = [lit_i .. lit_j],T
+    v_2 = [lit lit_1 .. lit_n],T
+    v_1' = append(v_1, lit)
+    v_2' = [lit_1 .. lit_n],T
+    v = recycle(v_1', v_2', v_3, m-1)
+    m > 0
+    ---------------------------------  :: Aux_Recycle_RecurseCase
+    recycle(v_1, v_2, v_3, m) = v
+
+
 ## TODO
 
 ### Higher priority
@@ -250,10 +298,8 @@
 These features are likely required.
 
   * negative (including -0) subsetting
-  * generalization
     * convert negative to positive (positional)
-  * recycling (lgl index vector too short) and lgl index vector too long
-  * subsetting with out-of-bounds indices
+    * negative out-of-bounds indices
   * subset assignment
   * expressions
   * symbols
