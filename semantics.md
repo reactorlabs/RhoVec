@@ -114,8 +114,41 @@
 
     v_1 = [lit_1 .. lit_n],T
     v_2 = [num_1 .. num_m],T_Int
+    forall i in 1..m : num_i >= 0
     v_3 = get_at_pos(v_1, v_2)
-    ------------------------------  :: E_Subset1_Positive
+    -----------------------------  :: E_Subset1_Positive1
+    v_1[v_2] --> v_3
+
+
+    v_1 = [lit_1 .. lit_n],T
+    v_2 = [num_1 .. num_m],T_Int
+    forall i in 1..m : num_i <= 0
+    v_2' = negate_vec(v_2)
+    v_3 = get_at_pos(v_1, v_2')
+    -----------------------------  :: E_Subset1_Positive2
+    v_1[-v_2] --> v_3
+
+
+    v_1 = [lit_1 .. lit_n],T
+    v_2 = [num_1 .. num_m],T_Int
+    forall i in 1..m : num_i >= 0
+    v_1' = gen_bool_vec(v1)
+    v_2' = neg_vec_to_bool(v_2, v_1')
+    v_2'' = bool_vec_to_pos(v_2', 1)
+    v_3 = get_at_pos(v_1, v_2'')
+    ---------------------------------  :: E_Subset1_Negative1
+    v_1[-v_2] --> v_3
+
+
+    v_1 = [lit_1 .. lit_n],T
+    v_2 = [num_1 .. num_m],T_Int
+    forall i in 1..m : num_i <= 0
+    v_1' = gen_bool_vec(v1)
+    v_2' = negate_vec(v_2)
+    v_2'' = neg_vec_to_bool(v_2', v_1')
+    v_2''' = bool_vec_to_pos(v_2'', 1)
+    v_3 = get_at_pos(v_1, v_2''')
+    -----------------------------------  :: E_Subset1_Negative2
     v_1[v_2] --> v_3
 
 
@@ -126,14 +159,14 @@
     v_2' = recycle(v_2, v_2, v_2, l-m)
     v_2'' = bool_vec_to_pos(v_2', 1)
     v_3 = get_at_pos(v_1, v_2'')
-    -------------------------------  :: E_Subset1_Bool
+    ----------------------------------  :: E_Subset1_Bool
     v_1[v_2] --> v_3
 
 
     v_1 = [lit_1 ... lit_n],T
     v_2 = [m],Int
     m in 1...n
-    ------------------------  :: E_Subset2
+    -------------------------  :: E_Subset2
     v_1[[v_2]] --> [lit_m],T
 
 #### Notes
@@ -151,10 +184,21 @@
   * `E_Subset1_Zero`: Subsetting a vector with `0` returns an empty vector of
     the same type.
 
-  * `E_Subset1_Positive`: Subsetting takes a positional vector of positive
+  * `E_Subset1_Positive1`: Subsetting takes a positional vector of positive
     integers, which describes the index of elements to return. The index vector
     non-empty. Indices that are out of bounds or denoted by `NA_i` select `NA`
     (of the appropriate type).
+
+  * `E_Subset1_Postive2`: Negating both the index vector and all of its indices
+     is equivalent to positive subsetting.
+
+  * `E_Subset1_Negative1` and `E_Subset1_Negative2`: Subsetting takes negative
+     indices; either a vector of positive numbers is negated, or the vector
+     contains negative numbers. Elements at those positions are excluded from
+     the returned vector.
+       * If a negative index is out of bounds, it is ignored.
+       * Internally, the negative vector is converted to a boolean vector, which
+         is then converted to a positional vector.
 
   * `E_Subset1_Bool`: Subsetting takes a boolean vector of the same length. If
     the boolean vector contains `True`, then the element at the corresponding
@@ -166,7 +210,7 @@
     * If the boolean vector is too short, we recycle its elements until both
       vectors have the same length.
     * Internally, we convert a boolean vector into a positional vector (see
-      previous case).
+      previous cases).
 
   * `E_Subset2`: Subsetting a vector with `[[` returns a single-element vector.
     The vector must contain at least one element, and the index must be within
@@ -205,14 +249,23 @@
 
     v_1 = [lit_1 .. lit_n],T
     v_2 = [],T_Int
-    ---------------------------  :: Aux_GetAtPos_Base
+    ---------------------------  :: Aux_GetAtPos_BaseCase
     get_at_pos(v_1, v_2) = [],T
 
 
     v_1 = [lit_1 .. lit_n],T
     v_2 = [i num_1 .. num_m],T_Int
+    i = 0
     v_2' = [num_1 .. num_m],T_Int
+    v = get_at_pos(v_1, v_2')
+    ------------------------------  :: Aux_GetAtPos_ZeroCase
+    get_at_pos(v_1, v_2) = v
+
+
+    v_1 = [lit_1 .. lit_n],T
+    v_2 = [i num_1 .. num_m],T_Int
     i in 1..n
+    v_2' = [num_1 .. num_m],T_Int
     v_3 = get_at_pos(v_1, v_2')
     v = prepend(lit_i, v_3)
     ------------------------------  :: Aux_GetAtPos_InBoundsCase
@@ -221,16 +274,16 @@
 
     v_1 = [lit_1 .. lit_n],T
     v_2 = [i num_1 .. num_m],T_Int
-    v_2' = [num_1 .. num_m],T_Int
     i not in 1..n \/ i = NA_i
+    v_2' = [num_1 .. num_m],T_Int
     v_3 = get_at_pos(v_1, v_2')
     v = prepend(NA(T), v_3)
     ------------------------------  :: Aux_GetAtPos_OutBoundsCase
     get_at_pos(v_1, v_2) = v
 
 
-    v_1 = [],T
-    ----------------------------------  :: Aux_BoolVecToPos_Base
+    v_1 = [],T_Bool
+    ----------------------------------  :: Aux_BoolVecToPos_BaseCase
     bool_vec_to_pos(v_1, i) = [],T_Int
 
 
@@ -291,18 +344,68 @@
     recycle(v_1, v_2, v_3, m) = v
 
 
+    v_1 = [],T_Int
+    --------------------------  :: Aux_NegateVec_BaseCase
+    negate_vec(v_1) = [],T_Int
+
+
+    v_1 = [lit lit_1 .. lit_n],T_Int
+    v_1' = [lit_1 .. lit_n],T_Int
+    v_2 = negate_vec(v_1')
+    v = prepend(-lit, v_2)
+    --------------------------------  :: Aux_NegateVec_RecurseCase
+    negate_vec(v_1) = v
+
+
+    v_1 = [],T
+    ---------------------------  :: Aux_GenBoolVec_BaseCase
+    gen_bool_vec(v_1) = [],T_Bool
+
+
+    v_1 = [lit lit_1 .. lit_n],T
+    v_2 = [lit_1 .. lit_n],T
+    v_3 = gen_bool_vec(v_2)
+    v = prepend(True, v_3)
+    ----------------------------  :: Aux_GenBoolVec_RecurseCase
+    gen_bool_vec(v_1) = v
+
+
+    v_1 = [],T_Int
+    v_2 = [bool_1 .. bool_n],T_Bool
+    -------------------------------  :: Aux_NegVecToBool_BaseCase
+    neg_vec_to_bool(v_1, v_2) = v_2
+
+
+    v_1 = [j num_1 .. num_n],T_Int
+    v_1' = [num_1 .. num_n],T_Int
+    v_2 = [bool_1 .. bool_i bool_j bool_k .. bool_m],T_Bool
+    v_2' = [bool_1 .. bool_i False bool_k .. bool_m],T_Bool
+    v = neg_vec_to_bool(v_1', v_2')
+    -------------------------------------------------------  :: Aux_NegVecToBool_InBoundsCase
+    neg_vec_to_bool(v_1, v_2) = v
+
+
+    v_1 = [j num_1 .. num_n],T_Int
+    v_1' = [num_1 .. num_n],T_Int
+    v_2 = [bool_1 .. bool_m],T_Bool
+    j not in 1..m
+    v = neg_vec_to_bool(v_1', v_2)
+    -------------------------------  :: Aux_NegVecToBool_OutBoundsCase
+    neg_vec_to_bool(v_1, v_2) = v
+
+
 ## TODO
 
 ### Higher priority
 
 These features are likely required.
 
-  * negative (including -0) subsetting
-    * convert negative to positive (positional)
-    * negative out-of-bounds indices
   * subset assignment
+    * including out-of-bounds
   * expressions
   * symbols
+    * named vectors and subsetting
+  * heap semantics; i.e. assignment to variables
   * tibbles
 
 ### Medium priority
@@ -310,8 +413,6 @@ These features are likely required.
 These might not be necessary, but are nice to have, or will be implemented
 because other features depend on them.
 
-  * named vectors and subsetting
-  * general assignment to variables
   * core syntax and sugar?
 
 ### Lower priority
@@ -324,6 +425,5 @@ necessary.
   * matrices and arrays
   * NULL vector
   * `$` operator
-  * subset assignment (out-of-bounds)
   * promises and laziness
 
