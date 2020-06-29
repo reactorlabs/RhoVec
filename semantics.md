@@ -401,18 +401,23 @@
 These features are likely required.
 
   * subset assignment
-    * including out-of-bounds
+    * out-of-bounds
+    * recycling
+    * negative subset + assignment
   * expressions
+    * lift to vectors
+    * recycling
   * symbols
     * named vectors and subsetting
   * heap semantics; i.e. assignment to variables
-  * tibbles
+  * data frames and/or tibbles
 
 ### Medium priority
 
 These might not be necessary, but are nice to have, or will be implemented
 because other features depend on them.
 
+  * attributes
   * core syntax and sugar?
 
 ### Lower priority
@@ -421,9 +426,13 @@ These features involve a lot of tedious mechanical work and might not be
 necessary.
 
   * other literals/types (float, string)
-  * coercions
-  * matrices and arrays
+    * testing and coercions
+  * dimensions
+    * matrices and arrays
+  * lists
+    * or treat them as "vectors" of some vector type
   * NULL vector
   * `$` operator
+    * `x$y` is sugar for `x[["y"]]`, implies symbol-to-string coercion
   * promises and laziness
 
