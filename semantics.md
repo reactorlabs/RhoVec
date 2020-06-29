@@ -120,10 +120,10 @@
 
 
     v_1 = [lit_1 .. lit_n],T
-    v_2 = [bool_1 .. bool_m],T_Bool
-    v_2' = bool_vec_to_pos(v_2, 1, n)
+    v_2 = [bool_1 .. bool_n],T_Bool
+    v_2' = bool_vec_to_pos(v_2, 1)
     v_3 = get_at_pos(v_1, v_2')
-    ---------------------------------  :: E_Subset1_Bool
+    -------------------------------  :: E_Subset1_Bool
     v_1[v_2] --> v_3
 
 
@@ -153,15 +153,12 @@
     non-empty. Indices that are out of bounds or denoted by `NA_i` select `NA`
     (of the appropriate type).
 
-  * `E_Subset1_Bool`: Subsetting takes a boolean vector. If the boolean vector
-    contains `True`, then the element at the corresponding location is selected;
-    if it contains `False`, then the corresponding element is skipped; and if it
-    contains `NA_b`, then `NA` (of the appropriate type) is selected.
-    * If the boolean vector is too long, then boolean values of `True` and
-      `NA_b` select `NA` (of the appropriate type), while `False` values are
-      skipped.
-    * Internally, we convert a boolean vector into a positional vector (see
-      previous case).
+  * `E_Subset1_Bool`: Subsetting takes a boolean vector of the same length. If
+    the boolean vector contains `True`, then the element at the corresponding
+    location is selected; if it contains `False`, then the corresponding element
+    is skipped; and if it contains `NA_b`, then `NA` (of the appropriate type)
+    is selected. Internally, we convert a boolean vector into a positional
+    vector (see previous case).
 
   * `E_Subset2`: Subsetting a vector with `[[` returns a single-element vector.
     The vector must contain at least one element, and the index must be within
@@ -219,43 +216,32 @@
 
 
     v_1 = [],T
-    -------------------------------------  :: Aux_BoolVecToPos_Base
-    bool_vec_to_pos(v_1, i, n) = [],T_Int
+    ----------------------------------  :: Aux_BoolVecToPos_Base
+    bool_vec_to_pos(v_1, i) = [],T_Int
 
 
-    v_1 = [True bool_1 .. bool_m],T_Bool
-    v_1' = [bool_1 .. bool_m],T_Bool
-    v_2 = bool_vec_to_pos(v_1', i+1, n)
+    v_1 = [True bool_1 .. bool_n],T_Bool
+    v_1' = [bool_1 .. bool_n],T_Bool
+    v_2 = bool_vec_to_pos(v_1', i+1)
     v = prepend(i, v_2)
-    i <= n
     ------------------------------------   :: Aux_BoolVecToPos_TrueCase
-    bool_vec_to_pos(v_1, i, n) = v
+    bool_vec_to_pos(v_1, i) = v
 
 
-    v_1 = [NA_b bool_1 .. bool_m],T_Bool
-    v_1' = [bool_1 .. bool_m],T_Bool
-    v_2 = bool_vec_to_pos(v_1', i+1, n)
-    v = prepend(NA_i, v_2)
-    i <= n
-    ------------------------------------   :: Aux_BoolVecToPos_NACase
-    bool_vec_to_pos(v_1, i, n) = v
-
-
-    v_1 = [bool_0 bool_1 .. bool_m],T_Bool
-    v_1' = [bool_1 .. bool_m],T_Bool
-    v_2 = bool_vec_to_pos(v_1', i+1, n)
-    v = prepend(NA_i, v_2)
-    bool_0 = True \/ bool_0 = NA_b
-    i > n
-    ------------------------------------   :: Aux_BoolVecToPos_OutBoundsCase
-    bool_vec_to_pos(v_1, i, n) = v
-
-
-    v_1 = [False bool_1 .. bool_m],T_Bool
-    v_1' = [bool_1 .. bool_m],T_Bool
-    v = bool_vec_to_pos(v_1', i+1, n)
+    v_1 = [False bool_1 .. bool_n],T_Bool
+    v_1' = [bool_1 .. bool_n],T_Bool
+    v = bool_vec_to_pos(v_1', i+1)
     ------------------------------------  :: Aux_BoolVecToPos_FalseCase
-    bool_vec_to_pos(v_1, i, n) = v
+    bool_vec_to_pos(v_1, i) = v
+
+
+    v_1 = [NA_b bool_1 .. bool_n],T_Bool
+    v_1' = [bool_1 .. bool_n],T_Bool
+    v_2 = bool_vec_to_pos(v_1', i+1)
+    v = prepend(NA_i, v_2)
+    ------------------------------------   :: Aux_BoolVecToPos_NACase
+    bool_vec_to_pos(v_1, i) = v
+
 
 ## TODO
 
@@ -263,9 +249,11 @@
 
 These features are likely required.
 
-  * recycling (lgl index vector too short)
   * negative (including -0) subsetting
+  * generalization
     * convert negative to positive (positional)
+  * recycling (lgl index vector too short) and lgl index vector too long
+  * subsetting with out-of-bounds indices
   * subset assignment
   * expressions
   * symbols
@@ -287,9 +275,6 @@ necessary.
 
   * other literals/types (float, string)
   * coercions
-  * other negative indexing
-    * v[c(-1, -2, -4)]
-    * double negative = positive indexing v[-c(-1, -2, -4)]
   * matrices and arrays
   * NULL vector
   * `$` operator
