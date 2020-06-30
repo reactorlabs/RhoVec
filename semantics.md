@@ -7,9 +7,11 @@
     e ::=
         | lit                                   # literal
         | Vec(e_1, .. , e_n)                    # vector constructor
-        | e_1[e_2]                              # subset1
         | e_1[]                                 # subset1 (nothing)
+        | e_1[e_2]                              # subset1
+        | e_1[e_2] <- e_3                       # subset1 assignment
         | e_1[[e_2]]                            # subset2
+        | e_1[[e_2]] <- e_3                     # subset2 assignment
         | v                                     # value
 
 #### Notes
@@ -72,11 +74,17 @@
     E ::=
         | <>                                    # hole
         | Vec(v_1, .., v_n, E, e_1, .., e_m)
+        | E[]
         | E[e]
         | v[E]
-        | E[]
+        | E[e] <- e
+        | v[E] <- e
+        | v[v] <- E
         | E[[e]]
         | v[[E]]
+        | E[[e]] <- e
+        | v[[E]] <- e
+        | v[[v]] <- E
 
 #### Notes
 
@@ -104,12 +112,6 @@
     v = [lit_1 .. lit_n],T
     ----------------------  :: E_Subset1_Nothing
     v[] --> v
-
-
-    v_1 = [lit_1 .. lit_n],T
-    v_2 = [0],Int
-    ------------------------  :: E_Subset1_Zero
-    v_1[v_2] --> [],T
 
 
     v_1 = [lit_1 .. lit_n],T
@@ -163,11 +165,51 @@
     v_1[v_2] --> v_3
 
 
+    v_1 = [lit_1 .. lit_n],T
+    v_2 = [lit'_1 .. lit'_m],T
+    n % m = 0
+    v_3 = recycle(v_2, v_2, v_2, n-m)
+    ---------------------------------  :: E_Subset1_Nothing_Assign
+    v_1[] <- v_2 --> v_3
+
+
+    v_1 = [lit_1 .. lit_l],T
+    v_2 = [num_1 .. num_n],T_Int
+    v_3 = [lit'_1 .. lit'_m],T
+    n % m == 0
+    v_2' = drop_zeros(v_2)
+    v_3' = recycle(v_3, v_3, v_3, n-m)
+    v_4 = update_at_pos(v_1, v_2', v_3')
+    -----------------------------------  :: E_Subset1_Positive1_Assign
+    v_1[v_2] <- v_3 --> v_4
+
+
+    v_1 = [lit_1 .. lit_l],T
+    v_2 = [num_1 .. num_n],T_Int
+    forall i in 1..n : num_i <= 0
+    v_3 = [lit'_1 .. lit'_m],T
+    n % m == 0
+    v_2' = negate_vec(v_2)
+    v_2' = drop_zeros(v_2')
+    v_3' = recycle(v_3, v_3, v_3, n-m)
+    v_4 = update_at_pos(v_1, v_2'', v_3')
+    -------------------------------------  :: E_Subset1_Positive2_Assign
+    v_1[-v_2] <- v_3 --> v_4
+
+
     v_1 = [lit_1 ... lit_n],T
     v_2 = [m],Int
     m in 1...n
     -------------------------  :: E_Subset2
     v_1[[v_2]] --> [lit_m],T
+
+
+    v_1 = [lit_1 .. lit_i lit_j lit_k .. lit_n],T
+    v_2 = [k],T_Int
+    v_3 = [lit],T
+    v_4 = [lit_1 .. lit_i lit lit_k .. lit_n],T
+    ---------------------------------------------  :: E_Subset2_Assign
+    v_1[[v_2]] <- v_3 --> v_4
 
 #### Notes
 
@@ -184,21 +226,22 @@
   * `E_Subset1_Zero`: Subsetting a vector with `0` returns an empty vector of
     the same type.
 
-  * `E_Subset1_Positive1`: Subsetting takes a positional vector of positive
-    integers, which describes the index of elements to return. The index vector
-    non-empty. Indices that are out of bounds or denoted by `NA_i` select `NA`
-    (of the appropriate type).
-
-  * `E_Subset1_Postive2`: Negating both the index vector and all of its indices
-     is equivalent to positive subsetting.
+  * `E_Subset1_Positive1` and `E_Subset1_Positive2`: Subsetting takes
+    a positional vector of positive integers, which describes the index of
+    elements to return. The index vector is non-empty. Indices that are out of
+    bounds or denoted by `NA_i` select `NA` (of the appropriate type).
+    * Indices that are `0` do not select anything. Note that `x[0]` returns the
+      empty vector.
+    * If the index vector is negated, and all of its elements are negative, this
+      is equivalent to positive subsetting.
 
   * `E_Subset1_Negative1` and `E_Subset1_Negative2`: Subsetting takes negative
      indices; either a vector of positive numbers is negated, or the vector
      contains negative numbers. Elements at those positions are excluded from
      the returned vector.
-       * If a negative index is out of bounds, it is ignored.
-       * Internally, the negative vector is converted to a boolean vector, which
-         is then converted to a positional vector.
+     * If a negative index is out of bounds, it is ignored.
+     * Internally, the negative vector is converted to a boolean vector, which
+       is then converted to a positional vector.
 
   * `E_Subset1_Bool`: Subsetting takes a boolean vector of the same length. If
     the boolean vector contains `True`, then the element at the corresponding
@@ -212,9 +255,28 @@
     * Internally, we convert a boolean vector into a positional vector (see
       previous cases).
 
+  * `E_Subset1_Nothing_Assign`: The entire vector is replaced by a new one. The
+    length of the original vector must be a multiple of the length of the
+    replacement vector, which is recycled.
+
+  * `E_Subset1_Positive1_Assign` and `E_Subset1_Positive2_Assign`: Elements
+    selected by the index vector are replaced by the corresponding right-hand
+    side vector.
+    * If an index is out of bounds (and positive), the vector is first extended
+      with `NA`s (of the appropriate type).
+    * `0`s are dropped from the index vector.
+    * The length of the index vector (including duplicates) must be a multiple
+      of the length of the replacement vector, which is recycled.
+    * If the index vector has duplicate values, then the corresponding vector
+      element will be overwritten, e.g. `v[c(1, 1)] <- c(10, 11)` replaces the
+      first element with `11`.
+
   * `E_Subset2`: Subsetting a vector with `[[` returns a single-element vector.
     The vector must contain at least one element, and the index must be within
     bounds; it cannot be `0` or nothing.
+
+  * `E_Subset2_Assign`: Assignment with `[[` replaces a single element of the
+    vector with a single new value.
 
 
 ### Auxiliary Functions
@@ -394,16 +456,73 @@
     neg_vec_to_bool(v_1, v_2) = v
 
 
+    v_1 = [],T_Int
+    --------------------------  :: Aux_DropZeros_BaseCase
+    drop_zeros(v_1) = [],T_Int
+
+
+    v_1 = [0 num_1 .. num_n],T_Int
+    v_1' = [num_1 .. num_n],T_Int
+    v = drop_zeros(v_1')
+    ------------------------------  :: Aux_DropZeros_ZeroCase
+    drop_zeros(v_1) = v
+
+
+    v_1 = [num num_1 .. num_n],T_Int
+    v_1' = [num_1 .. num_n],T_Int
+    v_1'' = drop_zeros(v_1')
+    v = prepend(num, v_1'')
+    --------------------------------  :: Aux_DropZeros_NonZeroCase
+    drop_zeros(v_1) = v
+
+
+    v_1 = [lit_1 .. lit_n],T
+    v_2 = [],T_Int
+    v_3 = [],T
+    ----------------------------------  :: Aux_UpdateAtPos_BaseCase
+    update_at_pos(v_1, v_2, v_3) = v_1
+
+
+    v_1 = [lit_1 .. lit_i lit_j lit_k .. lit_n],T
+    v_2 = [j num_1 .. num_m],T_Int
+    v_3 = [lit' lit'_1 .. lit'_m],T
+    v_1' = [lit_1 .. lit_i lit' lit_k .. lit_n],T
+    v_2' = [num_1 .. num_m],T_Int
+    v_3' = [lit'_1 .. lit'_m],T
+    v = update_at_pos(v_1', v_2', v_3')
+    ---------------------------------------------  :: Aux_UpdateAtPos_InBoundsCase
+    update_at_pos(v_1, v_2, v_3) = v
+
+
+    v_1 = [lit_1 .. lit_n],T
+    v_2 = [j num_1 .. num_m],T_Int
+    v_3 = [lit'_1 .. lit'_m],T
+    j not in 1..m
+    v_1' = extend(v_1, j-m)
+    v = update_at_pos(v_1', v_2, v_3)
+    ---------------------------------  :: Aux_UpdateAtPos_OutBoundsCase
+    update_at_pos(v_1, v_2, v_3) = v
+
+
 ## TODO
 
 ### Higher priority
 
 These features are likely required.
 
+  * negative subsetting
+    * handle NAs
   * subset assignment
-    * out-of-bounds
-    * recycling
-    * negative subset + assignment
+    * subset positive
+      * handle NAs
+    * subset bool
+      * out-of-bounds
+      * recycling
+      * NA
+    * subset negative
+      * out-of-bounds
+      * recycling
+      * 0 and NA
   * expressions
     * lift to vectors
     * recycling
@@ -425,6 +544,8 @@ because other features depend on them.
 These features involve a lot of tedious mechanical work and might not be
 necessary.
 
+  * bool/int coercion
+    * `x[0] <- 1` will upcast
   * other literals/types (float, string)
     * testing and coercions
   * dimensions
