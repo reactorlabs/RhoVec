@@ -116,18 +116,18 @@
 
     v_1 = [lit_1 .. lit_n],T
     v_2 = [num_1 .. num_m],T_Int
-    forall i in 1..m : num_i >= 0
+    forall i in 1..m : num_i >= 0 \/ num_i == NA_i
     v_3 = get_at_pos(v_1, v_2)
-    -----------------------------  :: E_Subset1_Positive1
+    ----------------------------------------------  :: E_Subset1_Positive1
     v_1[v_2] --> v_3
 
 
     v_1 = [lit_1 .. lit_n],T
     v_2 = [num_1 .. num_m],T_Int
-    forall i in 1..m : num_i <= 0
+    forall i in 1..m : num_i <= 0 \/ num_i == NA_i
     v_2' = negate_vec(v_2)
     v_3 = get_at_pos(v_1, v_2')
-    -----------------------------  :: E_Subset1_Positive2
+    ----------------------------------------------  :: E_Subset1_Positive2
     v_1[-v_2] --> v_3
 
 
@@ -176,11 +176,12 @@
     v_1 = [lit_1 .. lit_l],T
     v_2 = [num_1 .. num_n],T_Int
     v_3 = [lit'_1 .. lit'_m],T
+    forall i in 1..n : num_i >= 0
     n % m == 0
     v_2' = drop_zeros(v_2)
     v_3' = recycle(v_3, v_3, v_3, n-m)
     v_4 = update_at_pos(v_1, v_2', v_3')
-    -----------------------------------  :: E_Subset1_Positive1_Assign
+    ------------------------------------  :: E_Subset1_Positive1_Assign
     v_1[v_2] <- v_3 --> v_4
 
 
@@ -240,6 +241,7 @@
      contains negative numbers. Elements at those positions are excluded from
      the returned vector.
      * If a negative index is out of bounds, it is ignored.
+     * `NA`s are not allowed as indices.
      * Internally, the negative vector is converted to a boolean vector, which
        is then converted to a positional vector.
 
@@ -265,6 +267,9 @@
     * If an index is out of bounds (and positive), the vector is first extended
       with `NA`s (of the appropriate type).
     * `0`s are dropped from the index vector.
+    * `NA`s are not allowed in the index vector.
+      * In R, `NA`s actually are allowed, but only if the RHS is a
+        single-element vector.
     * The length of the index vector (including duplicates) must be a multiple
       of the length of the replacement vector, which is recycled.
     * If the index vector has duplicate values, then the corresponding vector
@@ -510,11 +515,7 @@
 
 These features are likely required.
 
-  * negative subsetting
-    * handle NAs
   * subset assignment
-    * subset positive
-      * handle NAs
     * subset bool
       * out-of-bounds
       * recycling
