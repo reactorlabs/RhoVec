@@ -167,9 +167,9 @@
 
     v_1 = [lit_1 .. lit_n],T
     v_2 = [lit'_1 .. lit'_m],T
-    n % m = 0
-    v_3 = recycle(v_2, v_2, v_2, n-m)
-    ---------------------------------  :: E_Subset1_Nothing_Assign
+    warn if n % m =/= 0
+    v_3 = truncate_or_recycle(v_2, v_2, v_2, n-m)
+    ---------------------------------------------  :: E_Subset1_Nothing_Assign
     v_1[] <- v_2 --> v_3
 
 
@@ -177,11 +177,10 @@
     v_2 = [num_1 .. num_n],T_Int
     v_3 = [lit'_1 .. lit'_m],T
     forall i in 1..n : num_i >= 0
-    n % m == 0
-    v_2' = drop_zeros(v_2)
-    v_3' = recycle(v_3, v_3, v_3, n-m)
-    v_4 = update_at_pos(v_1, v_2', v_3')
-    ------------------------------------  :: E_Subset1_Positive1_Assign
+    warn if n % m =/= 0
+    v_3' = truncate_or_recycle(v_3, v_3, v_3, n-m)
+    v_4 = update_at_pos(v_1, v_2, v_3')
+    ----------------------------------------------  :: E_Subset1_Positive1_Assign
     v_1[v_2] <- v_3 --> v_4
 
 
@@ -189,13 +188,27 @@
     v_2 = [num_1 .. num_n],T_Int
     forall i in 1..n : num_i <= 0
     v_3 = [lit'_1 .. lit'_m],T
-    n % m == 0
+    warn if n % m =/= 0
     v_2' = negate_vec(v_2)
-    v_2' = drop_zeros(v_2')
     v_3' = recycle(v_3, v_3, v_3, n-m)
-    v_4 = update_at_pos(v_1, v_2'', v_3')
+    v_4 = update_at_pos(v_1, v_2', v_3')
     -------------------------------------  :: E_Subset1_Positive2_Assign
     v_1[-v_2] <- v_3 --> v_4
+
+
+    v_1 = [lit_1 .. lit_l],T
+    v_2 = [bool_1 .. bool_n],T_Bool
+    forall i in 1..n : bool_i =/= NA_b
+    v_3 = [lit'_1 .. lit'_m],T
+    j = max(l, n)
+    v_1' = extend(v_1, j-l)
+    v_2' = recycle(v_2, v_2, v_2, j-n)
+    v_2'' = bool_vec_to_pos(v_2', 1)
+    j' = length(v_2'')
+    warn if j' % m =/= 0
+    v_3' = truncate_or_recycle(v_3, v_3, v_3, j'-m)
+    ----------------------------------------------  :: E_Subset1_Bool_Assign
+    v_1[v_2] <- v_3 --> v_4
 
 
     v_1 = [lit_1 ... lit_n],T
@@ -235,6 +248,9 @@
       empty vector.
     * If the index vector is negated, and all of its elements are negative, this
       is equivalent to positive subsetting.
+    * These could be combined if we had general expressions, since `-c(1, 2, 3)`
+      is an expression  that evaluates to `c(-1, -2, -3)`; for now, we use
+      specific syntax `e[-e]`.
 
   * `E_Subset1_Negative1` and `E_Subset1_Negative2`: Subsetting takes negative
      indices; either a vector of positive numbers is negated, or the vector
@@ -244,6 +260,9 @@
      * `NA`s are not allowed as indices.
      * Internally, the negative vector is converted to a boolean vector, which
        is then converted to a positional vector.
+    * These could be combined if we had general expressions, since `-c(1, 2, 3)`
+      is an expression  that evaluates to `c(-1, -2, -3)`; for now, we use
+      specific syntax `e[-e]`.
 
   * `E_Subset1_Bool`: Subsetting takes a boolean vector of the same length. If
     the boolean vector contains `True`, then the element at the corresponding
@@ -257,24 +276,39 @@
     * Internally, we convert a boolean vector into a positional vector (see
       previous cases).
 
-  * `E_Subset1_Nothing_Assign`: The entire vector is replaced by a new one. The
-    length of the original vector must be a multiple of the length of the
-    replacement vector, which is recycled.
+  * `E_Subset1_Nothing_Assign`: The entire vector is replaced by a new one.
+    * If the replacement vector is too short, it gets recycled. If it is too
+      long, it gets truncated.
+    * A warning is emitted if the length of the index vector (including
+      duplicates) is not a multiple of the length of the replacement vector.
 
   * `E_Subset1_Positive1_Assign` and `E_Subset1_Positive2_Assign`: Elements
     selected by the index vector are replaced by the corresponding right-hand
     side vector.
     * If an index is out of bounds (and positive), the vector is first extended
       with `NA`s (of the appropriate type).
-    * `0`s are dropped from the index vector.
+    * `0`s from the index vector are ignored.
     * `NA`s are not allowed in the index vector.
       * In R, `NA`s actually are allowed, but only if the RHS is a
         single-element vector.
-    * The length of the index vector (including duplicates) must be a multiple
-      of the length of the replacement vector, which is recycled.
+    * If the replacement vector is too short, it gets recycled. If it is too
+      long, it gets truncated.
+    * A warning is emitted if the length of the index vector (including
+      duplicates) is not a multiple of the length of the replacement vector.
     * If the index vector has duplicate values, then the corresponding vector
       element will be overwritten, e.g. `v[c(1, 1)] <- c(10, 11)` replaces the
       first element with `11`.
+
+  * `E_Subset1_Bool_Assign`: A boolean vector is used as an index, and those
+     elements selected by the boolean vector are updated.
+     * If the boolean vector is longer than the original vector, the original
+       vector is extended with `NA`s (of the appropriate type).
+     * If the boolean vector is too short, it is recycled.
+     * The boolean vector is converted to a positional vector.
+     * If the replacement vector is shorter than the positional vector, it gets
+       recycled. If it is too long, it gets truncated.
+     * A warning is emitted if the length of the positional vector is not a
+       multiple of the length of the replacement vector.
 
   * `E_Subset2`: Subsetting a vector with `[[` returns a single-element vector.
     The vector must contain at least one element, and the index must be within
@@ -364,8 +398,9 @@
 
     v_1 = [False bool_1 .. bool_n],T_Bool
     v_1' = [bool_1 .. bool_n],T_Bool
-    v = bool_vec_to_pos(v_1', i+1)
-    ------------------------------------  :: Aux_BoolVecToPos_FalseCase
+    v_2 = bool_vec_to_pos(v_1', i+1)
+    v = prepend(0, v_2)
+    -------------------------------------  :: Aux_BoolVecToPos_FalseCase
     bool_vec_to_pos(v_1, i) = v
 
 
@@ -409,6 +444,30 @@
     m > 0
     ---------------------------------  :: Aux_Recycle_RecurseCase
     recycle(v_1, v_2, v_3, m) = v
+
+
+    ----------------------  :: Aux_Truncate_BaseCase
+    truncate(v_1, 0) = v_1
+
+
+    v_1 = [lit_1 .. lit_n lit],T
+    v_1' = [lit_1 .. lit_n],T
+    v = truncate(v_1', m+1)
+    m < 0
+    ----------------------------  :: Aux_Truncate_RecurseCase
+    truncate(v_1, m) = v
+
+
+    v = recycle(v_1, v_2, v_3, m)
+    n >= 0
+    -----------------------------------------  :: Aux_TruncateOrRecycle_PosCase
+    truncate_or_recycle(v_1, v_2, v_3, m) = v
+
+
+    v = truncate(v_1, m)
+    n < 0
+    -----------------------------------------  :: Aux_TruncateOrRecycle_NegCase
+    truncate_or_recycle(v_1, v_2, v_3, m) = v
 
 
     v_1 = [],T_Int
@@ -461,31 +520,20 @@
     neg_vec_to_bool(v_1, v_2) = v
 
 
-    v_1 = [],T_Int
-    --------------------------  :: Aux_DropZeros_BaseCase
-    drop_zeros(v_1) = [],T_Int
-
-
-    v_1 = [0 num_1 .. num_n],T_Int
-    v_1' = [num_1 .. num_n],T_Int
-    v = drop_zeros(v_1')
-    ------------------------------  :: Aux_DropZeros_ZeroCase
-    drop_zeros(v_1) = v
-
-
-    v_1 = [num num_1 .. num_n],T_Int
-    v_1' = [num_1 .. num_n],T_Int
-    v_1'' = drop_zeros(v_1')
-    v = prepend(num, v_1'')
-    --------------------------------  :: Aux_DropZeros_NonZeroCase
-    drop_zeros(v_1) = v
-
-
     v_1 = [lit_1 .. lit_n],T
     v_2 = [],T_Int
     v_3 = [],T
     ----------------------------------  :: Aux_UpdateAtPos_BaseCase
     update_at_pos(v_1, v_2, v_3) = v_1
+
+
+    v_1 = [lit_1 .. lit_n],T
+    v_2 = [0 num_1 .. num_m],T_Int
+    v_2' = [num_1 .. num_m],T_Int
+    v_3 = [lit'_1 .. lit'_m],T
+    v = update_at_pos(v_1, v_2', v_3)
+    ---------------------------------------------  :: Aux_UpdateAtPos_ZeroCase
+    update_at_pos(v_1, v_2, v_3) = v
 
 
     v_1 = [lit_1 .. lit_i lit_j lit_k .. lit_n],T
@@ -516,14 +564,24 @@
 These features are likely required.
 
   * subset assignment
-    * subset bool
-      * out-of-bounds
-      * recycling
-      * NA
     * subset negative
       * out-of-bounds
       * recycling
       * 0 and NA
+
+  * implement semantics so we can execute them and write test cases
+    * need to support environments/binding/mutation? want to assign vectors to
+      variables
+    * how to handle warnings?
+  * semantics are buggy, already too complicated to keep track of with
+    pencil-and-paper
+    * e.g. subtle issues with how 0 is handled in subsetting
+
+### Medium priority
+
+These might not be necessary, but are nice to have, or will be implemented
+because other features depend on them.
+
   * expressions
     * lift to vectors
     * recycling
@@ -531,12 +589,6 @@ These features are likely required.
     * named vectors and subsetting
   * heap semantics; i.e. assignment to variables
   * data frames and/or tibbles
-
-### Medium priority
-
-These might not be necessary, but are nice to have, or will be implemented
-because other features depend on them.
-
   * attributes
   * core syntax and sugar?
 
