@@ -177,22 +177,26 @@
     v_2 = [num_1 .. num_n],T_Int
     v_3 = [lit'_1 .. lit'_m],T
     forall i in 1..n : num_i >= 0
-    warn if n % m =/= 0
-    v_3' = truncate_or_recycle(v_3, v_3, v_3, n-m)
+    v_2' = drop_zeros(v_2)
+    n' = length(v_2')
+    warn if n' % m =/= 0
+    v_3' = truncate_or_recycle(v_3, v_3, v_3, n'-m)
     v_4 = update_at_pos(v_1, v_2, v_3')
-    ----------------------------------------------  :: E_Subset1_Positive1_Assign
+    -----------------------------------------------  :: E_Subset1_Positive1_Assign
     v_1[v_2] <- v_3 --> v_4
 
 
     v_1 = [lit_1 .. lit_l],T
     v_2 = [num_1 .. num_n],T_Int
-    forall i in 1..n : num_i <= 0
     v_3 = [lit'_1 .. lit'_m],T
-    warn if n % m =/= 0
-    v_2' = negate_vec(v_2)
-    v_3' = recycle(v_3, v_3, v_3, n-m)
-    v_4 = update_at_pos(v_1, v_2', v_3')
-    -------------------------------------  :: E_Subset1_Positive2_Assign
+    forall i in 1..n : num_i <= 0
+    v_2' = drop_zeros(v_2)
+    n' = length(v_2')
+    warn if n' % m =/= 0
+    v_2'' = negate_vec(v_2')
+    v_3' = truncate_or_recycle(v_3, v_3, v_3, n'-m)
+    v_4 = update_at_pos(v_1, v_2'', v_3')
+    -----------------------------------------------  :: E_Subset1_Positive2_Assign
     v_1[-v_2] <- v_3 --> v_4
 
 
@@ -207,6 +211,7 @@
     j' = length(v_2'')
     warn if j' % m =/= 0
     v_3' = truncate_or_recycle(v_3, v_3, v_3, j'-m)
+    v_4 = update_at_pos(v_1, v_2'', v_3')
     ----------------------------------------------  :: E_Subset1_Bool_Assign
     v_1[v_2] <- v_3 --> v_4
 
@@ -287,7 +292,7 @@
     side vector.
     * If an index is out of bounds (and positive), the vector is first extended
       with `NA`s (of the appropriate type).
-    * `0`s from the index vector are ignored.
+    * `0`s are dropped from the index vector.
     * `NA`s are not allowed in the index vector.
       * In R, `NA`s actually are allowed, but only if the RHS is a
         single-element vector.
@@ -348,6 +353,11 @@
     append(v, lit) = [lit_1 .. lit_n lit],T
 
 
+    v = [lit_1 .. lit_n],T
+    ----------------------  :: Aux_Length
+    length(v) = n
+
+
     v_1 = [lit_1 .. lit_n],T
     v_2 = [],T_Int
     ---------------------------  :: Aux_GetAtPos_BaseCase
@@ -398,8 +408,7 @@
 
     v_1 = [False bool_1 .. bool_n],T_Bool
     v_1' = [bool_1 .. bool_n],T_Bool
-    v_2 = bool_vec_to_pos(v_1', i+1)
-    v = prepend(0, v_2)
+    v = bool_vec_to_pos(v_1', i+1)
     -------------------------------------  :: Aux_BoolVecToPos_FalseCase
     bool_vec_to_pos(v_1, i) = v
 
@@ -520,20 +529,31 @@
     neg_vec_to_bool(v_1, v_2) = v
 
 
+    v_1 = [],T_Int
+    --------------------------  :: Aux_DropZeros_BaseCase
+    drop_zeros(v_1) = [],T_Int
+
+
+    v_1 = [0 num_1 .. num_n],T_Int
+    v_1' = [num_1 .. num_n],T_Int
+    v = drop_zeros(v_1')
+    ------------------------------  :: Aux_DropZeros_ZeroCase
+    drop_zeros(v_1) = v
+
+
+    v_1 = [num num_1 .. num_n],T_Int
+    v_1' = [num_1 .. num_n],T_Int
+    v_1'' = drop_zeros(v_1')
+    v = prepend(num, v_1'')
+    --------------------------------  :: Aux_DropZeros_NonZeroCase
+    drop_zeros(v_1) = v
+
+
     v_1 = [lit_1 .. lit_n],T
     v_2 = [],T_Int
     v_3 = [],T
     ----------------------------------  :: Aux_UpdateAtPos_BaseCase
     update_at_pos(v_1, v_2, v_3) = v_1
-
-
-    v_1 = [lit_1 .. lit_n],T
-    v_2 = [0 num_1 .. num_m],T_Int
-    v_2' = [num_1 .. num_m],T_Int
-    v_3 = [lit'_1 .. lit'_m],T
-    v = update_at_pos(v_1, v_2', v_3)
-    ---------------------------------------------  :: Aux_UpdateAtPos_ZeroCase
-    update_at_pos(v_1, v_2, v_3) = v
 
 
     v_1 = [lit_1 .. lit_i lit_j lit_k .. lit_n],T
@@ -573,9 +593,8 @@ These features are likely required.
     * need to support environments/binding/mutation? want to assign vectors to
       variables
     * how to handle warnings?
-  * semantics are buggy, already too complicated to keep track of with
+  * semantics are probably buggy, already too complicated to keep track of with
     pencil-and-paper
-    * e.g. subtle issues with how 0 is handled in subsetting
 
 ### Medium priority
 
@@ -591,6 +610,9 @@ because other features depend on them.
   * data frames and/or tibbles
   * attributes
   * core syntax and sugar?
+    * there seems to be a set of core operations that include extending,
+      recycling, truncation, neg-to-bool conversion, bool-to-pos conversion,
+      get-at-pos, update-at-pos, and so on.
 
 ### Lower priority
 
