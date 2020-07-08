@@ -570,7 +570,7 @@
     v_1 = [lit_1 .. lit_n],T
     v_2 = [j num_1 .. num_m],T_Int
     v_3 = [lit'_1 .. lit'_m],T
-    j not in 1..m
+    j not in 1..m \/ j == NA_i
     v_1' = extend(v_1, j-m)
     v = update_at_pos(v_1', v_2, v_3)
     ---------------------------------  :: Aux_UpdateAtPos_OutBoundsCase

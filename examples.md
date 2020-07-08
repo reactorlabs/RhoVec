@@ -125,3 +125,124 @@ In v[c(T, T, F)] <- c(9, 8, 7) :
 > v
 [1]  9  8  9  8 NA
 ```
+
+## Subset assignment with negative vector
+
+```
+### In all examples, v is [1 2 3 4 5] before the assignment
+
+# recycle RHS
+> v[-1] <- 0
+> v
+[1] 1 0 0 0 0
+
+# recycle RHS
+> v[-1] <- c(10, 11)
+> v
+[1]  1 10 11 10 11
+
+# recycle RHS, with warning
+> v[-1] <- c(10, 11, 12)
+Warning message:
+In v[-1] <- c(10, 11, 12) :
+  number of items to replace is not a multiple of replacement length
+> v
+[1]  1 10 11 12 10
+
+# recycle RHS
+> v[-1] <- c(10, 11, 12, 13)
+> v
+[1]  1 10 11 12 13
+
+# recycle RHS
+> v[-c(1, 3)] <- 0
+> v
+[1] 1 0 3 0 0
+
+# recycle RHS, warning
+> v[-c(1, 3)] <- c(10, 11)
+Warning message:
+In v[-c(1, 3)] <- c(10, 11) :
+  number of items to replace is not a multiple of replacement length
+> v
+[1]  1 10  3 11 10
+
+# recycle RHS
+v[-c(1, 3)] <- c(10, 11, 12)
+> v
+[1]  1 10  3 11 12
+
+# truncate RHS, warning
+> v[-c(1, 3)] <- c(10, 11, 12, 13)
+Warning message:
+In v[-c(1, 3)] <- c(10, 11, 12, 13) :
+  number of items to replace is not a multiple of replacement length
+> v
+[1]  1 10  3 11 12
+
+## out of bounds negative index is dropped before checking length
+## equivalent: neg-to-pos conversion drops OOB indices
+# recycle RHS
+> v[-c(1, 0, 3, 10)] <- 0
+> v
+[1] 1 0 3 0 0
+
+# recycle RHS, warning
+> v[-c(1, 0, 3, 10)] <- c(10, 11)
+Warning message:
+In v[-c(1, 0, 3, 10)] <- c(10, 11) :
+  number of items to replace is not a multiple of replacement length
+> v
+[1]  1 10  3 11 10
+
+# recycle RHS
+v[-c(1, 0, 3, 10)] <- c(10, 11, 12)
+> v
+[1]  1 10  3 11 12
+
+# truncate RHS, warning
+> v[-c(1, 0, 3, 10)] <- c(10, 11, 12, 13)
+Warning message:
+In v[-c(1, 0, 3, 10)] <- c(10, 11, 12, 13) :
+  number of items to replace is not a multiple of replacement length
+> v
+[1]  1 10  3 11 12
+
+## duplicate indices are ignored
+## equivalent: this is handled by neg-to-pos conversion
+# recycle RHS
+> v[-c(1, 3, 1)] <- 0
+> v
+[1] 1 0 3 0 0
+
+# recycle RHS, warning
+> v[-c(1, 3, 1)] <- c(10, 11)
+Warning message:
+In v[-c(1, 3, 1)] <- c(10, 11) :
+  number of items to replace is not a multiple of replacement length
+> v
+[1]  1 10  3 11 10
+
+# recycle RHS
+v[-c(1, 3, 1)] <- c(10, 11, 12)
+> v
+[1]  1 10  3 11 12
+
+# truncate RHS, warning
+> v[-c(1, 3, 1)] <- c(10, 11, 12, 13)
+Warning message:
+In v[-c(1, 3, 1)] <- c(10, 11, 12, 13) :
+  number of items to replace is not a multiple of replacement length
+> v
+[1]  1 10  3 11 12
+
+# error
+> v[-c(1, NA)] <- 0
+Error in v[-c(1, NA)] <- 0 :
+  only 0's may be mixed with negative subscripts
+
+# nothing
+> v[-NA] <- 0
+> v
+[1] 1 2 3 4 5
+```
