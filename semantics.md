@@ -181,7 +181,7 @@
     n' = length(v_2')
     warn if n' % m =/= 0
     v_3' = truncate_or_recycle(v_3, v_3, v_3, n'-m)
-    v_4 = update_at_pos(v_1, v_2, v_3')
+    v_4 = update_at_pos(v_1, v_2', v_3')
     -----------------------------------------------  :: E_Subset1_Positive1_Assign
     v_1[v_2] <- v_3 --> v_4
 
@@ -213,6 +213,37 @@
     v_3' = truncate_or_recycle(v_3, v_3, v_3, j'-m)
     v_4 = update_at_pos(v_1, v_2'', v_3')
     ----------------------------------------------  :: E_Subset1_Bool_Assign
+    v_1[v_2] <- v_3 --> v_4
+
+
+    v_1 = [lit_1 .. lit_l],T
+    v_2 = [num_1 .. num_n],T_Int
+    forall i in 1..n : num_i >= 0
+    v_3 = [lit'_1 .. lit'_m],T
+    v_1' = gen_bool_vec(v1)
+    v_2' = neg_vec_to_bool(v_2, v_1')
+    v_2'' = bool_vec_to_pos(v_2', 1)
+    n' = length(v_2'')
+    warn if n' % m =/= 0
+    v_3' = truncate_or_recycle(v_3, v_3, v_3, n'-m)
+    v_4 = update_at_pos(v_1, v_2'', v_3')
+    -----------------------------------------------  :: E_Subset1_Negative1_Assign
+    v_1[-v_2] <- v_3 --> v_4
+
+
+    v_1 = [lit_1 .. lit_l],T
+    v_2 = [num_1 .. num_n],T_Int
+    forall i in 1..n : num_i <= 0
+    v_3 = [lit'_1 .. lit'_m],T
+    v_1' = gen_bool_vec(v1)
+    v_2' = negate_vec(v_2)
+    v_2'' = neg_vec_to_bool(v_2', v_1')
+    v_2''' = bool_vec_to_pos(v_2'', 1)
+    n' = length(v_2''')
+    warn if n' % m =/= 0
+    v_3' = truncate_or_recycle(v_3, v_3, v_3, n'-m)
+    v_4 = update_at_pos(v_1, v_2''', v_3')
+    -----------------------------------------------  :: E_Subset1_Negative2_Assign
     v_1[v_2] <- v_3 --> v_4
 
 
@@ -262,12 +293,13 @@
      contains negative numbers. Elements at those positions are excluded from
      the returned vector.
      * If a negative index is out of bounds, it is ignored.
+     * Repeated indices are ignored.
      * `NA`s are not allowed as indices.
      * Internally, the negative vector is converted to a boolean vector, which
        is then converted to a positional vector.
-    * These could be combined if we had general expressions, since `-c(1, 2, 3)`
-      is an expression  that evaluates to `c(-1, -2, -3)`; for now, we use
-      specific syntax `e[-e]`.
+     * These could be combined if we had general expressions, since
+       `-c(1, 2, 3)` is an expression  that evaluates to `c(-1, -2, -3)`; for
+       now, we use specific syntax `e[-e]`.
 
   * `E_Subset1_Bool`: Subsetting takes a boolean vector of the same length. If
     the boolean vector contains `True`, then the element at the corresponding
@@ -314,6 +346,22 @@
        recycled. If it is too long, it gets truncated.
      * A warning is emitted if the length of the positional vector is not a
        multiple of the length of the replacement vector.
+
+  * `E_Subset1_Negative1_Assign` and `E_Subset1_Negative2_Assign`: Similar to
+    `E_Subset1_Negative1` and `E_Subset1_Negative2`, subsetting takes negative
+    indices; either a vector of positive numbers is negated, or the vector
+    contains negative numbers. The elements excluded by these indices are
+    updated by the RHS.
+    * If a negative index is out of bounds, it is ignored.
+    * Repeated indices are ignored.
+    * `NA`s are not allowed as indices.
+    * Internally, the negative vector is converted to a boolean vector, which
+      is then converted to a positional vector.
+    * Assignment follows the same rules as `E_Subset1_Positive1_Assign` and
+      `E_Subset1_Positive2_Assign`, where the length of the index vector must
+      be a multiple of the length of the replacement vector, otherwise there is
+      a warning. Furthermore, the replacement vector is either truncated or
+      recycled to achieve the correct length.
 
   * `E_Subset2`: Subsetting a vector with `[[` returns a single-element vector.
     The vector must contain at least one element, and the index must be within
@@ -582,12 +630,6 @@
 ### Higher priority
 
 These features are likely required.
-
-  * subset assignment
-    * subset negative
-      * out-of-bounds
-      * recycling
-      * 0 and NA
 
   * implement semantics so we can execute them and write test cases
     * need to support environments/binding/mutation? want to assign vectors to
