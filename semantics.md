@@ -167,7 +167,7 @@
 
     v_1 = [lit_1 .. lit_n],T
     v_2 = [lit'_1 .. lit'_m],T
-    warn if n % m =/= 0
+    n % m == 0
     v_3 = truncate_or_recycle(v_2, v_2, v_2, n-m)
     ---------------------------------------------  :: E_Subset1_Nothing_Assign
     v_1[] <- v_2 --> v_3
@@ -179,7 +179,7 @@
     forall i in 1..n : num_i >= 0
     v_2' = drop_zeros(v_2)
     n' = length(v_2')
-    warn if n' % m =/= 0
+    n' % m == 0
     v_3' = truncate_or_recycle(v_3, v_3, v_3, n'-m)
     v_4 = update_at_pos(v_1, v_2', v_3')
     -----------------------------------------------  :: E_Subset1_Positive1_Assign
@@ -192,7 +192,7 @@
     forall i in 1..n : num_i <= 0
     v_2' = drop_zeros(v_2)
     n' = length(v_2')
-    warn if n' % m =/= 0
+    n' % m == 0
     v_2'' = negate_vec(v_2')
     v_3' = truncate_or_recycle(v_3, v_3, v_3, n'-m)
     v_4 = update_at_pos(v_1, v_2'', v_3')
@@ -209,7 +209,7 @@
     v_2' = recycle(v_2, v_2, v_2, j-n)
     v_2'' = bool_vec_to_pos(v_2', 1)
     j' = length(v_2'')
-    warn if j' % m =/= 0
+    j' % m == 0
     v_3' = truncate_or_recycle(v_3, v_3, v_3, j'-m)
     v_4 = update_at_pos(v_1, v_2'', v_3')
     ----------------------------------------------  :: E_Subset1_Bool_Assign
@@ -224,7 +224,7 @@
     v_2' = neg_vec_to_bool(v_2, v_1')
     v_2'' = bool_vec_to_pos(v_2', 1)
     n' = length(v_2'')
-    warn if n' % m =/= 0
+    n' % m == 0
     v_3' = truncate_or_recycle(v_3, v_3, v_3, n'-m)
     v_4 = update_at_pos(v_1, v_2'', v_3')
     -----------------------------------------------  :: E_Subset1_Negative1_Assign
@@ -240,7 +240,7 @@
     v_2'' = neg_vec_to_bool(v_2', v_1')
     v_2''' = bool_vec_to_pos(v_2'', 1)
     n' = length(v_2''')
-    warn if n' % m =/= 0
+    n' % m == 0
     v_3' = truncate_or_recycle(v_3, v_3, v_3, n'-m)
     v_4 = update_at_pos(v_1, v_2''', v_3')
     -----------------------------------------------  :: E_Subset1_Negative2_Assign
@@ -262,6 +262,9 @@
     v_1[[v_2]] <- v_3 --> v_4
 
 #### Notes
+
+  * In R, some cases cause a warning to be emitted. For these semantics,
+    warnings are treated as errors.
 
   * `E_Scalar2Vec`: There are no scalars in R; literals are implicitly converted
     to one-element vectors.
@@ -316,8 +319,6 @@
   * `E_Subset1_Nothing_Assign`: The entire vector is replaced by a new one.
     * If the replacement vector is too short, it gets recycled. If it is too
       long, it gets truncated.
-    * A warning is emitted if the length of the index vector (including
-      duplicates) is not a multiple of the length of the replacement vector.
 
   * `E_Subset1_Positive1_Assign` and `E_Subset1_Positive2_Assign`: Elements
     selected by the index vector are replaced by the corresponding right-hand
@@ -330,8 +331,6 @@
         single-element vector.
     * If the replacement vector is too short, it gets recycled. If it is too
       long, it gets truncated.
-    * A warning is emitted if the length of the index vector (including
-      duplicates) is not a multiple of the length of the replacement vector.
     * If the index vector has duplicate values, then the corresponding vector
       element will be overwritten, e.g. `v[c(1, 1)] <- c(10, 11)` replaces the
       first element with `11`.
@@ -344,8 +343,6 @@
      * The boolean vector is converted to a positional vector.
      * If the replacement vector is shorter than the positional vector, it gets
        recycled. If it is too long, it gets truncated.
-     * A warning is emitted if the length of the positional vector is not a
-       multiple of the length of the replacement vector.
 
   * `E_Subset1_Negative1_Assign` and `E_Subset1_Negative2_Assign`: Similar to
     `E_Subset1_Negative1` and `E_Subset1_Negative2`, subsetting takes negative
@@ -359,9 +356,9 @@
       is then converted to a positional vector.
     * Assignment follows the same rules as `E_Subset1_Positive1_Assign` and
       `E_Subset1_Positive2_Assign`, where the length of the index vector must
-      be a multiple of the length of the replacement vector, otherwise there is
-      a warning. Furthermore, the replacement vector is either truncated or
-      recycled to achieve the correct length.
+      be a multiple of the length of the replacement vector. Furthermore, the
+      replacement vector is either truncated or recycled to achieve the correct
+      length.
 
   * `E_Subset2`: Subsetting a vector with `[[` returns a single-element vector.
     The vector must contain at least one element, and the index must be within
@@ -631,10 +628,8 @@
 
 These features are likely required.
 
+  * add heap and environment
   * implement semantics so we can execute them and write test cases
-    * need to support environments/binding/mutation? want to assign vectors to
-      variables
-    * how to handle warnings?
   * semantics are probably buggy, already too complicated to keep track of with
     pencil-and-paper
 
