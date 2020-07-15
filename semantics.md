@@ -9,9 +9,15 @@
         | Vec(e_1, .. , e_n)                    # vector constructor
         | e_1[]                                 # subset1 (nothing)
         | e_1[e_2]                              # subset1
-        | e_1[e_2] <- e_3                       # subset1 assignment
+        | e_1[-e_2]                             # subset1 (negative)
         | e_1[[e_2]]                            # subset2
-        | e_1[[e_2]] <- e_3                     # subset2 assignment
+        | x                                     # variable
+        | x <- e                                # variable assignment
+        | x[] <- e_1                            # subset1 assignment (nothing)
+        | x[e_1] <- e_2                         # subset1 assignment
+        | x[-e_1] <- e_2                        # subset1 assignment (negative)
+        | x[[e_1]] <- e_2                       # subset2 assignment
+        | e_1; e_2                              # sequencing
         | v                                     # value
 
 #### Notes
@@ -71,87 +77,62 @@
 
 ### Evaluation contexts
 
-    E ::=
+    C ::=
         | <>                                    # hole
-        | Vec(v_1, .., v_n, E, e_1, .., e_m)
-        | E[]
-        | E[e]
-        | v[E]
-        | E[e] <- e
-        | v[E] <- e
-        | v[v] <- E
-        | E[[e]]
-        | v[[E]]
-        | E[[e]] <- e
-        | v[[E]] <- e
-        | v[[v]] <- E
+        | Vec(v_1, .., v_n, C, e_1, .., e_m)
+        | C[]
+        | C[e]
+        | v[C]
+        | C[[e]]
+        | v[[C]]
+        | x <- C
+        | x[C] <- e
+        | x[v] <- C
+        | x[[C]] <- e
+        | x[[v]] <- C
+        | C; e
 
 #### Notes
 
-  * We use angle brackets `E<e>` to notate an evaluation context `E` filled with
+  * We use angle brackets `C<e>` to notate an evaluation context `C` filled with
     expression `e`, since square brackets `[]` are used for vectors and
     subsetting.
 
 
+### Environment
+
+    E ::= { x -> v }*
+
+#### Notes
+
+  * An environment is a finite map from variables to values.
+
+
 ## Operational Semantics
 
-### `e_1 --> e_2`
-
-`e_1` reduces to `e_2`
+### `E C<e_1> --> E' C<e_2>`
 
     typeof(lit) = T
-    ---------------  :: E_Scalar2Vec
-    lit --> [lit],T
+    -------------------------  :: E_Scalar2Vec
+    E C<lit> --> E C<[lit],T>
 
 
     (v_1 = [lit_1_1 .. lit_1_m1],T) .. (v_n = [lit_n_1 .. lit_n_mn],T)
-    --------------------------------------------------------------------  :: E_VecCtor
-    Vec(v_1, .., v_n) --> [lit_1_1 .. lit_1_m1 .. lit_n_1 .. lit_n_mn],T
+    ------------------------------------------------------------------------------  :: E_VecCtor
+    E C<Vec(v_1, .., v_n)> --> E C<[lit_1_1 .. lit_1_m1 .. lit_n_1 .. lit_n_mn],T>
 
 
     v = [lit_1 .. lit_n],T
     ----------------------  :: E_Subset1_Nothing
-    v[] --> v
+    E C<v[]> --> E C<v>
 
 
     v_1 = [lit_1 .. lit_n],T
     v_2 = [num_1 .. num_m],T_Int
     forall i in 1..m : num_i >= 0 \/ num_i == NA_i
     v_3 = get_at_pos(v_1, v_2)
-    ----------------------------------------------  :: E_Subset1_Positive1
-    v_1[v_2] --> v_3
-
-
-    v_1 = [lit_1 .. lit_n],T
-    v_2 = [num_1 .. num_m],T_Int
-    forall i in 1..m : num_i <= 0 \/ num_i == NA_i
-    v_2' = negate_vec(v_2)
-    v_3 = get_at_pos(v_1, v_2')
-    ----------------------------------------------  :: E_Subset1_Positive2
-    v_1[-v_2] --> v_3
-
-
-    v_1 = [lit_1 .. lit_n],T
-    v_2 = [num_1 .. num_m],T_Int
-    forall i in 1..m : num_i >= 0
-    v_1' = gen_bool_vec(v1)
-    v_2' = neg_vec_to_bool(v_2, v_1')
-    v_2'' = bool_vec_to_pos(v_2', 1)
-    v_3 = get_at_pos(v_1, v_2'')
-    ---------------------------------  :: E_Subset1_Negative1
-    v_1[-v_2] --> v_3
-
-
-    v_1 = [lit_1 .. lit_n],T
-    v_2 = [num_1 .. num_m],T_Int
-    forall i in 1..m : num_i <= 0
-    v_1' = gen_bool_vec(v1)
-    v_2' = negate_vec(v_2)
-    v_2'' = neg_vec_to_bool(v_2', v_1')
-    v_2''' = bool_vec_to_pos(v_2'', 1)
-    v_3 = get_at_pos(v_1, v_2''')
-    -----------------------------------  :: E_Subset1_Negative2
-    v_1[v_2] --> v_3
+    ----------------------------------------------  :: E_Subset1_Positive
+    E C<v_1[v_2]> --> E C<v_3>
 
 
     v_1 = [lit_1 .. lit_n],T
@@ -162,44 +143,65 @@
     v_2'' = bool_vec_to_pos(v_2', 1)
     v_3 = get_at_pos(v_1, v_2'')
     ----------------------------------  :: E_Subset1_Bool
-    v_1[v_2] --> v_3
+    E C<v_1[v_2]> --> E C<v_3>
 
 
     v_1 = [lit_1 .. lit_n],T
+    v_2 = [num_1 .. num_m],T_Int
+    forall i in 1..m : num_i >= 0
+    v_1' = gen_bool_vec(v1)
+    v_2' = neg_vec_to_bool(v_2, v_1')
+    v_2'' = bool_vec_to_pos(v_2', 1)
+    v_3 = get_at_pos(v_1, v_2'')
+    ---------------------------------  :: E_Subset1_Negative
+    E C<v_1[-v_2] --> E C<v_3>
+
+
+    v_1 = [lit_1 ... lit_n],T
+    v_2 = [m],Int
+    m in 1...n
+    ----------------------------------  :: E_Subset2
+    E C<v_1[[v_2]]> --> E C<[lit_m],T>
+
+
+    x in E
+    v = E(x)
+    --------------------  :: E_Lookup
+    E C<x> --> E C<v>
+
+
+    E' = E{ x := v }
+    -----------------------  :: E_Assign
+    E C<x <- v> --> E' C<v>
+
+
+    x in E
+    E(x) = [lit_1 .. lit_n],T
     v_2 = [lit'_1 .. lit'_m],T
     n % m == 0
     v_3 = truncate_or_recycle(v_2, v_2, v_2, n-m)
+    E' = E{ x := v_3 }
     ---------------------------------------------  :: E_Subset1_Nothing_Assign
-    v_1[] <- v_2 --> v_3
+    E C<x[] <- v_2> --> E' C<v_3>
 
 
-    v_1 = [lit_1 .. lit_l],T
-    v_2 = [num_1 .. num_n],T_Int
-    v_3 = [lit'_1 .. lit'_m],T
+    x in E
+    E(x) = [lit_1 .. lit_l],T
+    v_1 = [num_1 .. num_n],T_Int
+    v_2 = [lit'_1 .. lit'_m],T
     forall i in 1..n : num_i >= 0
-    v_2' = drop_zeros(v_2)
+    v_1' = drop_zeros(v_2)
     n' = length(v_2')
     n' % m == 0
-    v_3' = truncate_or_recycle(v_3, v_3, v_3, n'-m)
-    v_4 = update_at_pos(v_1, v_2', v_3')
-    -----------------------------------------------  :: E_Subset1_Positive1_Assign
-    v_1[v_2] <- v_3 --> v_4
+    v_2' = truncate_or_recycle(v_3, v_3, v_3, n'-m)
+    v_3 = update_at_pos(v_1, v_2', v_3')
+    E' = E{ x := v_3 }
+    -----------------------------------------------  :: E_Subset1_Positive_Assign
+    E C<x[v_1] <- v_2> --> E' C<v_3>
 
 
-    v_1 = [lit_1 .. lit_l],T
-    v_2 = [num_1 .. num_n],T_Int
-    v_3 = [lit'_1 .. lit'_m],T
-    forall i in 1..n : num_i <= 0
-    v_2' = drop_zeros(v_2)
-    n' = length(v_2')
-    n' % m == 0
-    v_2'' = negate_vec(v_2')
-    v_3' = truncate_or_recycle(v_3, v_3, v_3, n'-m)
-    v_4 = update_at_pos(v_1, v_2'', v_3')
-    -----------------------------------------------  :: E_Subset1_Positive2_Assign
-    v_1[-v_2] <- v_3 --> v_4
-
-
+    x in E
+    E(x) = v_1
     v_1 = [lit_1 .. lit_l],T
     v_2 = [bool_1 .. bool_n],T_Bool
     forall i in 1..n : bool_i =/= NA_b
@@ -212,10 +214,13 @@
     j' % m == 0
     v_3' = truncate_or_recycle(v_3, v_3, v_3, j'-m)
     v_4 = update_at_pos(v_1, v_2'', v_3')
+    E' = E{ x := v_4 }
     ----------------------------------------------  :: E_Subset1_Bool_Assign
-    v_1[v_2] <- v_3 --> v_4
+    E C<x[v_2] <- v_3> --> E' C<v_4>
 
 
+    x in E
+    E(x) = v_1
     v_1 = [lit_1 .. lit_l],T
     v_2 = [num_1 .. num_n],T_Int
     forall i in 1..n : num_i >= 0
@@ -227,39 +232,25 @@
     n' % m == 0
     v_3' = truncate_or_recycle(v_3, v_3, v_3, n'-m)
     v_4 = update_at_pos(v_1, v_2'', v_3')
-    -----------------------------------------------  :: E_Subset1_Negative1_Assign
-    v_1[-v_2] <- v_3 --> v_4
+    E' = E{ x := v_4 }
+    -----------------------------------------------  :: E_Subset1_Negative_Assign
+    E C<x[-v_2] <- v_3> --> E' C<v_4>
 
 
-    v_1 = [lit_1 .. lit_l],T
-    v_2 = [num_1 .. num_n],T_Int
-    forall i in 1..n : num_i <= 0
-    v_3 = [lit'_1 .. lit'_m],T
-    v_1' = gen_bool_vec(v1)
-    v_2' = negate_vec(v_2)
-    v_2'' = neg_vec_to_bool(v_2', v_1')
-    v_2''' = bool_vec_to_pos(v_2'', 1)
-    n' = length(v_2''')
-    n' % m == 0
-    v_3' = truncate_or_recycle(v_3, v_3, v_3, n'-m)
-    v_4 = update_at_pos(v_1, v_2''', v_3')
-    -----------------------------------------------  :: E_Subset1_Negative2_Assign
-    v_1[v_2] <- v_3 --> v_4
-
-
-    v_1 = [lit_1 ... lit_n],T
-    v_2 = [m],Int
-    m in 1...n
-    -------------------------  :: E_Subset2
-    v_1[[v_2]] --> [lit_m],T
-
-
+    x in E
+    E(x) = v_1
     v_1 = [lit_1 .. lit_i lit_j lit_k .. lit_n],T
     v_2 = [k],T_Int
     v_3 = [lit],T
     v_4 = [lit_1 .. lit_i lit lit_k .. lit_n],T
+    E' = E{ x := v_4 }
     ---------------------------------------------  :: E_Subset2_Assign
-    v_1[[v_2]] <- v_3 --> v_4
+    E C<x[[v_2]] <- v_3> --> E' C<v_4>
+
+
+    ---------------------  :: E_Sequence
+    E C<v; e> --> E' C<e>
+
 
 #### Notes
 
@@ -279,30 +270,18 @@
   * `E_Subset1_Zero`: Subsetting a vector with `0` returns an empty vector of
     the same type.
 
-  * `E_Subset1_Positive1` and `E_Subset1_Positive2`: Subsetting takes
-    a positional vector of positive integers, which describes the index of
-    elements to return. The index vector is non-empty. Indices that are out of
-    bounds or denoted by `NA_i` select `NA` (of the appropriate type).
+  * `E_Subset1_Positive`: Subsetting takes a positional vector of positive
+    integers, which describes the index of elements to return. The index vector
+    is non-empty. Indices that are out of bounds or denoted by `NA_i` select
+    `NA` (of the appropriate type).
     * Indices that are `0` do not select anything. Note that `x[0]` returns the
       empty vector.
     * If the index vector is negated, and all of its elements are negative, this
       is equivalent to positive subsetting.
-    * These could be combined if we had general expressions, since `-c(1, 2, 3)`
-      is an expression  that evaluates to `c(-1, -2, -3)`; for now, we use
-      specific syntax `e[-e]`.
-
-  * `E_Subset1_Negative1` and `E_Subset1_Negative2`: Subsetting takes negative
-     indices; either a vector of positive numbers is negated, or the vector
-     contains negative numbers. Elements at those positions are excluded from
-     the returned vector.
-     * If a negative index is out of bounds, it is ignored.
-     * Repeated indices are ignored.
-     * `NA`s are not allowed as indices.
-     * Internally, the negative vector is converted to a boolean vector, which
-       is then converted to a positional vector.
-     * These could be combined if we had general expressions, since
-       `-c(1, 2, 3)` is an expression  that evaluates to `c(-1, -2, -3)`; for
-       now, we use specific syntax `e[-e]`.
+    * Positive subsetting can also be accomplished with `v1[-v2]` if `v2` is
+      a vector of negative indices. We could support this if we had general
+      expressions, since `-c(1, 2, 3)` is an expression  that evaluates to
+      `c(-1, -2, -3)`; for now, we use specific syntax `e[-e]`.
 
   * `E_Subset1_Bool`: Subsetting takes a boolean vector of the same length. If
     the boolean vector contains `True`, then the element at the corresponding
@@ -315,6 +294,19 @@
       vectors have the same length.
     * Internally, we convert a boolean vector into a positional vector (see
       previous cases).
+
+  * `E_Subset1_Negative`: Subsetting takes negative indices; either a vector of
+    positive numbers is negated, or the vector contains negative numbers.
+    Elements at those positions are excluded from the returned vector.
+     * If a negative index is out of bounds, it is ignored.
+     * Repeated indices are ignored.
+     * `NA`s are not allowed as indices.
+     * Internally, the negative vector is converted to a boolean vector, which
+       is then converted to a positional vector.
+     * Negative subsetting can also be accomplished with `v1[v2]` if `v2` is
+       a vector of negative indices. We could support this if we had general
+       expressions, since `-c(1, 2, 3)` is an expression that evaluates to
+       `c(-1, -2, -3)`; for now, we use specific syntax `e[-e]`.
 
   * `E_Subset1_Nothing_Assign`: The entire vector is replaced by a new one.
     * If the replacement vector is too short, it gets recycled. If it is too
@@ -524,19 +516,6 @@
     truncate_or_recycle(v_1, v_2, v_3, m) = v
 
 
-    v_1 = [],T_Int
-    --------------------------  :: Aux_NegateVec_BaseCase
-    negate_vec(v_1) = [],T_Int
-
-
-    v_1 = [lit lit_1 .. lit_n],T_Int
-    v_1' = [lit_1 .. lit_n],T_Int
-    v_2 = negate_vec(v_1')
-    v = prepend(-lit, v_2)
-    --------------------------------  :: Aux_NegateVec_RecurseCase
-    negate_vec(v_1) = v
-
-
     v_1 = [],T
     ---------------------------  :: Aux_GenBoolVec_BaseCase
     gen_bool_vec(v_1) = [],T_Bool
@@ -628,7 +607,7 @@
 
 These features are likely required.
 
-  * add heap and environment
+  * doublecheck environment and assignment/sequencing
   * implement semantics so we can execute them and write test cases
   * semantics are probably buggy, already too complicated to keep track of with
     pencil-and-paper
@@ -638,12 +617,12 @@ These features are likely required.
 These might not be necessary, but are nice to have, or will be implemented
 because other features depend on them.
 
+  * heap, multiple environments
   * expressions
     * lift to vectors
     * recycling
   * symbols
     * named vectors and subsetting
-  * heap semantics; i.e. assignment to variables
   * data frames and/or tibbles
   * attributes
   * core syntax and sugar?
