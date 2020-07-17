@@ -99,18 +99,25 @@
     subsetting.
 
 
-### Environment
+### Environments
 
     E ::= { x -> v }*
 
 #### Notes
 
   * An environment is a finite map from variables to values.
+  * We use the notation `E{ x := v }` to denote environment `E` being updated
+    with the new mapping of variable `x` to value `v`. If a previous value was
+    mapped to `x`, it is overwritten.
 
 
 ## Operational Semantics
 
 ### `E C<e_1> --> E' C<e_2>`
+
+Expression `e_1` in context `C` _reduces to_ expression `e_2` in context `C`,
+updating environment `E` to the new environment `E'`.
+
 
     typeof(lit) = T
     -------------------------  :: E_Scalar2Vec
