@@ -1,8 +1,7 @@
 dplyr semantics
 ===============
 
-Work in progress. See [semantics.md](semantics.md); a typeset version is
-forthcoming.
+Work in progress. See [semantics.md](semantics.md).
 
 This is a formalization of vectors and subsetting in R (see Advanced R, [chapter
 3](https://adv-r.hadley.nz/vectors-chap.html) and [chapter

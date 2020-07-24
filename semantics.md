@@ -646,6 +646,8 @@ necessary.
     * `x[0] <- 1` will upcast
   * other literals/types (float, string)
     * testing and coercions
+    * note that `x[-0.1]` is coerced to `x[-1]` while `x[0.1]` is coerced to
+      `x[0]`!
   * dimensions
     * matrices and arrays
   * lists
