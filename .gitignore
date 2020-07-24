@@ -1,3 +1,7 @@
+_build
+main.native
+main.byte
+
 *.aux
 *.bbl
 *.blg
