@@ -11,3 +11,10 @@ This is a formalization of vectors and subsetting in R (see Advanced R, [chapter
 [tibble](https://tibble.tidyverse.org/) and
 [magrittr](https://magrittr.tidyverse.org/).
 
+
+Dependencies
+------------
+
+  * [OPAM](https://opam.ocaml.org/).
+  * OCaml 4.10.0 (can be installed via `opam install ocaml.4.10.0`)
+

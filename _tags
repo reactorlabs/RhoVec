@@ -1,0 +1,9 @@
+# always compile with debug flags
+true: debug
+
+# dump detailed info (in binary format); used by tools like Merlin
+true: bin_annot
+
+# enable some more warnings
+# fragile pattern matching
+true: warn(+4)

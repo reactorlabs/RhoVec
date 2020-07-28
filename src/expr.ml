@@ -5,3 +5,7 @@ and type_tag =
   | Int
 and value =
   | Vector of int array * type_tag
+
+(* Helpers for constructing ASTs *)
+let int_vec xs =
+  Vector ((Array.of_list xs), Int)
