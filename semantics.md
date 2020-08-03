@@ -6,7 +6,7 @@
 
     e ::=
         | lit                                   # literal
-        | Vec(e_1, .. , e_n)                    # vector constructor
+        | Vec(e_1, ... , e_n)                   # vector constructor
         | e_1[]                                 # subset1 (nothing)
         | e_1[e_2]                              # subset1
         | e_1[-e_2]                             # subset1 (negative)
@@ -124,7 +124,7 @@ updating environment `E` to the new environment `E'`.
     E C<lit> --> E C<[lit],T>
 
 
-    (v_1 = [lit_1_1 .. lit_1_m1],T) .. (v_n = [lit_n_1 .. lit_n_mn],T)
+    (v_1 = [lit_1_1 .. lit_1_m1],T) ... (v_n = [lit_n_1 .. lit_n_mn],T)
     ------------------------------------------------------------------------------  :: E_VecCtor
     E C<Vec(v_1, .., v_n)> --> E C<[lit_1_1 .. lit_1_m1 .. lit_n_1 .. lit_n_mn],T>
 
@@ -270,6 +270,10 @@ updating environment `E` to the new environment `E'`.
   * `E_VecCtor`: The vector constructor (more precisely, the combine function,
     `c()`) can take vectors as arguments, and flattens them to return a single
     vector.
+    * At least one argument must be supplied; empty vectors cannot be
+      constructed this way.
+    * This is a departure from R, where `c()` constructs the `NULL` vector (i.e.
+      a special 0-length vector of type `NULL`).
 
   * `E_Subset1_Nothing`: Subsetting a vector with nothing (e.g., `v[]`) returns
     the original vector.
@@ -652,7 +656,7 @@ necessary.
     * matrices and arrays
   * lists
     * or treat them as "vectors" of some vector type
-  * NULL vector
+  * NULL vector (e.g. default empty vector)
   * `$` operator
     * `x$y` is sugar for `x[["y"]]`, implies symbol-to-string coercion
   * promises and laziness
