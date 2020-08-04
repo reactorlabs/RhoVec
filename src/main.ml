@@ -90,6 +90,27 @@ let tests_pos = [
   (31, Subset1 (Combine [false_exp; true_exp; false_exp], Combine [int_exp 0]),
        empty_vec Bool);
   (32, Subset1 (true_exp, Combine [int_exp 0]), empty_vec Bool);
+
+  (* subset1 bool *)
+  (33, Subset1 (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4],
+                Combine [true_exp; false_exp; false_exp; true_exp]),
+       vec_of_intlist [1; 4]);
+  (34, Subset1 (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4],
+                Combine [true_exp; true_exp; true_exp; true_exp]),
+       vec_of_intlist [1; 2; 3; 4]);
+  (35, Subset1 (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4],
+               Combine [false_exp; false_exp; false_exp; false_exp]),
+       empty_vec Int);
+  (36, Subset1 (Combine [true_exp; true_exp; false_exp; false_exp; true_exp],
+                Combine [true_exp; false_exp; false_exp; true_exp; true_exp]),
+       vec_of_boollist [true; false; true]);
+  (37, Subset1 (Combine [true_exp; true_exp; false_exp; false_exp; true_exp],
+                Combine [true_exp; true_exp; true_exp; true_exp; true_exp]),
+       vec_of_boollist [true; true; false; false; true]);
+  (38, Subset1 (Combine [true_exp; true_exp; false_exp; false_exp; true_exp],
+                Combine [false_exp; false_exp; false_exp; false_exp;
+                         false_exp]),
+       empty_vec Bool);
 ]
 
 let tests_neg = [

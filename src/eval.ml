@@ -38,6 +38,21 @@ let check_all_types_same ts =
   | Some t -> raise (Type_error { expected = hd; received = t })
   | None -> hd
 
+
+(* TODO:
+   A function like this can be written elegantly using lists and recursion. But
+   the implementation mostly uses arrays, so we have to convert back and forth.
+   Revisit this decision later.
+ *)
+let rec get_at_true l1 l2 =
+  match (l1, l2) with
+  | ([], []) -> []
+  | (hd1 :: tl1, hd2 :: tl2) ->
+      let rest = get_at_true tl1 tl2 in
+      if hd2 then hd1 :: rest
+      else rest
+  | ([], _) | (_, []) -> assert false
+
 let rec eval e =
   match e with
   | Lit l -> vec_of_lit l
@@ -51,14 +66,23 @@ let rec eval e =
   | Subset1 (e1, e2) ->
       let Vector (a1, t1) = eval e1 in
       let Vector (a2, t2) = eval e2 in
-      (* TODO: for now we only support Subset1_Zero *)
       (* TODO: currently omit checks on a1 *)
-      if t2 <> Int then assert false;
-      if Array.length a2 < 1 then assert false;
-      if Array.length a2 > 1 then assert false;
-      let n = extract_int a2.(0) in
-      if n <> 0 then assert false;
-      empty_vec t1
+      begin match t2 with
+      | Bool ->
+          (* TODO: for now, both vectors must have the same length *)
+          if Array.length a1 <> Array.length a2 then assert false;
+          let l1 = Array.to_list a1 in
+          let l2 = Array.to_list (Array.map extract_bool a2) in
+          let res = Array.of_list (get_at_true l1 l2) in
+          Vector (res, t1)
+      | Int ->
+          (* TODO: for now we only support Subset1_Zero *)
+          if Array.length a2 < 1 then assert false;
+          if Array.length a2 > 1 then assert false;
+          let n = extract_int a2.(0) in
+          if n <> 0 then assert false;
+          empty_vec t1
+      end
   | Subset1_Nothing e1 -> eval e1
   | Subset2 (e1, e2) ->
       let Vector (a1, t1) = eval e1 in
@@ -71,4 +95,3 @@ let rec eval e =
       if n < 0 then raise Selecting_gt_one_element;
       if n > Array.length a1 then raise Subscript_out_of_bounds;
       vec_of_lit a1.(n - 1)
-

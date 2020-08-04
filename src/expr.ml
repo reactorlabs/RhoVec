@@ -40,4 +40,3 @@ let vec_of_lit l =
   match l with
   | Bool b -> vec_of_bool b
   | Int i -> vec_of_int i
-
