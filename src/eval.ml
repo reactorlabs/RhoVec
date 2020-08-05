@@ -48,18 +48,6 @@ let check_all_types_same (ts : type_tag list) =
    the implementation mostly uses arrays, so we have to convert back and forth.
    Revisit this decision later.
  *)
-let rec get_at_true (l1 : literal list) (l2 : bool option list) ty =
-  match (l1, l2) with
-  | ([], []) -> []
-  | (hd1 :: tl1, hd2 :: tl2) ->
-      let rest = get_at_true tl1 tl2 ty in
-      begin match hd2 with
-      | Some true -> hd1 :: rest
-      | Some false -> rest
-      | None -> (na_lit ty) :: rest
-      end
-  | ([], _) | (_, []) -> assert false
-
 let rec get_at_pos (a1 : literal array) (l2 : int option list) ty =
   match l2 with
   | [] -> []
@@ -68,6 +56,17 @@ let rec get_at_pos (a1 : literal array) (l2 : int option list) ty =
       begin match hd2 with
       | Some i when 1 <= i && i <= Array.length a1 -> a1.(i - 1) :: rest
       | Some _ | None -> (na_lit ty) :: rest
+      end
+
+let rec bool_vec_to_pos (l : bool option list) n =
+  match l with
+  | [] -> []
+  | hd :: tl ->
+      let rest = bool_vec_to_pos tl (n + 1) in
+      begin match hd with
+      | Some true -> Some n :: rest
+      | Some false -> rest
+      | None -> None :: rest
       end
 
 let rec eval e =
@@ -88,9 +87,9 @@ let rec eval e =
       | Bool ->
           (* TODO: for now, both vectors must have the same length *)
           if Array.length a1 <> Array.length a2 then raise Todo;
-          let l1 = Array.to_list a1 in
           let l2 = Array.to_list (Array.map extract_bool a2) in
-          let res = Array.of_list (get_at_true l1 l2 t1) in
+          let l2' = bool_vec_to_pos l2 1 in
+          let res = Array.of_list (get_at_pos a1 l2' t1) in
           Vector (res, t1)
       | Int when Array.length a2 = 1 && (extract_int a2.(0)) = Some 0 ->
           empty_vec t1
