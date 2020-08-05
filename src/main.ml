@@ -155,6 +155,35 @@ let tests_pos = [
   (52, Subset1 (Combine [true_exp; true_exp; false_exp; false_exp; true_exp],
                 Combine [true_exp; false_exp; true_exp; na_exp Bool; true_exp]),
        Vector ([| true_lit; false_lit; na_lit Bool; true_lit |], Bool));
+
+  (* subset1 positive *)
+  (53, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                int_exp 1),
+       vec_of_intlist [11]);
+  (54, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                int_exp 2),
+       vec_of_intlist [12]);
+  (55, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                int_exp 3),
+       vec_of_intlist [13]);
+  (56, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                int_exp 4),
+       vec_of_intlist [14]);
+  (57, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                int_exp 5),
+       Vector ([| na_lit Int |], Int));
+  (58, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                Combine [int_exp 1]),
+       vec_of_intlist [11]);
+  (59, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                Combine [int_exp 1; int_exp 3]),
+       vec_of_intlist [11; 13]);
+  (60, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                Combine [int_exp 0; int_exp 1; int_exp 3; int_exp 5]),
+       Vector ([| na_lit Int; int_lit 11; int_lit 13; na_lit Int |], Int));
+  (61, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                Combine [int_exp 3; int_exp 3; int_exp 2; int_exp 4]),
+       vec_of_intlist [13; 13; 12; 14]);
 ]
 
 let tests_neg = [

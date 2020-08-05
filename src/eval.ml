@@ -33,7 +33,7 @@ let extract_int (l : literal) =
   | NA_int -> None
   | Bool _ | NA_bool -> raise (Type_error { expected = Int; received = get_tag l })
 
-let check_all_types_same ts =
+let check_all_types_same (ts : type_tag list) =
   if List.length ts = 0 then raise Expected_nonempty_vector;
   let hd = List.hd ts in
   let tl = List.tl ts in
@@ -48,7 +48,7 @@ let check_all_types_same ts =
    the implementation mostly uses arrays, so we have to convert back and forth.
    Revisit this decision later.
  *)
-let rec get_at_true l1 l2 ty =
+let rec get_at_true (l1 : literal list) (l2 : bool option list) ty =
   match (l1, l2) with
   | ([], []) -> []
   | (hd1 :: tl1, hd2 :: tl2) ->
@@ -59,6 +59,16 @@ let rec get_at_true l1 l2 ty =
       | None -> (na_lit ty) :: rest
       end
   | ([], _) | (_, []) -> assert false
+
+let rec get_at_pos (a1 : literal array) (l2 : int option list) ty =
+  match l2 with
+  | [] -> []
+  | hd2 :: tl2 ->
+      let rest = get_at_pos a1 tl2 ty in
+      begin match hd2 with
+      | Some i when 1 <= i && i <= Array.length a1 -> a1.(i - 1) :: rest
+      | Some _ | None -> (na_lit ty) :: rest
+      end
 
 let rec eval e =
   match e with
@@ -82,15 +92,12 @@ let rec eval e =
           let l2 = Array.to_list (Array.map extract_bool a2) in
           let res = Array.of_list (get_at_true l1 l2 t1) in
           Vector (res, t1)
+      | Int when Array.length a2 = 1 && (extract_int a2.(0)) = Some 0 ->
+          empty_vec t1
       | Int ->
-          (* TODO: for now we only support Subset1_Zero *)
-          if Array.length a2 < 1 then raise Todo;
-          if Array.length a2 > 1 then raise Todo;
-          begin match extract_int a2.(0) with
-          | None -> raise Todo;
-          | Some n when n <> 0 -> raise Todo;
-          | Some n -> empty_vec t1
-          end
+          let l2 = Array.to_list (Array.map extract_int a2) in
+          let res = Array.of_list (get_at_pos a1 l2 t1) in
+          Vector (res, t1)
       end
   | Subset1_Nothing e1 -> eval e1
   | Subset2 (e1, e2) ->
