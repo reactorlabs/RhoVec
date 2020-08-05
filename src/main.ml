@@ -91,7 +91,7 @@ let tests_pos = [
        empty_vec Bool);
   (32, Subset1 (true_exp, Combine [int_exp 0]), empty_vec Bool);
 
-  (* subset1 bool *)
+  (* subset1 logical *)
   (33, Subset1 (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4],
                 Combine [true_exp; false_exp; false_exp; true_exp]),
        vec_of_intlist [1; 4]);
@@ -111,6 +111,50 @@ let tests_pos = [
                 Combine [false_exp; false_exp; false_exp; false_exp;
                          false_exp]),
        empty_vec Bool);
+
+  (* NA lit *)
+  (39, na_exp Int, vec_of_lit NA_int);
+  (40, na_exp Bool, vec_of_lit NA_bool);
+
+  (* Combine with NA *)
+  (41, Combine [na_exp Int], vec_of_lit NA_int);
+  (42, Combine [na_exp Bool], vec_of_lit NA_bool);
+  (43, Combine [int_exp 5; (Combine [int_exp 6; int_exp 7;
+                                    (Combine [na_exp Int]); int_exp 9])],
+       Vector ([| int_lit 5; int_lit 6; int_lit 7; na_lit Int; int_lit 9 |],
+               Int));
+  (44, Combine [true_exp; (Combine [true_exp; false_exp;
+                                    (Combine [na_exp Bool]); true_exp])],
+       Vector ([| true_lit; true_lit; false_lit; na_lit Bool; true_lit |],
+               Bool));
+
+  (* subset1 nothing with NA *)
+  (45, Subset1_Nothing (Combine [int_exp 3; int_exp 1; na_exp Int]),
+       Vector ([| int_lit 3; int_lit 1; na_lit Int |], Int));
+  (46, Subset1_Nothing (Combine [true_exp; true_exp; na_exp Bool]),
+       Vector ([| true_lit; true_lit; na_lit Bool |], Bool));
+
+  (* subset2 with NA *)
+  (47, Subset2 (Combine [na_exp Int; int_exp 2; int_exp 3], int_exp 1),
+       vec_of_lit (na_lit Int));
+  (48, Subset2 (Combine [na_exp Bool; true_exp; false_exp], int_exp 1),
+       vec_of_lit (na_lit Bool));
+
+  (* subset1 zero with NA *)
+  (49, Subset1 (Combine [na_exp Bool; na_exp Bool; na_exp Bool],
+                Combine [int_exp 0]),
+       empty_vec Bool);
+  (50, Subset1 (Combine [na_exp Int; na_exp Int; na_exp Int],
+                Combine [int_exp 0]),
+       empty_vec Int);
+
+  (* subset1 logical with NA *)
+  (51, Subset1 (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4],
+                Combine [true_exp; na_exp Bool; false_exp; true_exp]),
+       Vector ([| int_lit 1; na_lit Int; int_lit 4 |], Int));
+  (52, Subset1 (Combine [true_exp; true_exp; false_exp; false_exp; true_exp],
+                Combine [true_exp; false_exp; true_exp; na_exp Bool; true_exp]),
+       Vector ([| true_lit; false_lit; na_lit Bool; true_lit |], Bool));
 ]
 
 let tests_neg = [
@@ -150,6 +194,14 @@ let tests_neg = [
          Eval.Type_error { expected = Int; received = Bool });
   (1014, Combine [false_exp; true_exp; int_exp 1; false_exp],
          Eval.Type_error { expected = Bool; received = Int });
+
+  (* subset2 with NA errors *)
+  (1015, Subset2 (Subset1 (int_exp 1, int_exp 0), na_exp Int),
+         Eval.Subscript_out_of_bounds);
+  (1016, Subset2 (Subset1 (int_exp 1, int_exp 0), na_exp Bool),
+         Eval.Type_error { expected = Int; received = Bool });
+  (1017, Subset2 (Subset1 (int_exp 1, int_exp 0), Combine [na_exp Int]),
+         Eval.Subscript_out_of_bounds);
 ]
 
 let () =

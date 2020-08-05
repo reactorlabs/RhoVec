@@ -13,6 +13,8 @@ exception Selecting_gt_one_element
 
 exception Expected_nonempty_vector
 
+exception Todo
+
 let extract_array = function
   | Vector (a, _) -> a
 
@@ -21,13 +23,15 @@ let extract_type = function
 
 let extract_bool (l : literal) =
   match l with
-  | Bool b -> b
-  | Int _ -> raise (Type_error { expected = Bool; received = get_tag l })
+  | Bool b -> Some b
+  | NA_bool -> None
+  | Int _ | NA_int -> raise (Type_error { expected = Bool; received = get_tag l })
 
 let extract_int (l : literal) =
   match l with
-  | Int i -> i
-  | Bool _ -> raise (Type_error { expected = Int; received = get_tag l })
+  | Int i -> Some i
+  | NA_int -> None
+  | Bool _ | NA_bool -> raise (Type_error { expected = Int; received = get_tag l })
 
 let check_all_types_same ts =
   if List.length ts = 0 then raise Expected_nonempty_vector;
@@ -44,13 +48,16 @@ let check_all_types_same ts =
    the implementation mostly uses arrays, so we have to convert back and forth.
    Revisit this decision later.
  *)
-let rec get_at_true l1 l2 =
+let rec get_at_true l1 l2 ty =
   match (l1, l2) with
   | ([], []) -> []
   | (hd1 :: tl1, hd2 :: tl2) ->
-      let rest = get_at_true tl1 tl2 in
-      if hd2 then hd1 :: rest
-      else rest
+      let rest = get_at_true tl1 tl2 ty in
+      begin match hd2 with
+      | Some true -> hd1 :: rest
+      | Some false -> rest
+      | None -> (na_lit ty) :: rest
+      end
   | ([], _) | (_, []) -> assert false
 
 let rec eval e =
@@ -70,18 +77,20 @@ let rec eval e =
       begin match t2 with
       | Bool ->
           (* TODO: for now, both vectors must have the same length *)
-          if Array.length a1 <> Array.length a2 then assert false;
+          if Array.length a1 <> Array.length a2 then raise Todo;
           let l1 = Array.to_list a1 in
           let l2 = Array.to_list (Array.map extract_bool a2) in
-          let res = Array.of_list (get_at_true l1 l2) in
+          let res = Array.of_list (get_at_true l1 l2 t1) in
           Vector (res, t1)
       | Int ->
           (* TODO: for now we only support Subset1_Zero *)
-          if Array.length a2 < 1 then assert false;
-          if Array.length a2 > 1 then assert false;
-          let n = extract_int a2.(0) in
-          if n <> 0 then assert false;
-          empty_vec t1
+          if Array.length a2 < 1 then raise Todo;
+          if Array.length a2 > 1 then raise Todo;
+          begin match extract_int a2.(0) with
+          | None -> raise Todo;
+          | Some n when n <> 0 -> raise Todo;
+          | Some n -> empty_vec t1
+          end
       end
   | Subset1_Nothing e1 -> eval e1
   | Subset2 (e1, e2) ->
@@ -90,8 +99,10 @@ let rec eval e =
       if Array.length a2 < 1 then raise Selecting_lt_one_element;
       if Array.length a2 > 1 then raise Selecting_gt_one_element;
       if t2 <> Int then raise (Type_error { expected = Int; received = t2 });
-      let n = extract_int a2.(0) in
-      if n = 0 then raise Selecting_lt_one_element;
-      if n < 0 then raise Selecting_gt_one_element;
-      if n > Array.length a1 then raise Subscript_out_of_bounds;
-      vec_of_lit a1.(n - 1)
+      begin match extract_int a2.(0) with
+      | None -> raise Subscript_out_of_bounds
+      | Some n when n = 0 -> raise Selecting_lt_one_element
+      | Some n when n < 0 -> raise Selecting_gt_one_element
+      | Some n when n > Array.length a1 -> raise Subscript_out_of_bounds
+      | Some n -> vec_of_lit a1.(n - 1)
+      end
