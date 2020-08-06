@@ -148,7 +148,7 @@ updating environment `E` to the new environment `E'`.
     v_1' = extend(v_1, l-n)
     v_2' = recycle(v_2, v_2, v_2, l-m)
     v_2'' = bool_vec_to_pos(v_2', 1)
-    v_3 = get_at_pos(v_1, v_2'')
+    v_3 = get_at_pos(v_1', v_2'')
     ----------------------------------  :: E_Subset1_Bool
     E C<v_1[v_2]> --> E C<v_3>
 

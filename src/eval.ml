@@ -42,7 +42,6 @@ let check_all_types_same (ts : type_tag list) =
   | Some t -> raise (Type_error { expected = hd; received = t })
   | None -> hd
 
-
 (* TODO:
    A function like this can be written elegantly using lists and recursion. But
    the implementation mostly uses arrays, so we have to convert back and forth.
@@ -69,6 +68,27 @@ let rec bool_vec_to_pos (l : bool option list) n =
       | None -> None :: rest
       end
 
+let extend (a : literal array) n ty =
+  if Array.length a < n then
+    (* Prefill with NAs (some might not be overwritten) *)
+    let res = Array.make n (na_lit ty) in
+    Array.iteri (fun i x -> Array.set res i x) a;
+    res
+  else
+    a
+
+let recycle (a : literal array) n =
+  let m = Array.length a in
+  if m < n then
+    (* Use NA_bool as a placeholder that will be overwritten *)
+    let res = Array.make n NA_bool in
+    for i = 0 to (n - 1) do
+      Array.set res i a.(i mod m)
+    done;
+    res
+  else
+    a
+
 let rec eval e =
   match e with
   | Lit l -> vec_of_lit l
@@ -82,14 +102,14 @@ let rec eval e =
   | Subset1 (e1, e2) ->
       let Vector (a1, t1) = eval e1 in
       let Vector (a2, t2) = eval e2 in
-      (* TODO: currently omit checks on a1 *)
       begin match t2 with
       | Bool ->
-          (* TODO: for now, both vectors must have the same length *)
-          if Array.length a1 <> Array.length a2 then raise Todo;
-          let l2 = Array.to_list (Array.map extract_bool a2) in
+          let len = Stdlib.max (Array.length a1) (Array.length a2) in
+          let a1' = extend a1 len t1 in
+          let a2' = recycle a2 len in
+          let l2 = Array.to_list (Array.map extract_bool a2') in
           let l2' = bool_vec_to_pos l2 1 in
-          let res = Array.of_list (get_at_pos a1 l2' t1) in
+          let res = Array.of_list (get_at_pos a1' l2' t1) in
           Vector (res, t1)
       | Int when Array.length a2 = 1 && (extract_int a2.(0)) = Some 0 ->
           empty_vec t1
