@@ -247,6 +247,15 @@ let tests_pos = [
   (73, Subset1_Neg (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
                     Combine [int_exp 4; int_exp 20; int_exp 1; int_exp 0]),
        vec_of_intlist [12; 13]);
+
+  (* subset1_nothing_assign *)
+  (74, Subset1_Nothing_Assign (Combine [int_exp 11; int_exp 12; int_exp 13],
+                               int_exp 0),
+       vec_of_intlist [0; 0; 0]);
+  (75, Subset1_Nothing_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
+                                        int_exp 14],
+                               Combine [int_exp 1; int_exp 2]),
+       vec_of_intlist [1; 2; 1; 2]);
 ]
 
 let tests_neg = [
@@ -305,6 +314,15 @@ let tests_neg = [
   (1020, Subset1_Neg (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
                       Combine [int_exp 4; na_exp Int; int_exp 0]),
          Eval.Mixing_NA_subscripts);
+
+  (* subset1_nothing_assign *)
+  (1021, Subset1_Nothing_Assign (Combine [int_exp 11; int_exp 12; int_exp 13],
+                                 Combine [int_exp 1; int_exp 2]),
+       Eval.Replacement_length_not_multiple);
+  (1022, Subset1_Nothing_Assign (Combine [int_exp 11; int_exp 12; int_exp 13],
+                                 Combine [int_exp 1; int_exp 2; int_exp 3;
+                                          int_exp 4]),
+       Eval.Replacement_length_not_multiple);
 ]
 
 let () =

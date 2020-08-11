@@ -1,9 +1,10 @@
 type expression =
   | Lit of literal
   | Combine of expression list
-  | Subset1 of expression * expression
-  | Subset1_Neg of expression * expression
   | Subset1_Nothing of expression
+  | Subset1_Nothing_Assign of expression * expression
+  | Subset1 of expression * expression
+  | Subset1_Neg of expression * expression (* TODO: use a Negate expr instead *)
   | Subset2 of expression * expression
 and literal =
   | Bool of bool

@@ -16,6 +16,8 @@ exception Mixing_NA_subscripts
 
 exception Expected_nonempty_vector
 
+exception Replacement_length_not_multiple
+
 exception Todo
 
 let extract_array = function
@@ -117,6 +119,15 @@ let rec eval e =
       let arrs = List.map extract_array vecs in
       let vec = Array.concat arrs in
       Vector (vec, ty)
+  | Subset1_Nothing e1 -> eval e1
+  | Subset1_Nothing_Assign (e1, e2) ->
+      let Vector (a1, t1) = eval e1 in
+      let Vector (a2, t2) = eval e2 in
+      let n, m = (Array.length a1, Array.length a2) in
+      if n mod m <> 0 then raise Replacement_length_not_multiple;
+      if t1 <> t2 then raise (Type_error {expected = t1; received = t2 });
+      let res = recycle a2 n in
+      Vector (res, t1)
   | Subset1 (e1, e2) ->
       let Vector (a1, t1) = eval e1 in
       let Vector (a2, t2) = eval e2 in
@@ -144,7 +155,6 @@ let rec eval e =
       let l2' = bool_vec_to_pos (Array.to_list a2') 1 in
       let res = Array.of_list (get_at_pos a1 l2' t1) in
       Vector (res, t1)
-  | Subset1_Nothing e1 -> eval e1
   | Subset2 (e1, e2) ->
       let Vector (a1, t1) = eval e1 in
       let Vector (a2, t2) = eval e2 in
