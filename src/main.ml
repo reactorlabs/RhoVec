@@ -5,12 +5,14 @@ open Expr
   - assignment
   - maybe add a Negate expression, to simplify some cases
   - various other bugs that were fixed in the semantics
+  - set up utop
   - use an actual test framework
   - set up code coverage tools
   - refactor and clean up tests
 
   - parser
   - test oracle
+  - interactive mode / repl
 *)
 
 exception Test_failed of int

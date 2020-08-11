@@ -129,8 +129,6 @@ let rec eval e =
           let l2' = bool_vec_to_pos l2 1 in
           let res = Array.of_list (get_at_pos a1' l2' t1) in
           Vector (res, t1)
-      | Int when Array.length a2 = 1 && (extract_int a2.(0)) = Some 0 ->
-          empty_vec t1
       | Int ->
           let l2 = Array.to_list (Array.map extract_int a2) in
           let res = Array.of_list (get_at_pos a1 l2 t1) in
