@@ -2,6 +2,7 @@ type expression =
   | Lit of literal
   | Combine of expression list
   | Subset1 of expression * expression
+  | Subset1_Neg of expression * expression
   | Subset1_Nothing of expression
   | Subset2 of expression * expression
 and literal =

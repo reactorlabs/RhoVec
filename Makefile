@@ -14,12 +14,18 @@ all: native
 run: native
 	./$(EXEC)
 
+debug: byte
+	ocamldebug _build/src/main.byte
+
 native:
 	$(OCB) main.native
 	cp _build/src/main.native $(EXEC)
+
+byte:
+	$(OCB) main.byte
 
 clean:
 	$(OCB) -clean
 	rm -f $(EXEC)
 
-.PHONY: all native clean
+.PHONY: all native byte clean

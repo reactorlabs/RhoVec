@@ -1,11 +1,27 @@
 open Expr
 
+(* Big list of TODO:
+  - environments
+  - assignment
+  - maybe add a Negate expression, to simplify some cases
+  - various other bugs that were fixed in the semantics
+  - use an actual test framework
+  - set up code coverage tools
+  - refactor and clean up tests
+
+  - parser
+  - test oracle
+*)
+
 exception Test_failed of int
+exception Failed
 
 let run_test_pos test =
   let id, expr, expected = test in
-  let res = Eval.eval expr in
-  if res <> expected then raise (Test_failed id)
+  try
+    let res = Eval.eval expr in
+    if res <> expected then raise Failed
+  with e -> raise (Test_failed id)
 
 let run_test_neg test =
   let id, expr, excptn = test in
@@ -180,7 +196,7 @@ let tests_pos = [
        vec_of_intlist [11; 13]);
   (60, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
                 Combine [int_exp 0; int_exp 1; int_exp 3; int_exp 5]),
-       Vector ([| na_lit Int; int_lit 11; int_lit 13; na_lit Int |], Int));
+       Vector ([| int_lit 11; int_lit 13; na_lit Int |], Int));
   (61, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
                 Combine [int_exp 3; int_exp 3; int_exp 2; int_exp 4]),
        vec_of_intlist [13; 13; 12; 14]);
@@ -215,6 +231,20 @@ let tests_pos = [
   (70, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
                 Combine [false_exp; true_exp; na_exp Bool]),
        Vector ([| int_lit 12; na_lit Int |], Int));
+
+  (* subset1 neg *)
+  (70, Subset1_Neg (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                    Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4]),
+       empty_vec Int);
+  (71, Subset1_Neg (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                    Combine [int_exp 1; int_exp 2; int_exp 5; int_exp 0]),
+       vec_of_intlist [13; 14]);
+  (72, Subset1_Neg (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                    Combine [int_exp 0; int_exp 20; int_exp 5; int_exp 0]),
+       vec_of_intlist [11; 12; 13; 14]);
+  (73, Subset1_Neg (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                    Combine [int_exp 4; int_exp 20; int_exp 1; int_exp 0]),
+       vec_of_intlist [12; 13]);
 ]
 
 let tests_neg = [
@@ -262,6 +292,17 @@ let tests_neg = [
          Eval.Type_error { expected = Int; received = Bool });
   (1017, Subset2 (Subset1 (int_exp 1, int_exp 0), Combine [na_exp Int]),
          Eval.Subscript_out_of_bounds);
+
+  (* subset1 mixing subscripts *)
+  (1018, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                  Combine [int_exp 0; int_exp 1; na_exp Int; int_exp (-3)]),
+         Eval.Mixing_pos_neg_subscripts);
+  (1019, Subset1_Neg (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                      Combine [int_exp 4; int_exp (-1); int_exp 0]),
+         Eval.Mixing_pos_neg_subscripts);
+  (1020, Subset1_Neg (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                      Combine [int_exp 4; na_exp Int; int_exp 0]),
+         Eval.Mixing_NA_subscripts);
 ]
 
 let () =

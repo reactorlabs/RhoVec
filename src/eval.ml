@@ -11,6 +11,9 @@ exception Subscript_out_of_bounds
 exception Selecting_lt_one_element
 exception Selecting_gt_one_element
 
+exception Mixing_pos_neg_subscripts
+exception Mixing_NA_subscripts
+
 exception Expected_nonempty_vector
 
 exception Todo
@@ -25,13 +28,15 @@ let extract_bool (l : literal) =
   match l with
   | Bool b -> Some b
   | NA_bool -> None
-  | Int _ | NA_int -> raise (Type_error { expected = Bool; received = get_tag l })
+  | Int _ | NA_int ->
+      raise (Type_error { expected = Bool; received = get_tag l })
 
 let extract_int (l : literal) =
   match l with
   | Int i -> Some i
   | NA_int -> None
-  | Bool _ | NA_bool -> raise (Type_error { expected = Int; received = get_tag l })
+  | Bool _ | NA_bool ->
+      raise (Type_error { expected = Int; received = get_tag l })
 
 let check_all_types_same (ts : type_tag list) =
   if List.length ts = 0 then raise Expected_nonempty_vector;
@@ -54,7 +59,10 @@ let rec get_at_pos (a1 : literal array) (l2 : int option list) ty =
       let rest = get_at_pos a1 tl2 ty in
       begin match hd2 with
       | Some i when 1 <= i && i <= Array.length a1 -> a1.(i - 1) :: rest
-      | Some _ | None -> (na_lit ty) :: rest
+      | Some 0 -> rest
+      | Some i when i > 0 -> (na_lit ty) :: rest
+      | None -> (na_lit ty) :: rest
+      | Some _ -> raise Mixing_pos_neg_subscripts
       end
 
 let rec bool_vec_to_pos (l : bool option list) n =
@@ -67,6 +75,16 @@ let rec bool_vec_to_pos (l : bool option list) n =
       | Some false -> rest
       | None -> None :: rest
       end
+
+let neg_vec_to_bool (l : int option list) (a : bool option array) =
+  let len = Array.length a in
+  List.iter (fun x ->
+    match x with
+    | Some i when 1 <= i && i <= len -> Array.set a (i - 1) (Some false)
+    | Some i when i >= 0 -> ()
+    | Some _ -> raise Mixing_pos_neg_subscripts
+    | None -> raise Mixing_NA_subscripts) l;
+  a
 
 let extend (a : literal array) n ty =
   if Array.length a < n then
@@ -118,6 +136,16 @@ let rec eval e =
           let res = Array.of_list (get_at_pos a1 l2 t1) in
           Vector (res, t1)
       end
+  | Subset1_Neg (e1, e2) ->
+      let Vector (a1, t1) = eval e1 in
+      let Vector (a2, t2) = eval e2 in
+      if t2 <> Int then raise (Type_error { expected = Int; received = t2 });
+      let l2 = Array.to_list (Array.map extract_int a2) in
+      let a1' = Array.make (Array.length a1) (Some true) in
+      let a2' = neg_vec_to_bool l2 a1' in
+      let l2' = bool_vec_to_pos (Array.to_list a2') 1 in
+      let res = Array.of_list (get_at_pos a1 l2' t1) in
+      Vector (res, t1)
   | Subset1_Nothing e1 -> eval e1
   | Subset2 (e1, e2) ->
       let Vector (a1, t1) = eval e1 in

@@ -156,7 +156,7 @@ updating environment `E` to the new environment `E'`.
     v_1 = [lit_1 .. lit_n],T
     v_2 = [num_1 .. num_m],T_Int
     forall i in 1..m : num_i >= 0
-    v_1' = gen_bool_vec(v1)
+    v_1' = gen_bool_vec(v_1)
     v_2' = neg_vec_to_bool(v_2, v_1')
     v_2'' = bool_vec_to_pos(v_2', 1)
     v_3 = get_at_pos(v_1, v_2'')
