@@ -32,6 +32,12 @@ let na_lit (ty : type_tag) =
   match ty with
   | Bool -> NA_bool
   | Int -> NA_int
+let opt_int_lit = function
+  | Some i -> Int i
+  | None -> NA_int
+let opt_bool_lit = function
+  | Some b -> Bool b
+  | None -> NA_bool
 
 let true_exp = Lit (Bool true)
 let false_exp = Lit (Bool false)
@@ -43,9 +49,12 @@ let empty_vec t = Vector ([| |], t)
 
 let vec_of_int x = Vector ([| Int x |], Int)
 let vec_of_intlist xs = Vector (Array.of_list (List.map int_lit xs), Int)
+let vec_of_intoptlist xs = Vector (Array.of_list (List.map opt_int_lit xs), Int)
 
 let vec_of_bool x = Vector ([| bool_lit x |], Bool)
 let vec_of_boollist xs = Vector (Array.of_list (List.map bool_lit xs), Bool)
+let vec_of_booloptlist xs =
+  Vector (Array.of_list (List.map opt_bool_lit xs), Bool)
 
 let vec_of_lit l =
   match l with
