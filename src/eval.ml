@@ -161,12 +161,12 @@ let rec eval e =
       let Vector (a1, t1) = eval e1 in
       let Vector (a2, t2) = eval e2 in
       let Vector (a3, t3) = eval e3 in
-      let n, m = (Array.length a2, Array.length a3) in
+      let l2 = Array.to_list (Array.map extract_int a2) in
+      let l2' = List.filter (fun x -> x <> Some 0) l2 in
+      let n, m = (List.length l2', Array.length a3) in
       if n mod m <> 0 then raise Replacement_length_not_multiple;
       if t1 <> t3 then raise (type_error t1 t3);
       if t2 <> Int then raise (type_error Int t2);
-      let l2 = Array.to_list (Array.map extract_int a2) in
-      let l2' = List.filter (fun x -> x <> Some 0) l2 in
       let a3' = recycle a3 n in
       let l3 = Array.to_list a3' in
       let res = update_at_pos a1 l2' l3 in

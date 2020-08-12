@@ -279,6 +279,12 @@ let tests_pos = [
   (79, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
                 Combine [int_exp 1; na_exp Int; int_exp 2]),
       vec_of_intoptlist [Some 11; None; Some 12]);
+
+  (* subset1 assign *)
+  (80, Subset1_Assign (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                       Combine [int_exp 2; int_exp 0; int_exp 1],
+                       Combine [int_exp 9; int_exp 8]),
+       vec_of_intlist [8; 9; 13; 14]);
 ]
 
 let tests_neg = [
@@ -413,6 +419,12 @@ let tests_neg = [
                          Combine [int_exp 1],
                          Combine [true_exp]),
          Eval.type_error Int Bool);
+
+  (* subset1 assign *)
+  (1035, Subset1_Assign (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                         Combine [int_exp 2; int_exp 0; int_exp 1],
+                         Combine [int_exp 9; int_exp 8; int_exp 7]),
+         Eval.Replacement_length_not_multiple);
 ]
 
 let () =
