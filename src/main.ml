@@ -307,20 +307,20 @@ let tests_neg = [
   (1010, Subset2 (Subset1 (int_exp 1, int_exp 0), Combine [int_exp 1]),
          Eval.Subscript_out_of_bounds);
   (1011, Subset2 (Combine [int_exp 1; int_exp 2; int_exp 3], true_exp),
-         Eval.Type_error { expected = Int; received = Bool });
+         Eval.type_error Int Bool);
 
   (* combine errors *)
   (1012, Combine [], Eval.Expected_nonempty_vector);
   (1013, Combine [int_exp 0; true_exp; false_exp],
-         Eval.Type_error { expected = Int; received = Bool });
+         Eval.type_error Int Bool);
   (1014, Combine [false_exp; true_exp; int_exp 1; false_exp],
-         Eval.Type_error { expected = Bool; received = Int });
+         Eval.type_error Bool Int);
 
   (* subset2 with NA errors *)
   (1015, Subset2 (Subset1 (int_exp 1, int_exp 0), na_exp Int),
          Eval.Subscript_out_of_bounds);
   (1016, Subset2 (Subset1 (int_exp 1, int_exp 0), na_exp Bool),
-         Eval.Type_error { expected = Int; received = Bool });
+         Eval.type_error Int Bool);
   (1017, Subset2 (Subset1 (int_exp 1, int_exp 0), Combine [na_exp Int]),
          Eval.Subscript_out_of_bounds);
 
@@ -345,7 +345,7 @@ let tests_neg = [
          Eval.Replacement_length_not_multiple);
   (1023, Subset1_Nothing_Assign (Combine [int_exp 11; int_exp 12; int_exp 13],
                                  Combine [true_exp]),
-         Eval.Type_error { expected = Int; received = Bool });
+         Eval.type_error Int Bool);
 
   (* subset1 assign *)
   (1024, Subset1_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
@@ -362,7 +362,7 @@ let tests_neg = [
                                   int_exp 14],
                          Combine [int_exp 1; int_exp 2; int_exp 3],
                          Combine [false_exp]),
-         Eval.Type_error { expected = Int; received = Bool });
+         Eval.type_error Int Bool);
 
   (* subset2 assign *)
   (1026, Subset2_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
@@ -399,12 +399,12 @@ let tests_neg = [
                                   int_exp 14],
                          Combine [true_exp],
                          Combine [int_exp 8]),
-         Eval.Type_error { expected = Int; received = Bool });
+         Eval.type_error Int Bool);
   (1033, Subset2_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
                                   int_exp 14],
                          Combine [int_exp 1],
                          Combine [true_exp]),
-         Eval.Type_error { expected = Int; received = Bool });
+         Eval.type_error Int Bool);
 ]
 
 let () =

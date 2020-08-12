@@ -4,8 +4,8 @@ type type_error = {
   expected : type_tag;
   received : type_tag;
 }
-
 exception Type_error of type_error
+let type_error expected received = Type_error { expected; received }
 
 exception Subscript_out_of_bounds
 exception Selecting_lt_one_element
@@ -31,15 +31,13 @@ let extract_bool (l : literal) =
   match l with
   | Bool b -> Some b
   | NA_bool -> None
-  | Int _ | NA_int ->
-      raise (Type_error { expected = Bool; received = get_tag l })
+  | Int _ | NA_int -> raise (type_error Bool (get_tag l))
 
 let extract_int (l : literal) =
   match l with
   | Int i -> Some i
   | NA_int -> None
-  | Bool _ | NA_bool ->
-      raise (Type_error { expected = Int; received = get_tag l })
+  | Bool _ | NA_bool -> raise (type_error Int (get_tag l))
 
 let check_all_types_same (ts : type_tag list) =
   if List.length ts = 0 then raise Expected_nonempty_vector;
@@ -47,7 +45,7 @@ let check_all_types_same (ts : type_tag list) =
   let tl = List.tl ts in
   let res = List.find_opt (fun x -> x <> hd) tl in
   match res with
-  | Some t -> raise (Type_error { expected = hd; received = t })
+  | Some t -> raise (type_error hd t)
   | None -> hd
 
 (* TODO:
@@ -138,7 +136,7 @@ let rec eval e =
       let Vector (a2, t2) = eval e2 in
       let n, m = (Array.length a1, Array.length a2) in
       if n mod m <> 0 then raise Replacement_length_not_multiple;
-      if t1 <> t2 then raise (Type_error { expected = t1; received = t2 });
+      if t1 <> t2 then raise (type_error t1 t2);
       let res = recycle a2 n in
       Vector (res, t1)
   | Subset1 (e1, e2) ->
@@ -164,8 +162,8 @@ let rec eval e =
       let Vector (a3, t3) = eval e3 in
       let n, m = (Array.length a2, Array.length a3) in
       if n mod m <> 0 then raise Replacement_length_not_multiple;
-      if t1 <> t3 then raise (Type_error { expected = t1; received = t3 });
-      if t2 <> Int then raise (Type_error { expected = Int; received = t2 });
+      if t1 <> t3 then raise (type_error t1 t3);
+      if t2 <> Int then raise (type_error Int t2);
       let l2 = Array.to_list (Array.map extract_int a2) in
       let l2' = List.filter (fun x -> x <> Some 0) l2 in
       let a3' = recycle a3 n in
@@ -175,7 +173,7 @@ let rec eval e =
   | Subset1_Neg (e1, e2) ->
       let Vector (a1, t1) = eval e1 in
       let Vector (a2, t2) = eval e2 in
-      if t2 <> Int then raise (Type_error { expected = Int; received = t2 });
+      if t2 <> Int then raise (type_error Int t2);
       let l2 = Array.to_list (Array.map extract_int a2) in
       let a1' = Array.make (Array.length a1) (Some true) in
       let a2' = neg_vec_to_bool l2 a1' in
@@ -187,7 +185,7 @@ let rec eval e =
       let Vector (a2, t2) = eval e2 in
       if Array.length a2 < 1 then raise Selecting_lt_one_element;
       if Array.length a2 > 1 then raise Selecting_gt_one_element;
-      if t2 <> Int then raise (Type_error { expected = Int; received = t2 });
+      if t2 <> Int then raise (type_error Int t2);
       begin match extract_int a2.(0) with
       | None -> raise Subscript_out_of_bounds
       | Some n when n = 0 -> raise Selecting_lt_one_element
@@ -202,8 +200,8 @@ let rec eval e =
       let n, m = (Array.length a2, Array.length a3) in
       if n <> 1 then raise Selecting_gt_one_element;
       if m <> 1 then raise Too_many_elements_supplied;
-      if t1 <> t3 then raise (Type_error { expected = t1; received = t3 });
-      if t2 <> Int then raise (Type_error { expected = Int; received = t2 });
+      if t1 <> t3 then raise (type_error t1 t3);
+      if t2 <> Int then raise (type_error Int t2);
       begin match extract_int a2.(0) with
       | None -> raise Subscript_out_of_bounds
       | Some n when n = 0 -> raise Selecting_lt_one_element
