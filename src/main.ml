@@ -267,6 +267,15 @@ let tests_pos = [
                        Combine [int_exp 9]),
        vec_of_intlist [9; 9; 13; 14]);
 
+  (* subset2 assign *)
+  (78, Subset2_Assign (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                       Combine [int_exp 1],
+                       Combine [int_exp 9]),
+       vec_of_intlist [9; 12; 13; 14]);
+  (79, Subset2_Assign (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                       Combine [int_exp 4],
+                       Combine [int_exp 9]),
+       vec_of_intlist [11; 12; 13; 9]);
 ]
 
 let tests_neg = [
@@ -329,28 +338,73 @@ let tests_neg = [
   (* subset1_nothing_assign *)
   (1021, Subset1_Nothing_Assign (Combine [int_exp 11; int_exp 12; int_exp 13],
                                  Combine [int_exp 1; int_exp 2]),
-       Eval.Replacement_length_not_multiple);
+         Eval.Replacement_length_not_multiple);
   (1022, Subset1_Nothing_Assign (Combine [int_exp 11; int_exp 12; int_exp 13],
                                  Combine [int_exp 1; int_exp 2; int_exp 3;
                                           int_exp 4]),
-       Eval.Replacement_length_not_multiple);
+         Eval.Replacement_length_not_multiple);
   (1023, Subset1_Nothing_Assign (Combine [int_exp 11; int_exp 12; int_exp 13],
                                  Combine [true_exp]),
-       Eval.Type_error { expected = Int; received = Bool });
+         Eval.Type_error { expected = Int; received = Bool });
 
   (* subset1 assign *)
-  (1024, Subset1_Assign (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+  (1024, Subset1_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
+                                  int_exp 14],
                          Combine [int_exp 1; int_exp 2],
                          Combine [int_exp 9; int_exp 8; int_exp 7]),
-       Eval.Replacement_length_not_multiple);
-  (1025, Subset1_Assign (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+         Eval.Replacement_length_not_multiple);
+  (1025, Subset1_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
+                                  int_exp 14],
                          Combine [int_exp 1; int_exp 2; int_exp 3],
                          Combine [int_exp 9; int_exp 8]),
-       Eval.Replacement_length_not_multiple);
-  (1025, Subset1_Assign (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+         Eval.Replacement_length_not_multiple);
+  (1025, Subset1_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
+                                  int_exp 14],
                          Combine [int_exp 1; int_exp 2; int_exp 3],
                          Combine [false_exp]),
-       Eval.Type_error { expected = Int; received = Bool });
+         Eval.Type_error { expected = Int; received = Bool });
+
+  (* subset2 assign *)
+  (1026, Subset2_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
+                                  int_exp 14],
+                         Combine [int_exp 0],
+                         Combine [int_exp 9]),
+         Eval.Selecting_lt_one_element);
+  (1027, Subset2_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
+                                  int_exp 14],
+                         Combine [int_exp (-1)],
+                         Combine [int_exp 9]),
+         Eval.Selecting_gt_one_element);
+  (1028, Subset2_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
+                                  int_exp 14],
+                         Combine [int_exp 11],
+                         Combine [int_exp 9]),
+         Eval.Subscript_out_of_bounds);
+  (1029, Subset2_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
+                                  int_exp 14],
+                         Combine [int_exp 11],
+                         Combine [na_exp Int]),
+         Eval.Subscript_out_of_bounds);
+  (1030, Subset2_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
+                                  int_exp 14],
+                         Combine [int_exp 1; int_exp 2],
+                         Combine [int_exp 9]),
+         Eval.Selecting_gt_one_element);
+  (1031, Subset2_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
+                                  int_exp 14],
+                         Combine [int_exp 1],
+                         Combine [int_exp 9; int_exp 8]),
+         Eval.Too_many_elements_supplied);
+  (1032, Subset2_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
+                                  int_exp 14],
+                         Combine [true_exp],
+                         Combine [int_exp 8]),
+         Eval.Type_error { expected = Int; received = Bool });
+  (1033, Subset2_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
+                                  int_exp 14],
+                         Combine [int_exp 1],
+                         Combine [true_exp]),
+         Eval.Type_error { expected = Int; received = Bool });
 ]
 
 let () =

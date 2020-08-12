@@ -17,6 +17,7 @@ exception Mixing_NA_subscripts
 exception Expected_nonempty_vector
 
 exception Replacement_length_not_multiple
+exception Too_many_elements_supplied
 
 exception Todo
 
@@ -193,4 +194,22 @@ let rec eval e =
       | Some n when n < 0 -> raise Selecting_gt_one_element
       | Some n when n > Array.length a1 -> raise Subscript_out_of_bounds
       | Some n -> vec_of_lit a1.(n - 1)
+      end
+  | Subset2_Assign (e1, e2, e3) ->
+      let Vector (a1, t1) = eval e1 in
+      let Vector (a2, t2) = eval e2 in
+      let Vector (a3, t3) = eval e3 in
+      let n, m = (Array.length a2, Array.length a3) in
+      if n <> 1 then raise Selecting_gt_one_element;
+      if m <> 1 then raise Too_many_elements_supplied;
+      if t1 <> t3 then raise (Type_error { expected = t1; received = t3 });
+      if t2 <> Int then raise (Type_error { expected = Int; received = t2 });
+      begin match extract_int a2.(0) with
+      | None -> raise Subscript_out_of_bounds
+      | Some n when n = 0 -> raise Selecting_lt_one_element
+      | Some n when n < 0 -> raise Selecting_gt_one_element
+      | Some n when n > Array.length a1 -> raise Subscript_out_of_bounds
+      | Some n ->
+          Array.set a1 (n - 1) a3.(0);
+          Vector (a1, t1)
       end
