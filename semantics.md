@@ -186,7 +186,7 @@ updating environment `E` to the new environment `E'`.
     E(x) = [lit_1 .. lit_n],T
     v_2 = [lit'_1 .. lit'_m],T
     n % m == 0
-    v_3 = truncate_or_recycle(v_2, v_2, v_2, n-m)
+    v_3 = recycle(v_2, v_2, v_2, n-m)
     E' = E{ x := v_3 }
     ---------------------------------------------  :: E_Subset1_Nothing_Assign
     E C<x[] <- v_2> --> E' C<v_3>
@@ -200,7 +200,7 @@ updating environment `E` to the new environment `E'`.
     v_1' = drop_zeros(v_2)
     n' = length(v_2')
     n' % m == 0
-    v_2' = truncate_or_recycle(v_3, v_3, v_3, n'-m)
+    v_2' = recycle(v_3, v_3, v_3, n'-m)
     v_3 = update_at_pos(v_1, v_2', v_3')
     E' = E{ x := v_3 }
     -----------------------------------------------  :: E_Subset1_Positive_Assign
@@ -219,7 +219,7 @@ updating environment `E` to the new environment `E'`.
     v_2'' = bool_vec_to_pos(v_2', 1)
     j' = length(v_2'')
     j' % m == 0
-    v_3' = truncate_or_recycle(v_3, v_3, v_3, j'-m)
+    v_3' = recycle(v_3, v_3, v_3, j'-m)
     v_4 = update_at_pos(v_1, v_2'', v_3')
     E' = E{ x := v_4 }
     ----------------------------------------------  :: E_Subset1_Bool_Assign
@@ -237,7 +237,7 @@ updating environment `E` to the new environment `E'`.
     v_2'' = bool_vec_to_pos(v_2', 1)
     n' = length(v_2'')
     n' % m == 0
-    v_3' = truncate_or_recycle(v_3, v_3, v_3, n'-m)
+    v_3' = recycle(v_3, v_3, v_3, n'-m)
     v_4 = update_at_pos(v_1, v_2'', v_3')
     E' = E{ x := v_4 }
     -----------------------------------------------  :: E_Subset1_Negative_Assign
@@ -320,20 +320,19 @@ updating environment `E` to the new environment `E'`.
        `c(-1, -2, -3)`; for now, we use specific syntax `e[-e]`.
 
   * `E_Subset1_Nothing_Assign`: The entire vector is replaced by a new one.
-    * If the replacement vector is too short, it gets recycled. If it is too
-      long, it gets truncated.
+    * If the replacement vector is too short, it gets recycled, but only if the
+      number of elements being replaced is a multiple of the replacement length.
 
-  * `E_Subset1_Positive1_Assign` and `E_Subset1_Positive2_Assign`: Elements
-    selected by the index vector are replaced by the corresponding right-hand
-    side vector.
+  * `E_Subset1_Positive_Assign`: Elements selected by the index vector are
+    replaced by the corresponding right-hand side vector.
     * If an index is out of bounds (and positive), the vector is first extended
       with `NA`s (of the appropriate type).
     * `0`s are dropped from the index vector.
     * `NA`s are not allowed in the index vector.
       * In R, `NA`s actually are allowed, but only if the RHS is a
         single-element vector.
-    * If the replacement vector is too short, it gets recycled. If it is too
-      long, it gets truncated.
+    * If the replacement vector is too short, it gets recycled, but only if the
+      number of elements being replaced is a multiple of the replacement length.
     * If the index vector has duplicate values, then the corresponding vector
       element will be overwritten, e.g. `v[c(1, 1)] <- c(10, 11)` replaces the
       first element with `11`.
@@ -345,23 +344,23 @@ updating environment `E` to the new environment `E'`.
      * If the boolean vector is too short, it is recycled.
      * The boolean vector is converted to a positional vector.
      * If the replacement vector is shorter than the positional vector, it gets
-       recycled. If it is too long, it gets truncated.
+       recycled, but only if the number of elements being replaced is a multiple
+       of the replacement length.
 
-  * `E_Subset1_Negative1_Assign` and `E_Subset1_Negative2_Assign`: Similar to
-    `E_Subset1_Negative1` and `E_Subset1_Negative2`, subsetting takes negative
-    indices; either a vector of positive numbers is negated, or the vector
-    contains negative numbers. The elements excluded by these indices are
-    updated by the RHS.
+  * `E_Subset1_Negative_Assign`: Similar to `E_Subset1_Negative`, subsetting
+    takes negative indices; either a vector of positive numbers is negated, or
+    the vector contains negative numbers. The elements excluded by these indices
+    are updated by the RHS.
     * If a negative index is out of bounds, it is ignored.
     * Repeated indices are ignored.
     * `NA`s are not allowed as indices.
     * Internally, the negative vector is converted to a boolean vector, which
       is then converted to a positional vector.
-    * Assignment follows the same rules as `E_Subset1_Positive1_Assign` and
-      `E_Subset1_Positive2_Assign`, where the length of the index vector must
-      be a multiple of the length of the replacement vector. Furthermore, the
-      replacement vector is either truncated or recycled to achieve the correct
-      length.
+    * Assignment follows the same rules as `E_Subset1_Positive_Assign`, where
+      the length of the index vector must be a multiple of the length of the
+      replacement vector. Furthermore, the replacement vector is recycled to
+      achieve the correct length, but only if the number of elements to replace
+      is a multiple of the replacement length.
 
   * `E_Subset2`: Subsetting a vector with `[[` returns a single-element vector.
     The vector must contain at least one element, and the index must be within
@@ -501,30 +500,6 @@ updating environment `E` to the new environment `E'`.
     m > 0
     ---------------------------------  :: Aux_Recycle_RecurseCase
     recycle(v_1, v_2, v_3, m) = v
-
-
-    ----------------------  :: Aux_Truncate_BaseCase
-    truncate(v_1, 0) = v_1
-
-
-    v_1 = [lit_1 .. lit_n lit],T
-    v_1' = [lit_1 .. lit_n],T
-    v = truncate(v_1', m+1)
-    m < 0
-    ----------------------------  :: Aux_Truncate_RecurseCase
-    truncate(v_1, m) = v
-
-
-    v = recycle(v_1, v_2, v_3, m)
-    n >= 0
-    -----------------------------------------  :: Aux_TruncateOrRecycle_PosCase
-    truncate_or_recycle(v_1, v_2, v_3, m) = v
-
-
-    v = truncate(v_1, m)
-    n < 0
-    -----------------------------------------  :: Aux_TruncateOrRecycle_NegCase
-    truncate_or_recycle(v_1, v_2, v_3, m) = v
 
 
     v_1 = [],T
