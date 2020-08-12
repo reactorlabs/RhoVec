@@ -77,11 +77,11 @@ let rec bool_vec_to_pos (l : bool option list) n =
       | None -> None :: rest
       end
 
-let neg_vec_to_bool (l : int option list) (a : bool option array) =
-  let len = Array.length a in
+let neg_vec_to_bool (l : int option list) n =
+  let a = Array.make n (Some true) in
   List.iter (fun x ->
     match x with
-    | Some i when 1 <= i && i <= len -> Array.set a (i - 1) (Some false)
+    | Some i when 1 <= i && i <= n -> Array.set a (i - 1) (Some false)
     | Some i when i >= 0 -> ()
     | Some _ | None -> raise Mixing_pos_neg_subscripts) l;
   a
@@ -90,14 +90,15 @@ let update_at_pos (a1 : literal array)
                   (l2 : int option list)
                   (l3 : literal list) =
   let len = Array.length a1 in
+  let a1' = Array.copy a1 in
   List.iter2 (fun n x ->
     match n with
-    | Some i when 1 <= i && i <= len -> Array.set a1 (i - 1) x
+    | Some i when 1 <= i && i <= len -> Array.set a1' (i - 1) x
     | Some i when i >= 0 -> ()
     | Some _ -> raise Mixing_pos_neg_subscripts
     | None -> raise Mixing_NA_subscripts
   ) l2 l3;
-  a1
+  a1'
 
 let extend (a : literal array) n ty =
   if Array.length a < n then
@@ -175,8 +176,7 @@ let rec eval e =
       let Vector (a2, t2) = eval e2 in
       if t2 <> Int then raise (type_error Int t2);
       let l2 = Array.to_list (Array.map extract_int a2) in
-      let a1' = Array.make (Array.length a1) (Some true) in
-      let a2' = neg_vec_to_bool l2 a1' in
+      let a2' = neg_vec_to_bool l2 (Array.length a1) in
       let l2' = bool_vec_to_pos (Array.to_list a2') 1 in
       let res = Array.of_list (get_at_pos a1 l2' t1) in
       Vector (res, t1)
@@ -208,6 +208,7 @@ let rec eval e =
       | Some n when n < 0 -> raise Selecting_gt_one_element
       | Some n when n > Array.length a1 -> raise Subscript_out_of_bounds
       | Some n ->
-          Array.set a1 (n - 1) a3.(0);
-          Vector (a1, t1)
+          let a1' = Array.copy a1 in
+          Array.set a1' (n - 1) a3.(0);
+          Vector (a1', t1)
       end
