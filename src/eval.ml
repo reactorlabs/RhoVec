@@ -84,9 +84,21 @@ let neg_vec_to_bool (l : int option list) (a : bool option array) =
     match x with
     | Some i when 1 <= i && i <= len -> Array.set a (i - 1) (Some false)
     | Some i when i >= 0 -> ()
-    | Some _ -> raise Mixing_pos_neg_subscripts
-    | None -> raise Mixing_NA_subscripts) l;
+    | Some _ | None -> raise Mixing_pos_neg_subscripts) l;
   a
+
+let update_at_pos (a1 : literal array)
+                  (l2 : int option list)
+                  (l3 : literal list) =
+  let len = Array.length a1 in
+  List.iter2 (fun n x ->
+    match n with
+    | Some i when 1 <= i && i <= len -> Array.set a1 (i - 1) x
+    | Some i when i >= 0 -> ()
+    | Some _ -> raise Mixing_pos_neg_subscripts
+    | None -> raise Mixing_NA_subscripts
+  ) l2 l3;
+  a1
 
 let extend (a : literal array) n ty =
   if Array.length a < n then
@@ -125,7 +137,7 @@ let rec eval e =
       let Vector (a2, t2) = eval e2 in
       let n, m = (Array.length a1, Array.length a2) in
       if n mod m <> 0 then raise Replacement_length_not_multiple;
-      if t1 <> t2 then raise (Type_error {expected = t1; received = t2 });
+      if t1 <> t2 then raise (Type_error { expected = t1; received = t2 });
       let res = recycle a2 n in
       Vector (res, t1)
   | Subset1 (e1, e2) ->
@@ -145,6 +157,20 @@ let rec eval e =
           let res = Array.of_list (get_at_pos a1 l2 t1) in
           Vector (res, t1)
       end
+  | Subset1_Assign (e1, e2, e3) ->
+      let Vector (a1, t1) = eval e1 in
+      let Vector (a2, t2) = eval e2 in
+      let Vector (a3, t3) = eval e3 in
+      let n, m = (Array.length a2, Array.length a3) in
+      if n mod m <> 0 then raise Replacement_length_not_multiple;
+      if t1 <> t3 then raise (Type_error { expected = t1; received = t3 });
+      if t2 <> Int then raise (Type_error { expected = Int; received = t2 });
+      let l2 = Array.to_list (Array.map extract_int a2) in
+      let l2' = List.filter (fun x -> x <> Some 0) l2 in
+      let a3' = recycle a3 n in
+      let l3 = Array.to_list a3' in
+      let res = update_at_pos a1 l2' l3 in
+      Vector (res, t1)
   | Subset1_Neg (e1, e2) ->
       let Vector (a1, t1) = eval e1 in
       let Vector (a2, t2) = eval e2 in

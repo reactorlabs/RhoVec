@@ -256,6 +256,17 @@ let tests_pos = [
                                         int_exp 14],
                                Combine [int_exp 1; int_exp 2]),
        vec_of_intlist [1; 2; 1; 2]);
+
+  (* subset1 assign *)
+  (76, Subset1_Assign (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                       Combine [int_exp 1; int_exp 2],
+                       Combine [int_exp 9; int_exp 8]),
+       vec_of_intlist [9; 8; 13; 14]);
+  (77, Subset1_Assign (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                       Combine [int_exp 1; int_exp 2],
+                       Combine [int_exp 9]),
+       vec_of_intlist [9; 9; 13; 14]);
+
 ]
 
 let tests_neg = [
@@ -313,7 +324,7 @@ let tests_neg = [
          Eval.Mixing_pos_neg_subscripts);
   (1020, Subset1_Neg (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
                       Combine [int_exp 4; na_exp Int; int_exp 0]),
-         Eval.Mixing_NA_subscripts);
+         Eval.Mixing_pos_neg_subscripts);
 
   (* subset1_nothing_assign *)
   (1021, Subset1_Nothing_Assign (Combine [int_exp 11; int_exp 12; int_exp 13],
@@ -323,6 +334,23 @@ let tests_neg = [
                                  Combine [int_exp 1; int_exp 2; int_exp 3;
                                           int_exp 4]),
        Eval.Replacement_length_not_multiple);
+  (1023, Subset1_Nothing_Assign (Combine [int_exp 11; int_exp 12; int_exp 13],
+                                 Combine [true_exp]),
+       Eval.Type_error { expected = Int; received = Bool });
+
+  (* subset1 assign *)
+  (1024, Subset1_Assign (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                         Combine [int_exp 1; int_exp 2],
+                         Combine [int_exp 9; int_exp 8; int_exp 7]),
+       Eval.Replacement_length_not_multiple);
+  (1025, Subset1_Assign (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                         Combine [int_exp 1; int_exp 2; int_exp 3],
+                         Combine [int_exp 9; int_exp 8]),
+       Eval.Replacement_length_not_multiple);
+  (1025, Subset1_Assign (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
+                         Combine [int_exp 1; int_exp 2; int_exp 3],
+                         Combine [false_exp]),
+       Eval.Type_error { expected = Int; received = Bool });
 ]
 
 let () =

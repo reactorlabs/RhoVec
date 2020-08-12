@@ -5,7 +5,10 @@ type expression =
   | Subset1_Nothing_Assign of expression * expression
   | Subset1 of expression * expression
   | Subset1_Neg of expression * expression (* TODO: use a Negate expr instead *)
+  | Subset1_Assign of expression * expression * expression
   | Subset2 of expression * expression
+  (* TODO: subset2 assign + tests *)
+  (* | Subset2_Assign of expression * expression * expression *)
 and literal =
   | Bool of bool
   | Int of int
