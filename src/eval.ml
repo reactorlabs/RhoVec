@@ -8,14 +8,13 @@ exception Type_error of type_error
 let type_error expected received = Type_error { expected; received }
 
 exception Subscript_out_of_bounds
+exception Mixing_with_neg_subscripts
 exception Selecting_lt_one_element
 exception Selecting_gt_one_element
 
-exception Mixing_pos_neg_subscripts
-exception Mixing_NA_subscripts
-
 exception Expected_nonempty_vector
 
+exception NAs_not_allowed_in_subscripted_assignment
 exception Replacement_length_not_multiple
 exception Too_many_elements_supplied
 
@@ -48,6 +47,8 @@ let check_all_types_same (ts : type_tag list) =
   | Some t -> raise (type_error hd t)
   | None -> hd
 
+(* TODO: better way of handling arrays vs lists, literals vs Options, etc *)
+
 (* TODO:
    A function like this can be written elegantly using lists and recursion. But
    the implementation mostly uses arrays, so we have to convert back and forth.
@@ -63,7 +64,7 @@ let rec get_at_pos (a1 : literal array) (l2 : int option list) ty =
       | Some 0 -> rest
       | Some i when i > 0 -> (na_lit ty) :: rest
       | None -> (na_lit ty) :: rest
-      | Some _ -> raise Mixing_pos_neg_subscripts
+      | Some _ -> raise Mixing_with_neg_subscripts
       end
 
 let rec bool_vec_to_pos (l : bool option list) n =
@@ -83,7 +84,7 @@ let neg_vec_to_bool (l : int option list) n =
     match x with
     | Some i when 1 <= i && i <= n -> Array.set a (i - 1) (Some false)
     | Some i when i >= 0 -> ()
-    | Some _ | None -> raise Mixing_pos_neg_subscripts) l;
+    | Some _ | None -> raise Mixing_with_neg_subscripts) l;
   a
 
 let update_at_pos (a1 : literal array)
@@ -95,8 +96,8 @@ let update_at_pos (a1 : literal array)
     match n with
     | Some i when 1 <= i && i <= len -> Array.set a1' (i - 1) x
     | Some i when i >= 0 -> ()
-    | Some _ -> raise Mixing_pos_neg_subscripts
-    | None -> raise Mixing_NA_subscripts
+    | Some _ -> raise Mixing_with_neg_subscripts
+    | None -> ()
   ) l2 l3;
   a1'
 
@@ -161,25 +162,48 @@ let rec eval e =
       let Vector (a1, t1) = eval e1 in
       let Vector (a2, t2) = eval e2 in
       let Vector (a3, t3) = eval e3 in
-      let l2 = Array.to_list (Array.map extract_int a2) in
-      let l2' = List.filter (fun x -> x <> Some 0) l2 in
-      let n, m = (List.length l2', Array.length a3) in
-      if n mod m <> 0 then raise Replacement_length_not_multiple;
-      if t1 <> t3 then raise (type_error t1 t3);
-      if t2 <> Int then raise (type_error Int t2);
-      let a3' = recycle a3 n in
-      let l3 = Array.to_list a3' in
-      let res = update_at_pos a1 l2' l3 in
-      Vector (res, t1)
+      if Array.exists is_na a2 && Array.length a3 > 1 then
+        raise NAs_not_allowed_in_subscripted_assignment;
+      begin match t2 with
+      | Bool ->
+          let len = Stdlib.max (Array.length a1) (Array.length a2) in
+          let a1' = extend a1 len t1 in
+          let a2' = recycle a2 len in
+          let l2 = Array.to_list (Array.map extract_bool a2') in
+          let l2' = bool_vec_to_pos l2 1 in
+          let (n, m) = (List.length l2', Array.length a3) in
+          if n mod m <> 0 then raise Replacement_length_not_multiple;
+          if t1 <> t3 then raise (type_error t1 t3);
+          let a3' = recycle a3 n in
+          let l3 = Array.to_list a3' in
+          let res = update_at_pos a1' l2' l3 in
+          Vector (res, t1)
+      | Int ->
+          let l2 = Array.to_list (Array.map extract_int a2) in
+          let l2' = List.filter (fun x -> x <> Some 0) l2 in
+          let n, m = (List.length l2', Array.length a3) in
+          if n mod m <> 0 then raise Replacement_length_not_multiple;
+          if t1 <> t3 then raise (type_error t1 t3);
+          let a3' = recycle a3 n in
+          let l3 = Array.to_list a3' in
+          let res = update_at_pos a1 l2' l3 in
+          Vector (res, t1)
+      end
   | Subset1_Neg (e1, e2) ->
+      (* TODO: Really should make a separate Negate expression,
+         handling NAs is rough*)
       let Vector (a1, t1) = eval e1 in
       let Vector (a2, t2) = eval e2 in
       if t2 <> Int then raise (type_error Int t2);
-      let l2 = Array.to_list (Array.map extract_int a2) in
-      let a2' = neg_vec_to_bool l2 (Array.length a1) in
-      let l2' = bool_vec_to_pos (Array.to_list a2') 1 in
-      let res = Array.of_list (get_at_pos a1 l2' t1) in
-      Vector (res, t1)
+      if Array.for_all is_na a2 then
+        let res = Array.make (Array.length a2) NA_int in
+        Vector (res, t1)
+      else
+        let l2 = Array.to_list (Array.map extract_int a2) in
+        let a2' = neg_vec_to_bool l2 (Array.length a1) in
+        let l2' = bool_vec_to_pos (Array.to_list a2') 1 in
+        let res = Array.of_list (get_at_pos a1 l2' t1) in
+        Vector (res, t1)
   | Subset2 (e1, e2) ->
       let Vector (a1, t1) = eval e1 in
       let Vector (a2, t2) = eval e2 in

@@ -23,6 +23,10 @@ let get_tag : literal -> type_tag = function
   | Bool _ | NA_bool -> Bool
   | Int _ | NA_int -> Int
 
+let is_na = function
+  | Bool _ | Int _ -> false
+  | NA_bool | NA_int -> true
+
 (* Helpers for constructing ASTs *)
 let true_lit = Bool true
 let false_lit = Bool false

@@ -92,11 +92,6 @@ In v[c(T, F, F)] <- c(10, 11, 12) :
 > v
 [1] 10  2  3 11  5 6
 
-# LHS too long, vector gets extended
-> v[c(T, T, T, T, T, T, T)] <- 0
-> v
-[1] 0 0 0 0 0 0 0
-
 # RHS gets truncated, with a warning
 > v <- 1:3
 > v
