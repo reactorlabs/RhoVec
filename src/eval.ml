@@ -47,6 +47,19 @@ let check_all_types_same (ts : type_tag list) =
   | Some t -> raise (type_error hd t)
   | None -> hd
 
+let is_positive_subsetting (l : int option list) =
+  (* positive subsetting can mix with 0 and NA *)
+  List.for_all (function
+    | None -> true
+    | Some i when i >= 0 -> true
+    | Some _-> false) l
+
+let is_negative_subsetting (l : int option list) =
+  (* negative subsetting can mix with 0 but not NA *)
+  List.for_all (function
+    | Some i when i <= 0 -> true
+    | Some _ | None -> false) l
+
 (* TODO: better way of handling arrays vs lists, literals vs Options, etc *)
 
 (* TODO:
@@ -79,12 +92,14 @@ let rec bool_vec_to_pos (l : bool option list) n =
       end
 
 let neg_vec_to_bool (l : int option list) n =
+  let l' = List.map (function
+    | Some i -> Some ~-i
+    | None -> None) l in
   let a = Array.make n (Some true) in
-  List.iter (fun x ->
-    match x with
+  List.iter (function
     | Some i when 1 <= i && i <= n -> Array.set a (i - 1) (Some false)
     | Some i when i >= 0 -> ()
-    | Some _ | None -> raise Mixing_with_neg_subscripts) l;
+    | Some _ | None -> raise Mixing_with_neg_subscripts) l';
   a
 
 let update_at_pos (a1 : literal array)
@@ -132,6 +147,20 @@ let rec eval e =
       let arrs = List.map extract_array vecs in
       let vec = Array.concat arrs in
       Vector (vec, ty)
+  | Negate e1 ->
+      let Vector (a1, t1) = eval e1 in
+      begin match t1 with
+      | Int ->
+          let negate (x : literal) : literal =
+            match x with
+            | Int i -> Int ~-i
+            | NA_int -> NA_int
+            | Bool _ | NA_bool -> assert false
+          in
+          let res = Array.map negate a1 in
+          Vector (res, t1)
+      | Bool -> raise (type_error Int t1)
+      end
   | Subset1_Nothing e1 -> eval e1
   | Subset1_Nothing_Assign (e1, e2) ->
       let Vector (a1, t1) = eval e1 in
@@ -155,8 +184,16 @@ let rec eval e =
           Vector (res, t1)
       | Int ->
           let l2 = Array.to_list (Array.map extract_int a2) in
-          let res = Array.of_list (get_at_pos a1 l2 t1) in
-          Vector (res, t1)
+          if is_positive_subsetting l2 then
+            let res = Array.of_list (get_at_pos a1 l2 t1) in
+            Vector (res, t1)
+          else if is_negative_subsetting l2 then
+            let a2' = neg_vec_to_bool l2 (Array.length a1) in
+            let l2' = bool_vec_to_pos (Array.to_list a2') 1 in
+            let res = Array.of_list (get_at_pos a1 l2' t1) in
+            Vector (res, t1)
+          else
+            raise Mixing_with_neg_subscripts
       end
   | Subset1_Assign (e1, e2, e3) ->
       let Vector (a1, t1) = eval e1 in
@@ -189,21 +226,6 @@ let rec eval e =
           let res = update_at_pos a1 l2' l3 in
           Vector (res, t1)
       end
-  | Subset1_Neg (e1, e2) ->
-      (* TODO: Really should make a separate Negate expression,
-         handling NAs is rough*)
-      let Vector (a1, t1) = eval e1 in
-      let Vector (a2, t2) = eval e2 in
-      if t2 <> Int then raise (type_error Int t2);
-      if Array.for_all is_na a2 then
-        let res = Array.make (Array.length a2) NA_int in
-        Vector (res, t1)
-      else
-        let l2 = Array.to_list (Array.map extract_int a2) in
-        let a2' = neg_vec_to_bool l2 (Array.length a1) in
-        let l2' = bool_vec_to_pos (Array.to_list a2') 1 in
-        let res = Array.of_list (get_at_pos a1 l2' t1) in
-        Vector (res, t1)
   | Subset2 (e1, e2) ->
       let Vector (a1, t1) = eval e1 in
       let Vector (a2, t2) = eval e2 in
