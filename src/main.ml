@@ -4,13 +4,14 @@ open Expr
   - environments
   - assignment
   - various other bugs that were fixed in the semantics
+  - rename this project
   - set up utop
   - use an actual test framework
   - set up code coverage tools
   - refactor and clean up tests
 
   - parser
-  - test oracle
+  - test oracle (using ocaml-r?)
   - interactive mode / repl
 *)
 
@@ -346,6 +347,55 @@ let tests_pos = [
        vec_of_intlist [~-1; 2; 3; ~-4]);
   (98, Negate (Combine [int_exp 1; int_exp ~-2; na_exp Int; int_exp 4]),
        vec_of_intoptlist [Some ~-1; Some 2; None; Some ~-4]);
+
+  (* subset1 assign negative *)
+  (99, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
+                                int_exp 5],
+                       Negate (int_exp 1),
+                       int_exp 0),
+       vec_of_intlist [1; 0; 0; 0; 0]);
+  (100, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
+                                 int_exp 5],
+                        Negate (int_exp 1),
+                        Combine [int_exp 10; int_exp 11]),
+        vec_of_intlist [1; 10; 11; 10; 11]);
+  (101, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
+                                 int_exp 5],
+                        int_exp ~-1,
+                        Combine [int_exp 10; int_exp 11; int_exp 12; int_exp 13]),
+        vec_of_intlist [1; 10; 11; 12; 13]);
+  (102, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
+                                 int_exp 5],
+                        Negate (Combine [int_exp 1; int_exp 3]),
+                        Combine [int_exp 0]),
+        vec_of_intlist [1; 0; 3; 0; 0]);
+  (103, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
+                                 int_exp 5],
+                        Negate (Combine [int_exp 1; int_exp 3]),
+                        Combine [int_exp 10; int_exp 11; int_exp 12]),
+        vec_of_intlist [1; 10; 3; 11; 12]);
+  (104, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
+                                 int_exp 5],
+                        Negate (Combine [int_exp 1; int_exp 0; int_exp 3;
+                                         int_exp 10]),
+                        Combine [int_exp 0]),
+        vec_of_intlist [1; 0; 3; 0; 0]);
+  (105, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
+                                 int_exp 5],
+                        Negate (Combine [int_exp 1; int_exp 0; int_exp 3;
+                                         int_exp 10]),
+                        Combine [int_exp 10; int_exp 11; int_exp 12]),
+        vec_of_intlist [1; 10; 3; 11; 12]);
+  (106, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
+                                 int_exp 5],
+                        Negate (Combine [int_exp 1; int_exp 3; int_exp 1]),
+                        Combine [int_exp 0]),
+        vec_of_intlist [1; 0; 3; 0; 0]);
+  (107, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
+                                 int_exp 5],
+                        Negate (Combine [int_exp 1; int_exp 3; int_exp 1]),
+                        Combine [int_exp 10; int_exp 11; int_exp 12]),
+        vec_of_intlist [1; 10; 3; 11; 12]);
 ]
 
 let tests_neg = [
@@ -539,6 +589,60 @@ let tests_neg = [
                          Combine [int_exp 1; int_exp 4; na_exp Int],
                          Combine [int_exp 0]),
          Eval.No_NAs_in_subscripted_assignment);
+
+  (* subset1 assign negative *)
+  (1047, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
+                                  int_exp 5],
+                         Negate (int_exp 1),
+                         Combine [int_exp 10; int_exp 11; int_exp 12]),
+         Eval.Replacement_length_not_multiple);
+  (1048, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
+                                  int_exp 5],
+                         Negate (Combine [int_exp 1; int_exp 3]),
+                         Combine [int_exp 10; int_exp 11]),
+         Eval.Replacement_length_not_multiple);
+  (1049, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
+                                  int_exp 5],
+                         Negate (Combine [int_exp 1; int_exp 3]),
+                         Combine [int_exp 10; int_exp 11; int_exp 12;
+                                  int_exp 13]),
+         Eval.Replacement_length_not_multiple);
+  (1050, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
+                                  int_exp 5],
+                         Negate (Combine [int_exp 1; int_exp 0; int_exp 3;
+                                          int_exp 10]),
+                         Combine [int_exp 10; int_exp 11]),
+         Eval.Replacement_length_not_multiple);
+  (1051, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
+                                  int_exp 5],
+                         Negate (Combine [int_exp 1; int_exp 0; int_exp 3;
+                                          int_exp 10]),
+                         Combine [int_exp 10; int_exp 11; int_exp 12;
+                                  int_exp 13]),
+         Eval.Replacement_length_not_multiple);
+  (1052, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
+                                  int_exp 5],
+                         Negate (Combine [int_exp 1; int_exp 0; int_exp 3;
+                                          int_exp 10]),
+                         Combine [int_exp 10; int_exp 11; int_exp 12;
+                                  int_exp 13]),
+         Eval.Replacement_length_not_multiple);
+  (1053, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
+                                  int_exp 5],
+                         Negate (Combine [int_exp 1; int_exp 3; int_exp 1]),
+                         Combine [int_exp 10; int_exp 11]),
+         Eval.Replacement_length_not_multiple);
+  (1054, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
+                                  int_exp 5],
+                         Negate (Combine [int_exp 1; int_exp 3; int_exp 1]),
+                         Combine [int_exp 10; int_exp 11; int_exp 12;
+                                  int_exp 13]),
+         Eval.Replacement_length_not_multiple);
+  (1055, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
+                                  int_exp 5],
+                         Negate (Combine [int_exp 1; na_exp Int]),
+                                  int_exp 13),
+         Eval.Mixing_with_neg_subscripts);
 ]
 
 let () =

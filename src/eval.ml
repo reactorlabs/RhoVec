@@ -199,11 +199,11 @@ let rec eval e =
       let Vector (a1, t1) = eval e1 in
       let Vector (a2, t2) = eval e2 in
       let Vector (a3, t3) = eval e3 in
-      if Array.exists is_na a2 then
-        (* We diverge from R and ban all NAs as indices during assignment *)
-        raise No_NAs_in_subscripted_assignment;
       begin match t2 with
       | Bool ->
+          if Array.exists is_na a2 then
+            (* We diverge from R and ban NAs as indices during assignment *)
+            raise No_NAs_in_subscripted_assignment;
           let len = Stdlib.max (Array.length a1) (Array.length a2) in
           let a1' = extend a1 len t1 in
           let a2' = recycle a2 len in
@@ -218,14 +218,33 @@ let rec eval e =
           Vector (res, t1)
       | Int ->
           let l2 = Array.to_list (Array.map extract_int a2) in
-          let l2' = List.filter (fun x -> x <> Some 0) l2 in
-          let n, m = (List.length l2', Array.length a3) in
-          if n mod m <> 0 then raise Replacement_length_not_multiple;
-          if t1 <> t3 then raise (type_error t1 t3);
-          let a3' = recycle a3 n in
-          let l3 = Array.to_list a3' in
-          let res = update_at_pos a1 l2' l3 in
-          Vector (res, t1)
+          if is_positive_subsetting l2 then begin
+            if Array.exists is_na a2 then
+              (* We diverge from R and ban NAs as indices during assignment *)
+              raise No_NAs_in_subscripted_assignment;
+            let l2' = List.filter (fun x -> x <> Some 0) l2 in
+            let n, m = (List.length l2', Array.length a3) in
+            if n mod m <> 0 then raise Replacement_length_not_multiple;
+            if t1 <> t3 then raise (type_error t1 t3);
+            let a3' = recycle a3 n in
+            let l3 = Array.to_list a3' in
+            let res = update_at_pos a1 l2' l3 in
+            Vector (res, t1)
+            end else if is_negative_subsetting l2 then begin
+            if Array.exists is_na a2 then
+              (* We diverge from R and ban NAs as indices during assignment *)
+              raise No_NAs_in_subscripted_assignment;
+            let a2' = neg_vec_to_bool l2 (Array.length a1) in
+            let l2' = bool_vec_to_pos (Array.to_list a2') 1 in
+            let n, m = (List.length l2', Array.length a3) in
+            if n mod m <> 0 then raise Replacement_length_not_multiple;
+            if t1 <> t3 then raise (type_error t1 t3);
+            let a3' = recycle a3 n in
+            let l3 = Array.to_list a3' in
+            let res = update_at_pos a1 l2' l3 in
+            Vector (res, t1)
+          end else
+            raise Mixing_with_neg_subscripts
       end
   | Subset2 (e1, e2) ->
       let Vector (a1, t1) = eval e1 in
