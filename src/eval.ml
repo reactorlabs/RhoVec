@@ -14,7 +14,7 @@ exception Selecting_gt_one_element
 
 exception Expected_nonempty_vector
 
-exception NAs_not_allowed_in_subscripted_assignment
+exception No_NAs_in_subscripted_assignment
 exception Replacement_length_not_multiple
 exception Too_many_elements_supplied
 
@@ -199,8 +199,9 @@ let rec eval e =
       let Vector (a1, t1) = eval e1 in
       let Vector (a2, t2) = eval e2 in
       let Vector (a3, t3) = eval e3 in
-      if Array.exists is_na a2 && Array.length a3 > 1 then
-        raise NAs_not_allowed_in_subscripted_assignment;
+      if Array.exists is_na a2 then
+        (* We diverge from R and ban all NAs as indices during assignment *)
+        raise No_NAs_in_subscripted_assignment;
       begin match t2 with
       | Bool ->
           let len = Stdlib.max (Array.length a1) (Array.length a2) in
