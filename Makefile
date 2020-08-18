@@ -1,31 +1,28 @@
 SHELL := /bin/bash
-OCB   := ocamlbuild
 
-# don't create symlinks into the _build directory
-OCB   += -no-links
+EXEC  := rhovec
 
-# specify the sources
-OCB   += -I src
+all: exe
 
-EXEC  := main
-
-all: native
-
-run: native
+run: exe
 	./$(EXEC)
 
-debug: byte
-	ocamldebug _build/src/main.byte
+utop:
+	dune utop lib
 
-native:
-	$(OCB) main.native
-	cp _build/src/main.native $(EXEC)
+debug: bc
+	ocamldebug _build/default/src/main.bc
 
-byte:
-	$(OCB) main.byte
+exe:
+	dune build src/main.exe
+	cp _build/default/src/main.exe $(EXEC)
+	@chmod 755 $(EXEC)
+
+bc:
+	dune build src/main.bc
 
 clean:
-	$(OCB) -clean
+	dune clean
 	rm -f $(EXEC)
 
-.PHONY: all native byte clean
+.PHONY: all run utop debug exe bc clean

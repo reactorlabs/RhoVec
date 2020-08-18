@@ -1,3 +1,9 @@
+type literal =
+  | Bool of bool
+  | Int of int
+  | NA_bool
+  | NA_int
+
 type expression =
   | Lit of literal
   | Combine of expression list
@@ -8,20 +14,17 @@ type expression =
   | Subset1_Assign of expression * expression * expression
   | Subset2 of expression * expression
   | Subset2_Assign of expression * expression * expression
-and literal =
-  | Bool of bool
-  | Int of int
-  | NA_bool
-  | NA_int
-and value =
-  | Vector of literal array * type_tag
-and type_tag =
-  | Bool
-  | Int
 
-let get_tag : literal -> type_tag = function
-  | Bool _ | NA_bool -> Bool
-  | Int _ | NA_int -> Int
+type type_tag =
+  | T_Bool
+  | T_Int
+
+type value =
+  | Vector of literal array * type_tag
+
+let get_tag = function
+  | Bool _ | NA_bool -> T_Bool
+  | Int _ | NA_int -> T_Int
 
 let is_na = function
   | Bool _ | Int _ -> false
@@ -34,8 +37,8 @@ let bool_lit b = Bool b
 let int_lit i = Int i
 let na_lit (ty : type_tag) =
   match ty with
-  | Bool -> NA_bool
-  | Int -> NA_int
+  | T_Bool -> NA_bool
+  | T_Int -> NA_int
 let opt_int_lit = function
   | Some i -> Int i
   | None -> NA_int
@@ -51,14 +54,15 @@ let na_exp ty = Lit (na_lit ty)
 
 let empty_vec t = Vector ([| |], t)
 
-let vec_of_int x = Vector ([| Int x |], Int)
-let vec_of_intlist xs = Vector (Array.of_list (List.map int_lit xs), Int)
-let vec_of_intoptlist xs = Vector (Array.of_list (List.map opt_int_lit xs), Int)
+let vec_of_int x = Vector ([| Int x |], T_Int)
+let vec_of_intlist xs = Vector (Array.of_list (List.map int_lit xs), T_Int)
+let vec_of_intoptlist xs =
+  Vector (Array.of_list (List.map opt_int_lit xs), T_Int)
 
-let vec_of_bool x = Vector ([| bool_lit x |], Bool)
-let vec_of_boollist xs = Vector (Array.of_list (List.map bool_lit xs), Bool)
+let vec_of_bool x = Vector ([| bool_lit x |], T_Bool)
+let vec_of_boollist xs = Vector (Array.of_list (List.map bool_lit xs), T_Bool)
 let vec_of_booloptlist xs =
-  Vector (Array.of_list (List.map opt_bool_lit xs), Bool)
+  Vector (Array.of_list (List.map opt_bool_lit xs), T_Bool)
 
 let vec_of_lit l =
   match l with

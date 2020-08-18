@@ -1,7 +1,10 @@
+rhovec
 _build
-main
-main.native
-main.byte
+*.native
+*.byte
+*.exe
+*.bc
+.merlin
 
 *.aux
 *.bbl

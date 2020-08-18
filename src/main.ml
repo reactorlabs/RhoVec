@@ -1,3 +1,4 @@
+open Lib
 open Expr
 
 (* Big list of TODO:
@@ -5,7 +6,6 @@ open Expr
   - assignment
   - various other bugs that were fixed in the semantics
   - rename this project
-  - set up utop
   - use an actual test framework
   - set up code coverage tools
   - refactor and clean up tests
@@ -24,7 +24,7 @@ let run_test_pos test =
   try
     let res = Eval.eval expr in
     if res <> expected then raise Unexpected_fail
-  with e -> raise (Test_failed id)
+  with _ -> raise (Test_failed id)
 
 let run_test_neg test =
   let id, expr, excptn = test in
@@ -65,10 +65,10 @@ let tests_pos = [
 
   (* subset1 zero for ints *)
   (14, Subset1 (Combine [int_exp 7; int_exp 6; int_exp 5], int_exp 0),
-       empty_vec Int);
+       empty_vec T_Int);
   (15, Subset1 (Combine [int_exp 7; int_exp 6; int_exp 5], Combine [int_exp 0]),
-       empty_vec Int);
-  (16, Subset1 (int_exp 7, Combine [int_exp 0]), empty_vec Int);
+       empty_vec T_Int);
+  (16, Subset1 (int_exp 7, Combine [int_exp 0]), empty_vec T_Int);
 
   (* bool lit *)
   (17, true_exp, vec_of_bool true);
@@ -104,10 +104,10 @@ let tests_pos = [
 
   (* subset1 zero for bools *)
   (30, Subset1 (Combine [false_exp; true_exp; false_exp], int_exp 0),
-       empty_vec Bool);
+       empty_vec T_Bool);
   (31, Subset1 (Combine [false_exp; true_exp; false_exp], Combine [int_exp 0]),
-       empty_vec Bool);
-  (32, Subset1 (true_exp, Combine [int_exp 0]), empty_vec Bool);
+       empty_vec T_Bool);
+  (32, Subset1 (true_exp, Combine [int_exp 0]), empty_vec T_Bool);
 
   (* subset1 logical *)
   (33, Subset1 (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4],
@@ -118,7 +118,7 @@ let tests_pos = [
        vec_of_intlist [1; 2; 3; 4]);
   (35, Subset1 (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4],
                Combine [false_exp; false_exp; false_exp; false_exp]),
-       empty_vec Int);
+       empty_vec T_Int);
   (36, Subset1 (Combine [true_exp; true_exp; false_exp; false_exp; true_exp],
                 Combine [true_exp; false_exp; false_exp; true_exp; true_exp]),
        vec_of_boollist [true; false; true]);
@@ -128,48 +128,48 @@ let tests_pos = [
   (38, Subset1 (Combine [true_exp; true_exp; false_exp; false_exp; true_exp],
                 Combine [false_exp; false_exp; false_exp; false_exp;
                          false_exp]),
-       empty_vec Bool);
+       empty_vec T_Bool);
 
   (* NA lit *)
-  (39, na_exp Int, vec_of_lit NA_int);
-  (40, na_exp Bool, vec_of_lit NA_bool);
+  (39, na_exp T_Int, vec_of_lit NA_int);
+  (40, na_exp T_Bool, vec_of_lit NA_bool);
 
   (* Combine with NA *)
-  (41, Combine [na_exp Int], vec_of_lit NA_int);
-  (42, Combine [na_exp Bool], vec_of_lit NA_bool);
+  (41, Combine [na_exp T_Int], vec_of_lit NA_int);
+  (42, Combine [na_exp T_Bool], vec_of_lit NA_bool);
   (43, Combine [int_exp 5; (Combine [int_exp 6; int_exp 7;
-                                    (Combine [na_exp Int]); int_exp 9])],
+                                    (Combine [na_exp T_Int]); int_exp 9])],
        vec_of_intoptlist [Some 5; Some 6; Some 7; None; Some 9]);
   (44, Combine [true_exp; (Combine [true_exp; false_exp;
-                                    (Combine [na_exp Bool]); true_exp])],
+                                    (Combine [na_exp T_Bool]); true_exp])],
        vec_of_booloptlist [Some true; Some true; Some false; None; Some true]);
 
   (* subset1 nothing with NA *)
-  (45, Subset1_Nothing (Combine [int_exp 3; int_exp 1; na_exp Int]),
+  (45, Subset1_Nothing (Combine [int_exp 3; int_exp 1; na_exp T_Int]),
        vec_of_intoptlist [Some 3; Some 1; None]);
-  (46, Subset1_Nothing (Combine [true_exp; true_exp; na_exp Bool]),
+  (46, Subset1_Nothing (Combine [true_exp; true_exp; na_exp T_Bool]),
        vec_of_booloptlist [Some true; Some true; None]);
 
   (* subset2 with NA *)
-  (47, Subset2 (Combine [na_exp Int; int_exp 2; int_exp 3], int_exp 1),
-       vec_of_lit (na_lit Int));
-  (48, Subset2 (Combine [na_exp Bool; true_exp; false_exp], int_exp 1),
-       vec_of_lit (na_lit Bool));
+  (47, Subset2 (Combine [na_exp T_Int; int_exp 2; int_exp 3], int_exp 1),
+       vec_of_lit (na_lit T_Int));
+  (48, Subset2 (Combine [na_exp T_Bool; true_exp; false_exp], int_exp 1),
+       vec_of_lit (na_lit T_Bool));
 
   (* subset1 zero with NA *)
-  (49, Subset1 (Combine [na_exp Bool; na_exp Bool; na_exp Bool],
+  (49, Subset1 (Combine [na_exp T_Bool; na_exp T_Bool; na_exp T_Bool],
                 Combine [int_exp 0]),
-       empty_vec Bool);
-  (50, Subset1 (Combine [na_exp Int; na_exp Int; na_exp Int],
+       empty_vec T_Bool);
+  (50, Subset1 (Combine [na_exp T_Int; na_exp T_Int; na_exp T_Int],
                 Combine [int_exp 0]),
-       empty_vec Int);
+       empty_vec T_Int);
 
   (* subset1 logical with NA *)
   (51, Subset1 (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4],
-                Combine [true_exp; na_exp Bool; false_exp; true_exp]),
+                Combine [true_exp; na_exp T_Bool; false_exp; true_exp]),
        vec_of_intoptlist [Some 1; None; Some 4]);
   (52, Subset1 (Combine [true_exp; true_exp; false_exp; false_exp; true_exp],
-                Combine [true_exp; false_exp; true_exp; na_exp Bool; true_exp]),
+                Combine [true_exp; false_exp; true_exp; na_exp T_Bool; true_exp]),
        vec_of_booloptlist [Some true; Some false; None; Some true]);
 
   (* subset1 positive *)
@@ -187,7 +187,7 @@ let tests_pos = [
        vec_of_intlist [14]);
   (57, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
                 int_exp 5),
-       vec_of_lit (na_lit Int));
+       vec_of_lit (na_lit T_Int));
   (58, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
                 Combine [int_exp 1]),
        vec_of_intlist [11]);
@@ -209,7 +209,7 @@ let tests_pos = [
                 Combine [true_exp; false_exp; false_exp; true_exp]),
        vec_of_intoptlist [Some 11; None]);
   (64, Subset1 (Combine [int_exp 11; int_exp 12],
-                Combine [true_exp; na_exp Bool; false_exp; true_exp]),
+                Combine [true_exp; na_exp T_Bool; false_exp; true_exp]),
        vec_of_intoptlist [Some 11; None; None]);
   (65, Subset1 (Subset1 (int_exp 0, int_exp 0),
                 Combine [true_exp; true_exp]),
@@ -226,16 +226,16 @@ let tests_pos = [
                 Combine [true_exp; false_exp]),
        vec_of_intlist [11; 13]);
   (69, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
-                Combine [true_exp; na_exp Bool]),
+                Combine [true_exp; na_exp T_Bool]),
        vec_of_intoptlist [Some 11; None; Some 13; None]);
   (70, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
-                Combine [false_exp; true_exp; na_exp Bool]),
+                Combine [false_exp; true_exp; na_exp T_Bool]),
        vec_of_intoptlist [Some 12; None]);
 
   (* subset1 neg *)
   (70, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
                 Combine [int_exp ~-1; int_exp ~-2; int_exp ~-3; int_exp ~-4]),
-       empty_vec Int);
+       empty_vec T_Int);
   (71, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
                 Negate (Combine [int_exp 1; int_exp 2; int_exp 5; int_exp 0])),
        vec_of_intlist [13; 14]);
@@ -277,7 +277,7 @@ let tests_pos = [
 
   (* subset1 with NAs *)
   (79, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
-                Combine [int_exp 1; na_exp Int; int_exp 2]),
+                Combine [int_exp 1; na_exp T_Int; int_exp 2]),
       vec_of_intoptlist [Some 11; None; Some 12]);
 
   (* subset1 assign *)
@@ -294,7 +294,7 @@ let tests_pos = [
        vec_of_intlist [0; 0; 0; 0; 0]);
   (82, Subset1 (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5],
                 Combine [false_exp]),
-       empty_vec Int);
+       empty_vec T_Int);
   (83, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
                                 int_exp 5],
                        Combine [true_exp; false_exp; true_exp],
@@ -328,16 +328,16 @@ let tests_pos = [
 
   (* more fun with NAs *)
   (90, Subset1 (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4],
-                na_exp Int),
-       vec_of_lit (na_lit Int));
+                na_exp T_Int),
+       vec_of_lit (na_lit T_Int));
   (91, Subset1 (Combine [int_exp ~-1; int_exp ~-2; int_exp ~-3; int_exp ~-4],
-                na_exp Int),
-       vec_of_lit (na_lit Int));
+                na_exp T_Int),
+       vec_of_lit (na_lit T_Int));
   (92, Subset1 (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4],
-                Negate (Combine [na_exp Int; na_exp Int])),
+                Negate (Combine [na_exp T_Int; na_exp T_Int])),
        vec_of_intoptlist [None; None]);
   (93, Subset1 (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4],
-                Combine [int_exp 1; na_exp Int]),
+                Combine [int_exp 1; na_exp T_Int]),
        vec_of_intoptlist [Some 1; None]);
 
   (* negate *)
@@ -345,7 +345,7 @@ let tests_pos = [
        vec_of_intlist [~-1; ~-2; ~-3; ~-4]);
   (97, Negate (Combine [int_exp 1; int_exp ~-2; int_exp ~-3; int_exp 4]),
        vec_of_intlist [~-1; 2; 3; ~-4]);
-  (98, Negate (Combine [int_exp 1; int_exp ~-2; na_exp Int; int_exp 4]),
+  (98, Negate (Combine [int_exp 1; int_exp ~-2; na_exp T_Int; int_exp 4]),
        vec_of_intoptlist [Some ~-1; Some 2; None; Some ~-4]);
 
   (* subset1 assign negative *)
@@ -427,32 +427,32 @@ let tests_neg = [
   (1010, Subset2 (Subset1 (int_exp 1, int_exp 0), Combine [int_exp 1]),
          Eval.Subscript_out_of_bounds);
   (1011, Subset2 (Combine [int_exp 1; int_exp 2; int_exp 3], true_exp),
-         Eval.type_error Int Bool);
+         Eval.type_error T_Int T_Bool);
 
   (* combine errors *)
   (1012, Combine [], Eval.Expected_nonempty_vector);
   (1013, Combine [int_exp 0; true_exp; false_exp],
-         Eval.type_error Int Bool);
+         Eval.type_error T_Int T_Bool);
   (1014, Combine [false_exp; true_exp; int_exp 1; false_exp],
-         Eval.type_error Bool Int);
+         Eval.type_error T_Bool T_Int);
 
   (* subset2 with NA errors *)
-  (1015, Subset2 (Subset1 (int_exp 1, int_exp 0), na_exp Int),
+  (1015, Subset2 (Subset1 (int_exp 1, int_exp 0), na_exp T_Int),
          Eval.Subscript_out_of_bounds);
-  (1016, Subset2 (Subset1 (int_exp 1, int_exp 0), na_exp Bool),
-         Eval.type_error Int Bool);
-  (1017, Subset2 (Subset1 (int_exp 1, int_exp 0), Combine [na_exp Int]),
+  (1016, Subset2 (Subset1 (int_exp 1, int_exp 0), na_exp T_Bool),
+         Eval.type_error T_Int T_Bool);
+  (1017, Subset2 (Subset1 (int_exp 1, int_exp 0), Combine [na_exp T_Int]),
          Eval.Subscript_out_of_bounds);
 
   (* subset1 mixing subscripts *)
   (1018, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
-                  Combine [int_exp 0; int_exp 1; na_exp Int; int_exp ~-3]),
+                  Combine [int_exp 0; int_exp 1; na_exp T_Int; int_exp ~-3]),
          Eval.Mixing_with_neg_subscripts);
   (1019, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
                   Negate (Combine [int_exp 4; int_exp ~-1; int_exp 0])),
          Eval.Mixing_with_neg_subscripts);
   (1020, Subset1 (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
-                  Negate (Combine [int_exp 4; na_exp Int; int_exp 0])),
+                  Negate (Combine [int_exp 4; na_exp T_Int; int_exp 0])),
          Eval.Mixing_with_neg_subscripts);
 
   (* subset1_nothing_assign *)
@@ -465,12 +465,12 @@ let tests_neg = [
          Eval.Replacement_length_not_multiple);
   (1023, Subset1_Nothing_Assign (Combine [int_exp 11; int_exp 12; int_exp 13],
                                  Combine [true_exp]),
-         Eval.type_error Int Bool);
+         Eval.type_error T_Int T_Bool);
 
   (* subset1 assign *)
   (1024, Subset1_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
                                   int_exp 14],
-                         Combine [int_exp 1; na_exp Int; int_exp 2],
+                         Combine [int_exp 1; na_exp T_Int; int_exp 2],
                          Combine [int_exp 9; int_exp 8; int_exp 7]),
          Eval.No_NAs_in_subscripted_assignment);
   (1025, Subset1_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
@@ -487,7 +487,7 @@ let tests_neg = [
                                   int_exp 14],
                          Combine [int_exp 1; int_exp 2; int_exp 3],
                          Combine [false_exp]),
-         Eval.type_error Int Bool);
+         Eval.type_error T_Int T_Bool);
 
   (* subset2 assign *)
   (1027, Subset2_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
@@ -508,7 +508,7 @@ let tests_neg = [
   (1030, Subset2_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
                                   int_exp 14],
                          Combine [int_exp 11],
-                         Combine [na_exp Int]),
+                         Combine [na_exp T_Int]),
          Eval.Subscript_out_of_bounds);
   (1031, Subset2_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
                                   int_exp 14],
@@ -524,12 +524,12 @@ let tests_neg = [
                                   int_exp 14],
                          Combine [true_exp],
                          Combine [int_exp 8]),
-         Eval.type_error Int Bool);
+         Eval.type_error T_Int T_Bool);
   (1034, Subset2_Assign (Combine [int_exp 11; int_exp 12; int_exp 13;
                                   int_exp 14],
                          Combine [int_exp 1],
                          Combine [true_exp]),
-         Eval.type_error Int Bool);
+         Eval.type_error T_Int T_Bool);
 
   (* subset1 assign *)
   (1035, Subset1_Assign (Combine [int_exp 11; int_exp 12; int_exp 13; int_exp 14],
@@ -551,7 +551,7 @@ let tests_neg = [
          Eval.Replacement_length_not_multiple);
   (1038, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
                                   int_exp 5],
-                         Combine [true_exp; na_exp Bool],
+                         Combine [true_exp; na_exp T_Bool],
                          Combine [int_exp 10; int_exp 11; int_exp 12]),
          Eval.No_NAs_in_subscripted_assignment);
   (1039, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
@@ -566,27 +566,27 @@ let tests_neg = [
 
   (* more fun with NAs *)
   (1041, Subset1 (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4],
-                  Negate (Combine [int_exp 1; na_exp Int])),
+                  Negate (Combine [int_exp 1; na_exp T_Int])),
          Eval.Mixing_with_neg_subscripts);
   (1042, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4],
-                         Combine [na_exp Int],
+                         Combine [na_exp T_Int],
                          Combine [int_exp 1; int_exp 2]),
          Eval.No_NAs_in_subscripted_assignment);
   (1043, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4],
-                         Combine [int_exp 1; na_exp Int],
+                         Combine [int_exp 1; na_exp T_Int],
                          Combine [int_exp 1; int_exp 2]),
          Eval.No_NAs_in_subscripted_assignment);
   (1044, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
                                   int_exp 5],
-                         Combine [true_exp; false_exp; na_exp Bool],
+                         Combine [true_exp; false_exp; na_exp T_Bool],
                          Combine [int_exp 0]),
          Eval.No_NAs_in_subscripted_assignment);
   (1045, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4],
-                         Combine [na_exp Int],
+                         Combine [na_exp T_Int],
                          Combine [int_exp 1]),
          Eval.No_NAs_in_subscripted_assignment);
   (1046, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4],
-                         Combine [int_exp 1; int_exp 4; na_exp Int],
+                         Combine [int_exp 1; int_exp 4; na_exp T_Int],
                          Combine [int_exp 0]),
          Eval.No_NAs_in_subscripted_assignment);
 
@@ -640,7 +640,7 @@ let tests_neg = [
          Eval.Replacement_length_not_multiple);
   (1055, Subset1_Assign (Combine [int_exp 1; int_exp 2; int_exp 3; int_exp 4;
                                   int_exp 5],
-                         Negate (Combine [int_exp 1; na_exp Int]),
+                         Negate (Combine [int_exp 1; na_exp T_Int]),
                                   int_exp 13),
          Eval.Mixing_with_neg_subscripts);
 ]

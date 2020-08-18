@@ -30,13 +30,13 @@ let extract_bool (l : literal) =
   match l with
   | Bool b -> Some b
   | NA_bool -> None
-  | Int _ | NA_int -> raise (type_error Bool (get_tag l))
+  | Int _ | NA_int -> raise (type_error T_Bool (get_tag l))
 
 let extract_int (l : literal) =
   match l with
   | Int i -> Some i
   | NA_int -> None
-  | Bool _ | NA_bool -> raise (type_error Int (get_tag l))
+  | Bool _ | NA_bool -> raise (type_error T_Int (get_tag l))
 
 let check_all_types_same (ts : type_tag list) =
   if List.length ts = 0 then raise Expected_nonempty_vector;
@@ -150,7 +150,7 @@ let rec eval e =
   | Negate e1 ->
       let Vector (a1, t1) = eval e1 in
       begin match t1 with
-      | Int ->
+      | T_Int ->
           let negate (x : literal) : literal =
             match x with
             | Int i -> Int ~-i
@@ -159,7 +159,7 @@ let rec eval e =
           in
           let res = Array.map negate a1 in
           Vector (res, t1)
-      | Bool -> raise (type_error Int t1)
+      | T_Bool -> raise (type_error T_Int t1)
       end
   | Subset1_Nothing e1 -> eval e1
   | Subset1_Nothing_Assign (e1, e2) ->
@@ -174,7 +174,7 @@ let rec eval e =
       let Vector (a1, t1) = eval e1 in
       let Vector (a2, t2) = eval e2 in
       begin match t2 with
-      | Bool ->
+      | T_Bool ->
           let len = Stdlib.max (Array.length a1) (Array.length a2) in
           let a1' = extend a1 len t1 in
           let a2' = recycle a2 len in
@@ -182,7 +182,7 @@ let rec eval e =
           let l2' = bool_vec_to_pos l2 1 in
           let res = Array.of_list (get_at_pos a1' l2' t1) in
           Vector (res, t1)
-      | Int ->
+      | T_Int ->
           let l2 = Array.to_list (Array.map extract_int a2) in
           if is_positive_subsetting l2 then
             let res = Array.of_list (get_at_pos a1 l2 t1) in
@@ -200,7 +200,7 @@ let rec eval e =
       let Vector (a2, t2) = eval e2 in
       let Vector (a3, t3) = eval e3 in
       begin match t2 with
-      | Bool ->
+      | T_Bool ->
           if Array.exists is_na a2 then
             (* We diverge from R and ban NAs as indices during assignment *)
             raise No_NAs_in_subscripted_assignment;
@@ -216,7 +216,7 @@ let rec eval e =
           let l3 = Array.to_list a3' in
           let res = update_at_pos a1' l2' l3 in
           Vector (res, t1)
-      | Int ->
+      | T_Int ->
           let l2 = Array.to_list (Array.map extract_int a2) in
           if is_positive_subsetting l2 then begin
             if Array.exists is_na a2 then
@@ -247,11 +247,11 @@ let rec eval e =
             raise Mixing_with_neg_subscripts
       end
   | Subset2 (e1, e2) ->
-      let Vector (a1, t1) = eval e1 in
+      let Vector (a1, _) = eval e1 in
       let Vector (a2, t2) = eval e2 in
       if Array.length a2 < 1 then raise Selecting_lt_one_element;
       if Array.length a2 > 1 then raise Selecting_gt_one_element;
-      if t2 <> Int then raise (type_error Int t2);
+      if t2 <> T_Int then raise (type_error T_Int t2);
       begin match extract_int a2.(0) with
       | None -> raise Subscript_out_of_bounds
       | Some n when n = 0 -> raise Selecting_lt_one_element
@@ -267,7 +267,7 @@ let rec eval e =
       if n <> 1 then raise Selecting_gt_one_element;
       if m <> 1 then raise Too_many_elements_supplied;
       if t1 <> t3 then raise (type_error t1 t3);
-      if t2 <> Int then raise (type_error Int t2);
+      if t2 <> T_Int then raise (type_error T_Int t2);
       begin match extract_int a2.(0) with
       | None -> raise Subscript_out_of_bounds
       | Some n when n = 0 -> raise Selecting_lt_one_element
