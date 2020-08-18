@@ -1,5 +1,5 @@
-dplyr semantics
-===============
+RhoVec
+======
 
 Work in progress. Note that [semantics.md](semantics.md) may be slightly
 outdated compared to the implementation.
@@ -16,6 +16,6 @@ This is a formalization of vectors and subsetting in R (see Advanced R, [chapter
 Dependencies
 ------------
 
-  * [OPAM](https://opam.ocaml.org/).
+  * [opam](https://opam.ocaml.org/)
   * OCaml 4.10.0 (can be installed via `opam install ocaml.4.10.0`)
 
