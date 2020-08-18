@@ -1,2 +1,2 @@
 (lang dune 2.6)
-(name RhoVec)
+(name rhovec)

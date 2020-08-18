@@ -13,9 +13,15 @@ This is a formalization of vectors and subsetting in R (see Advanced R, [chapter
 [magrittr](https://magrittr.tidyverse.org/).
 
 
-Dependencies
-------------
+Getting Started
+---------------
 
-  * [opam](https://opam.ocaml.org/)
-  * OCaml 4.10.0 (can be installed via `opam install ocaml.4.10.0`)
+Install [opam](https://opam.ocaml.org/). Then run the following:
 
+```
+opam install ocaml.4.10.0
+git clone https://github.com/reactorlabs/RhoVec.git
+cd RhoVec
+opam install . --deps-only
+make
+```

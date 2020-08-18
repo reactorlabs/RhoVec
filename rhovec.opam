@@ -1,0 +1,23 @@
+opam-version: "2.0"
+name: "rhovec"
+version: "dev"
+synopsis: "Formalization of R and dplyr"
+description: ""
+
+authors: "Ming-Ho Yee"
+maintainer: "mh@mhyee.com"
+homepage: "https://github.com/reactorlabs/RhoVec"
+dev-repo: "git+https://git@github.com:reactorlabs/RhoVec.git"
+bug-reports: "https://github.com/reactorlabs/RhoVec/issues"
+license: "none for now"
+
+build: [
+  ["dune" "subst"] {pinned}
+  ["dune" "build" "-p" name "-j" jobs]
+]
+depends: [
+  "dune" {build}
+]
+depopts: [
+  "utop"
+]
