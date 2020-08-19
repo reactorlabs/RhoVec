@@ -21,8 +21,12 @@ exe:
 bc:
 	dune build src/main.bc
 
+fmt:
+	@# force this command to always return true
+	dune build @fmt --auto-promote || true
+
 clean:
 	dune clean
 	rm -f $(EXEC)
 
-.PHONY: all run utop debug exe bc clean
+.PHONY: all run utop debug exe bc fmt clean

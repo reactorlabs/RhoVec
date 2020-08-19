@@ -1,31 +1,26 @@
 type literal =
-  | Bool of bool
-  | Int of int
+  | Bool    of bool
+  | Int     of int
   | NA_bool
   | NA_int
-
 type expression =
-  | Lit of literal
-  | Combine of expression list
-  | Negate of expression
-  | Subset1_Nothing of expression
+  | Lit                    of literal
+  | Combine                of expression list
+  | Negate                 of expression
+  | Subset1_Nothing        of expression
   | Subset1_Nothing_Assign of expression * expression
-  | Subset1 of expression * expression
-  | Subset1_Assign of expression * expression * expression
-  | Subset2 of expression * expression
-  | Subset2_Assign of expression * expression * expression
-
+  | Subset1                of expression * expression
+  | Subset1_Assign         of expression * expression * expression
+  | Subset2                of expression * expression
+  | Subset2_Assign         of expression * expression * expression
 type type_tag =
   | T_Bool
   | T_Int
-
-type value =
-  | Vector of literal array * type_tag
+type value = Vector of literal array * type_tag
 
 let get_tag = function
   | Bool _ | NA_bool -> T_Bool
   | Int _ | NA_int -> T_Int
-
 let is_na = function
   | Bool _ | Int _ -> false
   | NA_bool | NA_int -> true
@@ -34,9 +29,10 @@ let is_na = function
 let true_lit = Bool true
 let false_lit = Bool false
 let bool_lit b = Bool b
+
 let int_lit i = Int i
-let na_lit (ty : type_tag) =
-  match ty with
+
+let na_lit = function
   | T_Bool -> NA_bool
   | T_Int -> NA_int
 let opt_int_lit = function
@@ -49,23 +45,22 @@ let opt_bool_lit = function
 let true_exp = Lit (Bool true)
 let false_exp = Lit (Bool false)
 let bool_exp b = Lit (Bool b)
+
 let int_exp i = Lit (Int i)
+
 let na_exp ty = Lit (na_lit ty)
 
-let empty_vec t = Vector ([| |], t)
-
+let empty_vec t = Vector ([||], t)
 let vec_of_int x = Vector ([| Int x |], T_Int)
 let vec_of_intlist xs = Vector (Array.of_list (List.map int_lit xs), T_Int)
-let vec_of_intoptlist xs =
-  Vector (Array.of_list (List.map opt_int_lit xs), T_Int)
-
+let vec_of_intoptlist xs = Vector (Array.of_list (List.map opt_int_lit xs), T_Int)
 let vec_of_bool x = Vector ([| bool_lit x |], T_Bool)
 let vec_of_boollist xs = Vector (Array.of_list (List.map bool_lit xs), T_Bool)
-let vec_of_booloptlist xs =
-  Vector (Array.of_list (List.map opt_bool_lit xs), T_Bool)
+let vec_of_booloptlist xs = Vector (Array.of_list (List.map opt_bool_lit xs), T_Bool)
 
 let vec_of_lit l =
   match l with
   | Bool b -> vec_of_bool b
   | Int i -> vec_of_int i
-  | NA_bool | NA_int -> Vector ([| l |], get_tag l)
+  | NA_bool -> Vector ([| l |], T_Bool)
+  | NA_int -> Vector ([| l |], T_Int)

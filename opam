@@ -12,12 +12,13 @@ bug-reports: "https://github.com/reactorlabs/RhoVec/issues"
 license: "none for now"
 
 build: [
-  ["dune" "subst"] {pinned}
-  ["dune" "build" "-p" name "-j" jobs]
+ ["dune" "subst"] {pinned}
+ ["dune" "build" "-p" name "-j" jobs]
 ]
 depends: [
-  "dune" {build}
+ "dune" {build}
 ]
 depopts: [
-  "utop"
+ "ocamlformat"
+ "utop"
 ]
