@@ -23,7 +23,11 @@ exception Supposed_to_fail
 
 let run_test_pos test =
   let id, expr, expected = test in
-  try if Eval.eval expr <> expected then raise Unexpected_fail with _ -> raise (Test_failed id)
+  try
+    let (Vector (a, t) as res) = Eval.eval expr in
+    if not (Array.for_all (fun x -> get_tag x = t) a) then raise Unexpected_fail ;
+    if res <> expected then raise Unexpected_fail
+  with _ -> raise (Test_failed id)
 
 let run_test_neg test =
   let id, expr, excptn = test in
