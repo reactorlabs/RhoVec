@@ -17,7 +17,9 @@ build: [
 ]
 depends: [
  "dune" {build}
+ "ocaml"
  "ppx_deriving"
+ "alcotest" {with-test}
 ]
 depopts: [
  "ocamlformat"

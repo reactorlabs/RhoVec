@@ -7,6 +7,9 @@ all: exe
 run: exe
 	./$(EXEC)
 
+test:
+	dune runtest
+
 utop:
 	dune utop lib
 
@@ -26,11 +29,10 @@ fmt:
 	dune build @fmt --auto-promote || true
 
 deps:
-	opam update
 	opam install . --deps-only
 
 clean:
 	dune clean
 	rm -f $(EXEC)
 
-.PHONY: all run utop debug exe bc fmt deps clean
+.PHONY: all run test utop debug exe bc fmt deps clean
