@@ -25,8 +25,12 @@ fmt:
 	@# force this command to always return true
 	dune build @fmt --auto-promote || true
 
+deps:
+	opam update
+	opam install . --deps-only
+
 clean:
 	dune clean
 	rm -f $(EXEC)
 
-.PHONY: all run utop debug exe bc fmt clean
+.PHONY: all run utop debug exe bc fmt deps clean
