@@ -3,6 +3,14 @@ type literal =
   | Int     of int
   | NA_bool
   | NA_int
+[@@deriving show { with_path = false }]
+
+(* More compact version, compared to show_literal *)
+let show_lit = function
+  | Bool b -> Bool.to_string b
+  | Int i -> Int.to_string i
+  | NA_bool | NA_int -> "NA"
+
 type expression =
   | Lit                    of literal
   | Combine                of expression list
@@ -13,10 +21,24 @@ type expression =
   | Subset1_Assign         of expression * expression * expression
   | Subset2                of expression * expression
   | Subset2_Assign         of expression * expression * expression
+[@@deriving show { with_path = false }]
+
 type type_tag =
   | T_Bool
   | T_Int
+[@@deriving show { with_path = false }]
+
+(* More compact version, compared to show_type_tag *)
+let show_type = function
+  | T_Bool -> "Bool"
+  | T_Int -> "Int"
+
 type value = Vector of literal array * type_tag
+
+let show_value = function
+  | Vector (a, t) ->
+      let inner = a |> Array.map show_lit |> Array.to_list |> String.concat " " in
+      "[" ^ inner ^ "]," ^ show_type t
 
 let get_tag = function
   | Bool _ | NA_bool -> T_Bool

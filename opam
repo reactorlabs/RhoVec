@@ -17,6 +17,7 @@ build: [
 ]
 depends: [
  "dune" {build}
+ "ppx_deriving"
 ]
 depopts: [
  "ocamlformat"

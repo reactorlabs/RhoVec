@@ -25,8 +25,12 @@ let run_test_pos test =
   let id, expr, expected = test in
   try
     let (Vector (a, t) as res) = Eval.eval expr in
-    if not (Array.for_all (fun x -> get_tag x = t) a) then raise Unexpected_fail ;
-    if res <> expected then raise Unexpected_fail
+    if not (Array.for_all (fun x -> get_tag x = t) a) then (
+      print_endline "Vector elements not consistent with type!" ;
+      raise Unexpected_fail ) ;
+    if res <> expected then (
+      Printf.printf "Expected:\n\t%s\nBut got:\n\t%s\n" (show_value expected) (show_value res) ;
+      raise Unexpected_fail )
   with _ -> raise (Test_failed id)
 
 let run_test_neg test =
