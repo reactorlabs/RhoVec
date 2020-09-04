@@ -1,13 +1,13 @@
 type literal =
-  | Bool    of bool
-  | Int     of int
   | NA_bool
+  | Bool    of bool
   | NA_int
-[@@deriving show { with_path = false }]
+  | Int     of int
+[@@deriving eq, show { with_path = false }]
 
 (* More compact version, compared to show_literal *)
 let show_lit = function
-  | Bool b -> Bool.to_string b
+  | Bool b -> if b then "T" else "F"
   | Int i -> Int.to_string i
   | NA_bool | NA_int -> "NA"
 
@@ -16,24 +16,24 @@ type expression =
   | Combine                of expression list
   | Negate                 of expression
   | Subset1_Nothing        of expression
-  | Subset1_Nothing_Assign of expression * expression
   | Subset1                of expression * expression
-  | Subset1_Assign         of expression * expression * expression
   | Subset2                of expression * expression
+  | Subset1_Nothing_Assign of expression * expression
+  | Subset1_Assign         of expression * expression * expression
   | Subset2_Assign         of expression * expression * expression
-[@@deriving show { with_path = false }]
+[@@deriving eq, show { with_path = false }]
 
 type type_tag =
   | T_Bool
   | T_Int
-[@@deriving show { with_path = false }]
+[@@deriving eq, show { with_path = false }]
 
 (* More compact version, compared to show_type_tag *)
 let show_type = function
   | T_Bool -> "Bool"
   | T_Int -> "Int"
 
-type value = Vector of literal array * type_tag
+type value = Vector of literal array * type_tag [@@deriving eq, show { with_path = false }]
 
 let show_value = function
   | Vector (a, t) ->
@@ -86,3 +86,4 @@ let vec_of_lit l =
   | Int i -> vec_of_int i
   | NA_bool -> Vector ([| l |], T_Bool)
   | NA_int -> Vector ([| l |], T_Int)
+let vec_of_na t = vec_of_lit (na_lit t)

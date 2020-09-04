@@ -8,7 +8,7 @@ run: exe
 	./$(EXEC)
 
 test:
-	dune runtest
+	dune runtest --force
 
 utop:
 	dune utop lib
