@@ -1,5 +1,6 @@
 rhovec
-_build
+_build/
+_coverage/
 *.native
 *.byte
 *.exe

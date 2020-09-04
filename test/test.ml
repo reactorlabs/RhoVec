@@ -535,6 +535,12 @@ let () =
                 ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
                 , Combine [ true_exp; false_exp; na_exp T_Bool ]
                 , Combine [ int_exp 0 ] ) )
+        ; test_eval_err "mixed types"
+            ( Eval.type_error T_Int T_Bool
+            , Subset1_Assign
+                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
+                , Combine [ true_exp; false_exp ]
+                , Combine [ false_exp ] ) )
         ] )
     ; ( "subset1_assign.zero"
       , [ test_eval "int vector 1" (vec_of_int 7, Subset1_Assign (int_exp 7, int_exp 0, int_exp 42))

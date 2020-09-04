@@ -28,11 +28,18 @@ fmt:
 	@# force this command to always return true
 	dune build @fmt --auto-promote || true
 
+coverage: clean
+	BISECT_ENABLE=yes dune build
+	dune runtest --force
+	bisect-ppx-report html
+	bisect-ppx-report summary
+
 deps:
-	opam install . --deps-only
+	opam install . --deps-only --with-test
 
 clean:
 	dune clean
+	rm -rf _coverage
 	rm -f $(EXEC)
 
-.PHONY: all run test utop debug exe bc fmt deps clean
+.PHONY: all run test utop debug exe bc fmt coverage deps clean
