@@ -9,33 +9,20 @@ jobs:
   build:
     name: Build
 
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - macos-latest
-          - ubuntu-latest
-          - windows-latest
-        ocaml-version:
-          - 4.08.1
-          - 4.09.1
-          - 4.10.1
-          - 4.11.1
-
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Use OCaml ${{ matrix.ocaml-version }}
+      - name: Setup OCaml
         uses: avsm/setup-ocaml@v1
         with:
-          ocaml-version: ${{ matrix.ocaml-version }}
+          ocaml-version: 4.10.0
 
-      - name: Build code
+      - name: Build, format, and test
         run: |
-          opam pin add rhovec.dev . --no-action
-          opam depext rhovec --yes --with-test
           opam install . --deps-only --with-test
           opam exec -- dune build
+          opam exec -- dune build @fmt
+          opam exec -- dune runtest
