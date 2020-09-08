@@ -5,7 +5,6 @@ open Expr
   - environments
   - assignment
   - various other bugs that were fixed in the semantics
-  - set up code coverage tools
   - refactor
 
   - parser

@@ -1,0 +1,45 @@
+name: Main workflow
+
+on:
+  - pull_request
+  - push
+  - workflow_dispatch
+
+jobs:
+  build:
+    name: Build
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Cache OCaml and deps
+        id: cache-ocaml
+        uses: actions/cache@v2
+        with:
+          path: ~/.opam
+          key: ubuntu-latest-ocaml.4.10.0-${{ hashFiles('opam') }}
+          restore-keys: |
+            ubuntu-latest-ocaml.4.10.0-
+            ubuntu-latest-
+
+      - name: Setup OCaml
+        if: steps.cache-ocaml.cache-hit != 'true'
+        uses: avsm/setup-ocaml@v1
+        with:
+          ocaml-version: 4.10.0
+
+      - name: Install dependencies
+        if: steps.cache-ocaml.cache-hit != 'true'
+        run: opam install . --deps-only --with-test
+
+      - name: Format code
+        run: opam exec -- dune build @fmt
+
+      - name: Build
+        run: opam exec -- dune build
+
+      - name: Test
+        run: opam exec -- dune runtest
