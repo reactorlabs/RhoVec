@@ -20,9 +20,14 @@ jobs:
         with:
           ocaml-version: 4.10.0
 
-      - name: Build, format, and test
-        run: |
-          opam install . --deps-only --with-test
-          opam exec -- dune build
-          opam exec -- dune build @fmt
-          opam exec -- dune runtest
+      - name: Install dependencies
+        run: opam install . --deps-only --with-test
+
+      - name: Build
+        run: opam exec -- dune build
+
+      - name: Format code
+        run: opam exec -- dune build @fmt
+
+      - name: Test
+        run: opam exec -- dune runtest
