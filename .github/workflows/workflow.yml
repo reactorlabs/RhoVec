@@ -39,15 +39,7 @@ jobs:
         run: opam exec -- dune build @fmt
 
       - name: Build
-        run: BISECT_ENABLE=yes opam exec -- dune build
+        run: opam exec -- dune build
 
       - name: Test
         run: opam exec -- dune runtest
-
-      - name: Send to code coverage report to Coveralls
-        run: opam exec -- bisect-ppx-report send-to Coveralls
-
-      - name: Coveralls
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
