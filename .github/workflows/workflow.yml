@@ -9,44 +9,45 @@ jobs:
   build:
     name: Build
 
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-        ocaml-version:
-          - 4.10.0
-
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Cache OCaml
+      - name: Cache OCaml and deps
         id: cache-ocaml
         uses: actions/cache@v2
         with:
           path: ~/.opam
-          key: ${{ matrix.os }}-${{ matrix.ocaml-version }}-${{ hashFiles('opam') }}
+          key: ubuntu-latest-ocaml.4.10.0-${{ hashFiles('opam') }}
           restore-keys: |
-            ${{ matrix.os }}-${{ matrix.ocaml-version }}-
-            ${{ matrix.os }}-
+            ubuntu-latest-ocaml.4.10.0-
+            ubuntu-latest-
 
-      - name: Setup OCaml ${{ matrix.ocaml-version }}
+      - name: Setup OCaml
         if: steps.cache-ocaml.cache-hit != 'true'
         uses: avsm/setup-ocaml@v1
         with:
-          ocaml-version: ${{ matrix.ocaml-version }}
+          ocaml-version: 4.10.0
 
       - name: Install dependencies
         if: steps.cache-ocaml.cache-hit != 'true'
         run: opam install . --deps-only --with-test
 
-      - name: Build
-        run: opam exec -- dune build
-
       - name: Format code
         run: opam exec -- dune build @fmt
 
+      - name: Build
+        run: BISECT_ENABLE=yes opam exec -- dune build
+
       - name: Test
         run: opam exec -- dune runtest
+
+      - name: Send to code coverage report to Coveralls
+        run: opam exec -- bisect-ppx-report send-to Coveralls
+
+      - name: Coveralls
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
