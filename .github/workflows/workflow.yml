@@ -9,18 +9,37 @@ jobs:
   build:
     name: Build
 
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+        ocaml-version:
+          - 4.10.0
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Setup OCaml
+      - name: Cache OCaml
+        id: cache-ocaml
+        uses: actions/cache@v2
+        with:
+          path: ~/.opam
+          key: ${{ matrix.os }}-${{ matrix.ocaml-version }}-${{ hashFiles('opam') }}
+          restore-keys: |
+            ${{ matrix.os }}-${{ matrix.ocaml-version }}-
+            ${{ matrix.os }}-
+
+      - name: Setup OCaml ${{ matrix.ocaml-version }}
+        if: steps.cache-ocaml.cache-hit != 'true'
         uses: avsm/setup-ocaml@v1
         with:
-          ocaml-version: 4.10.0
+          ocaml-version: ${{ matrix.ocaml-version }}
 
       - name: Install dependencies
+        if: steps.cache-ocaml.cache-hit != 'true'
         run: opam install . --deps-only --with-test
 
       - name: Build
