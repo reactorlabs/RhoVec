@@ -1,18 +1,41 @@
-name: Continuous integration
+name: Main workflow
 
 on:
-  pull_request:
-  push:
-  workflow_dispatch:
-    inputs:
-      name:
-        descriont: "Person"
-        default: "hello"
+  - pull_request
+  - push
+  - workflow_dispatch
 
 jobs:
   build:
-    name: Greeting
-    runs-on: ubuntu-latest
+    name: Build
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+        ocaml-version:
+          - 4.08.1
+          - 4.09.1
+          - 4.10.1
+          - 4.11.1
+
+    runs-on: ${{ matrix.os }}
+
     steps:
-      - name: Hello world
-        run: echo 'hello'
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Use OCaml ${{ matrix.ocaml-version }}
+        uses: avsm/setup-ocaml@v1
+        with:
+          ocaml-version: ${{ matrix.ocaml-version }}
+
+      - name: Build code
+        run: |
+          opam pin add rhovec.dev . --no-action
+          opam depext rhovec --yes --with-test
+          opam install . --deps-only --with-test
+          opam exec -- dune build
