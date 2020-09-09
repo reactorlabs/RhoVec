@@ -7,6 +7,8 @@ open Expr
   - various other bugs that were fixed in the semantics
   - refactor
 
+  - use Containers library? Array.filter, Array.filter_map, Option.map_or, Option.get_or, Option.if_
+
   - parser
   - test oracle (using ocaml-r?)
   - interactive mode / repl
