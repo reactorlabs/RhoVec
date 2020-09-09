@@ -3,16 +3,15 @@ type literal =
   | Bool    of bool
   | NA_int
   | Int     of int
-[@@deriving eq, show { with_path = false }]
+[@@deriving eq]
 
-(* More compact version, compared to show_literal *)
 let show_lit = function
   | Bool b -> if b then "T" else "F"
   | Int i -> Int.to_string i
   | NA_bool | NA_int -> "NA"
 
 type expression =
-  | Lit                    of literal
+  | Lit                    of literal [@printer fun fmt l -> fprintf fmt "%s" (show_lit l)]
   | Combine                of expression list
   | Negate                 of expression
   | Subset1_Nothing        of expression
@@ -26,16 +25,15 @@ type expression =
 type type_tag =
   | T_Bool
   | T_Int
-[@@deriving eq, show { with_path = false }]
+[@@deriving eq]
 
-(* More compact version, compared to show_type_tag *)
 let show_type = function
   | T_Bool -> "Bool"
   | T_Int -> "Int"
 
-type value = Vector of literal array * type_tag [@@deriving eq, show { with_path = false }]
+type value = Vector of literal array * type_tag [@@deriving eq]
 
-let show_value = function
+let show_val = function
   | Vector (a, t) ->
       let inner = a |> Array.map show_lit |> Array.to_list |> String.concat " " in
       "[" ^ inner ^ "]," ^ show_type t

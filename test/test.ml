@@ -3,11 +3,7 @@ open Expr
 
 module A = Alcotest
 
-let pp_value ppf = function
-  | Vector (a, t) ->
-      let inner = a |> Array.map show_lit |> Array.to_list |> String.concat " " in
-      Fmt.pf ppf "[%s],%s" inner (show_type t)
-
+let pp_value ppf v = Fmt.pf ppf "%s" (show_val v)
 let testable_value = A.testable pp_value equal_value
 
 let test_eval desc (expected, expr) =
@@ -15,7 +11,7 @@ let test_eval desc (expected, expr) =
   let assert_vec_elt_types = function
     | Vector (a, t) as vec ->
         if not (Array.for_all (fun x -> get_tag x = t) a) then
-          A.failf "Vector `%s` not consistent with its type!" (show_value vec) in
+          A.failf "Vector `%s` not consistent with its type!" (show_val vec) in
   let run_eval () =
     let res = Eval.eval expr in
     assert_vec_elt_types expected ;
