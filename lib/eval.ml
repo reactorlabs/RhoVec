@@ -102,21 +102,17 @@ let recycle n t a =
     done ;
     res
 
-(* TODO: better way of handling arrays vs lists, literals vs Options, etc *)
-(* TODO: Just get rid of lists, go back to arrays *)
-
 (* Uses the indices in `idx` to select elements out of the array `a`, using 1-indexing. *)
 let get_at_pos t a idx =
   let is_neg = function
     | Some i -> i < 0
     | None -> false in
   if Array.exists is_neg idx then raise Mixing_with_negative_subscripts ;
-  idx |>
-  Array.map
-    (function
-      | Some 0 -> None
-      | Some i when 1 <= i && i <= Array.length a -> Some a.(i - 1)
-      | Some _ | None -> Some (na_lit t))
+  idx
+  |> Array.map (function
+       | Some 0 -> None
+       | Some i when 1 <= i && i <= Array.length a -> Some a.(i - 1)
+       | Some _ | None -> Some (na_lit t))
   |> Array.to_list |> List.filter Option.is_some |> Array.of_list |> Array.map Option.get
 
 (* Convert a boolean vector (used for subsetting) to a positional vector. *)
@@ -146,17 +142,21 @@ let neg_to_bool_vec n idx =
 (* Update the vector `a` with the values in vector `rpl` at positions specified by `idx`. *)
 let update_at_pos t a idx rpl =
   let len = Array.length a in
-  let max_idx = Array.fold_left (fun n x ->
-    match x with
-    | Some i -> max i n
-    | None -> n)
-  len idx in
+  let max_idx =
+    Array.fold_left
+      (fun n x ->
+        match x with
+        | Some i -> max i n
+        | None -> n)
+      len idx in
   let res = extend max_idx t a in
-  Array.iter2 (fun n x ->
-    match n with
-    | Some i when 1 <= i -> res.(i - 1) <- x
-    | Some _ -> raise Mixing_with_negative_subscripts
-    | None -> ()) idx rpl ;
+  Array.iter2
+    (fun n x ->
+      match n with
+      | Some i when 1 <= i -> res.(i - 1) <- x
+      | Some _ -> raise Mixing_with_negative_subscripts
+      | None -> ())
+    idx rpl ;
   res
 
 let rec eval e =
