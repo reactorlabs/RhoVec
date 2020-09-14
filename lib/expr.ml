@@ -41,6 +41,7 @@ let show_val = function
 let get_tag = function
   | Bool _ | NA_bool -> T_Bool
   | Int _ | NA_int -> T_Int
+
 let is_na = function
   | Bool _ | Int _ -> false
   | NA_bool | NA_int -> true
