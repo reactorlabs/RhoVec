@@ -814,6 +814,14 @@ let () =
                 ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
                 , Combine [ int_exp 4 ]
                 , Combine [ int_exp 9 ] ) )
+        ; test_eval "extension 1"
+            ( vec_of_intoptlist [ Some 11; Some 12; Some 13; Some 14; None; None; Some 9 ]
+            , Subset2_Assign
+                (Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ], int_exp 7, int_exp 9)
+            )
+        ; test_eval "extension 2"
+            ( vec_of_intlist [ 9 ]
+            , Subset2_Assign (Subset1 (int_exp 1, int_exp 0), int_exp 1, int_exp 9) )
         ] )
     ; ( "subset2_assign.err"
       , [ test_eval_err "index 0"
@@ -844,14 +852,6 @@ let () =
                 ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
                 , Negate (Combine [ int_exp 1; int_exp 2 ])
                 , int_exp 9 ) )
-        ; test_eval_err "out-of-bounds 1"
-            ( Eval.Subscript_out_of_bounds
-            , Subset2_Assign
-                (Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ], int_exp 11, int_exp 9)
-            )
-        ; test_eval_err "out-of-bounds 2"
-            ( Eval.Subscript_out_of_bounds
-            , Subset2_Assign (Subset1 (int_exp 1, int_exp 0), int_exp 1, int_exp 9) )
         ; test_eval_err "out-of-bounds with NA"
             ( Eval.Subscript_out_of_bounds
             , Subset2_Assign

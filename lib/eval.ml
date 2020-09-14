@@ -121,17 +121,15 @@ let bool_to_pos_vec (idxs : bool option array) =
          | None -> Some None)
 
 (* Convert a negative vector (used for subsetting) to a boolean vector. Negate the indices and use
-   them to exclude values, i.e. convert them to false indices.
-   Out-of-bounds are ignored. NA indices are errors. *)
+   them to exclude values, i.e. convert them to false indices. Out-of-bounds are ignored.
+   Expects the inputs to be valid (i.e. no NAs). *)
 let neg_to_bool_vec n (idxs : int option array) =
   assert (is_negative_subsetting idxs) ;
+  assert (Stdlib.not @@ contains_na idxs) ;
   let res = Array.make n (Some true) in
-  idxs
-  |> Array.map (Option.map (fun x -> ~-x))
-  |> Array.iter (function
-       | Some i when 1 <= i && i <= n -> res.(i - 1) <- Some false
-       | Some _ -> ()
-       | None -> raise Mixing_with_negative_subscripts) ;
+  idxs |> Array.map Option.get
+  |> Array.map (fun x -> ~-x)
+  |> Array.iter (fun i -> if 1 <= i && i <= n then res.(i - 1) <- Some false) ;
   res
 
 (* Update the vector `a` with the values in vector `rpl` at positions specified by `idx`.
@@ -142,10 +140,22 @@ let update_at_pos t a (idxs : int option array) rpl =
   assert (Array.for_all (fun x -> x <> Some 0) idxs) ;
   assert (Stdlib.not @@ contains_na idxs) ;
   let idxs = Array.map Option.get idxs in
-  let max_idx = idxs |> Array.fold_left (fun mx i -> max mx i) (Array.length a) in
+  let max_idx = Array.fold_left (fun mx i -> max mx i) (Array.length a) idxs in
   let res = extend max_idx t a in
   Array.iter2 (fun i x -> res.(i - 1) <- x) idxs rpl ;
   res
+
+let check_subset1_assign_err base_ty idx_len repl_len repl_ty =
+  if repl_len = 0 then raise Replacement_length_is_zero ;
+  if idx_len mod repl_len <> 0 then raise Replacement_length_not_multiple ;
+  if base_ty <> repl_ty then raise (type_error base_ty repl_ty) ;
+  ()
+
+let check_subset2_err n t =
+  if n = 0 then raise Selecting_lt_one_element ;
+  if n > 1 then raise Selecting_gt_one_element ;
+  if t <> T_Int then raise (type_error T_Int t) ;
+  ()
 
 let rec eval e =
   match e with
@@ -179,7 +189,7 @@ let rec eval e =
           if is_positive_subsetting a2 then
             let res = get_at_pos t1 a1 a2 in
             Vector (res, t1)
-          else if is_negative_subsetting a2 then
+          else if is_negative_subsetting a2 && not (contains_na a2) then
             let res = a2 |> neg_to_bool_vec n1 |> bool_to_pos_vec |> get_at_pos t1 a1 in
             Vector (res, t1)
           else raise Mixing_with_negative_subscripts )
@@ -187,9 +197,7 @@ let rec eval e =
       let (Vector (a1, _)) = eval e1 in
       let (Vector (a2, t2)) = eval e2 in
       let n1, n2 = (Array.length a1, Array.length a2) in
-      if n2 = 0 then raise Selecting_lt_one_element ;
-      if n2 > 1 then raise Selecting_gt_one_element ;
-      if t2 <> T_Int then raise (type_error T_Int t2) ;
+      check_subset2_err n2 t2 ;
       match get_int a2.(0) with
       | None -> raise Subscript_out_of_bounds
       | Some i ->
@@ -201,9 +209,7 @@ let rec eval e =
       let (Vector (a1, t1)) = eval e1 in
       let (Vector (a2, t2)) = eval e2 in
       let n1, n2 = (Array.length a1, Array.length a2) in
-      if n2 = 0 then raise Replacement_length_is_zero ;
-      if n1 mod n2 <> 0 then raise Replacement_length_not_multiple ;
-      if t1 <> t2 then raise (type_error t1 t2) ;
+      check_subset1_assign_err t1 n1 n2 t2 ;
       let res = recycle n1 t2 a2 in
       Vector (res, t2)
   | Subset1_Assign (e1, e2, e3) -> (
@@ -211,43 +217,30 @@ let rec eval e =
       let (Vector (a2, t2)) = eval e2 in
       let (Vector (a3, t3)) = eval e3 in
       let n1, n2, n3 = (Array.length a1, Array.length a2, Array.length a3) in
+      (* We diverge from R and ban NAs as indices during assignment *)
+      if Array.exists is_na a2 then raise No_NAs_in_subscripted_assignment ;
       match t2 with
       | T_Bool ->
-          if Array.exists is_na a2 then
-            (* We diverge from R and ban NAs as indices during assignment *)
-            raise No_NAs_in_subscripted_assignment ;
           let len = Stdlib.max n1 n2 in
           let a1 = extend len t1 a1 in
           let a2 = a2 |> recycle len t2 |> Array.map get_bool |> bool_to_pos_vec in
           let n2 = Array.length a2 in
-          if n3 = 0 then raise Replacement_length_is_zero ;
-          if n2 mod n3 <> 0 then raise Replacement_length_not_multiple ;
-          if t1 <> t3 then raise (type_error t1 t3) ;
+          check_subset1_assign_err t1 n2 n3 t3 ;
           let res = a3 |> recycle n2 t3 |> update_at_pos t1 a1 a2 in
           Vector (res, t1)
       | T_Int ->
           let a2 = Array.map get_int a2 in
           if is_zero_subsetting a2 then base
           else if is_positive_subsetting a2 then (
-            if contains_na a2 then
-              (* We diverge from R and ban NAs as indices during assignment *)
-              raise No_NAs_in_subscripted_assignment ;
-            let a2 = a2 |> Array.to_list |> List.filter (fun x -> x <> Some 0) |> Array.of_list in
+            let a2 = Array.filter (fun x -> x <> Some 0) a2 in
             let n2 = Array.length a2 in
-            if n3 = 0 then raise Replacement_length_is_zero ;
-            if n2 mod n3 <> 0 then raise Replacement_length_not_multiple ;
-            if t1 <> t3 then raise (type_error t1 t3) ;
+            check_subset1_assign_err t1 n2 n3 t3 ;
             let res = a3 |> recycle n2 t3 |> update_at_pos t1 a1 a2 in
             Vector (res, t1) )
           else if is_negative_subsetting a2 then (
-            if contains_na a2 then
-              (* We diverge from R and ban NAs as indices during assignment *)
-              raise No_NAs_in_subscripted_assignment ;
             let a2 = a2 |> neg_to_bool_vec n1 |> bool_to_pos_vec in
             let n2 = Array.length a2 in
-            if n3 = 0 then raise Replacement_length_is_zero ;
-            if n2 mod n3 <> 0 then raise Replacement_length_not_multiple ;
-            if t1 <> t3 then raise (type_error t1 t3) ;
+            check_subset1_assign_err t1 n2 n3 t3 ;
             let res = a3 |> recycle n2 t3 |> update_at_pos t1 a1 a2 in
             Vector (res, t1) )
           else raise Mixing_with_negative_subscripts )
@@ -255,19 +248,16 @@ let rec eval e =
       let (Vector (a1, t1)) = eval e1 in
       let (Vector (a2, t2)) = eval e2 in
       let (Vector (a3, t3)) = eval e3 in
-      let n1, n2, n3 = (Array.length a1, Array.length a2, Array.length a3) in
-      if n2 = 0 then raise Selecting_lt_one_element ;
-      if n2 > 1 then raise Selecting_gt_one_element ;
+      let n2, n3 = (Array.length a2, Array.length a3) in
+      check_subset2_err n2 t2 ;
       if n3 = 0 then raise Replacement_length_is_zero ;
       if n3 > 1 then raise Too_many_elements_supplied ;
       if t1 <> t3 then raise (type_error t1 t3) ;
-      if t2 <> T_Int then raise (type_error T_Int t2) ;
       match get_int a2.(0) with
       | None -> raise Subscript_out_of_bounds
       | Some i ->
           if i = 0 then raise Selecting_lt_one_element ;
           if i < 0 then raise Selecting_gt_one_element ;
-          if i > n1 then raise Subscript_out_of_bounds ;
-          let a1' = Array.copy a1 in
-          a1'.(i - 1) <- a3.(0) ;
-          Vector (a1', t1) )
+          let a1 = a1 |> Array.copy |> extend i t1 in
+          a1.(i - 1) <- a3.(0) ;
+          Vector (a1, t1) )

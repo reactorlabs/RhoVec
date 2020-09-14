@@ -5,7 +5,7 @@ module Array = struct
 
   let filter_map f a = a |> Array.to_list |> List.filter_map f |> Array.of_list
 
-  let filter_mapi f a = a |> Array.mapi f |> filter_map (fun x -> x)
+  let filter_mapi f a = a |> Array.mapi f |> filter_map Fun.id
 end
 
 module Option = struct
