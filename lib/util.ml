@@ -15,9 +15,9 @@ module List = struct
     match l with
     | [] -> (acc, [])
     | hd :: tl ->
-        let acc, hd' = f acc hd in
-        let acc, tl' = fold_map f acc tl in
-        (acc, hd' :: tl')
+        let acc, hd = f acc hd in
+        let acc, tl = fold_map f acc tl in
+        (acc, hd :: tl)
 end
 
 module Option = struct

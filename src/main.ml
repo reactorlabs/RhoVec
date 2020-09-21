@@ -2,17 +2,11 @@ open Lib
 open Expr
 
 (* Big list of TODO:
-  - assignment (and tests)
-    - assign
-    - subset assignment (properly handle mutation and return value)
-      - subset1_assign_nothing
-      - subset1_assign
-      - subset2_assign
-    - sequencing
-  - various other bugs that were fixed in the semantics
-  - refactor?
+    - tests for assignment
+      - return value (rhs) is correct
+      - more complicated assignment/nesting/sequencing
 
-  - parser
+  - parser / pretty printer
   - test oracle (using ocaml-r?)
   - interactive mode / repl
 *)

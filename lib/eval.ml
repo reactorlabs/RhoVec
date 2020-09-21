@@ -172,13 +172,13 @@ let rec eval env = function
       let env, vecs = List.fold_map eval env es in
       let t = vecs |> List.map (function Vector (_, t) -> t) |> get_common_type in
       let v = vecs |> List.map (function Vector (a, _) -> a) |> Array.concat in
-      (env, Vector (v, t))
+      (env, vector v t)
   | Negate e1 -> (
       let env, Vector (a1, t1) = eval env e1 in
       match t1 with
       | T_Int ->
           let res = Array.map negate_int a1 in
-          (env, Vector (res, t1))
+          (env, vector res t1)
       | T_Bool -> raise (type_error T_Int t1) )
   | Subset1_Nothing e1 -> eval env e1
   | Subset1 (e1, e2) -> (
@@ -191,15 +191,15 @@ let rec eval env = function
           let a1 = extend len t1 a1 in
           let res =
             a2 |> recycle len t2 |> Array.map get_bool |> bool_to_pos_vec |> get_at_pos t1 a1 in
-          (env, Vector (res, t1))
+          (env, vector res t1)
       | T_Int ->
           let a2 = Array.map get_int a2 in
           if is_positive_subsetting a2 then
             let res = get_at_pos t1 a1 a2 in
-            (env, Vector (res, t1))
+            (env, vector res t1)
           else if is_negative_subsetting a2 && not (contains_na a2) then
             let res = a2 |> neg_to_bool_vec n1 |> bool_to_pos_vec |> get_at_pos t1 a1 in
-            (env, Vector (res, t1))
+            (env, vector res t1)
           else raise Mixing_with_negative_subscripts )
   | Subset2 (e1, e2) -> (
       let env, Vector (a1, _) = eval env e1 in
@@ -213,17 +213,31 @@ let rec eval env = function
           if i < 0 then raise Invalid_negative_subscript ;
           if i > n1 then raise Subscript_out_of_bounds ;
           (env, vec_of_lit a1.(i - 1)) )
-  | Subset1_Nothing_Assign (e1, e2) ->
-      let env, Vector (a1, t1) = eval env e1 in
-      let env, Vector (a2, t2) = eval env e2 in
+  | Assign (x, e) ->
+      let env, vec = eval env e in
+      let env = Env.add x vec env in
+      (env, vec)
+  | Seq es ->
+      assert (List.length es <> 0) ;
+      let rec inner env acc = function
+        | [] -> (env, acc)
+        | hd :: tl ->
+            let env, acc = eval env hd in
+            inner env acc tl in
+      let env, vec = eval env (List.hd es) in
+      inner env vec (List.tl es)
+  | Subset1_Nothing_Assign (x1, e2) ->
+      let (Vector (a1, t1)) = lookup env x1 in
+      let env, (Vector (a2, t2) as rhs) = eval env e2 in
       let n1, n2 = (Array.length a1, Array.length a2) in
       check_subset1_assign_err t1 n1 n2 t2 ;
       let res = recycle n1 t2 a2 in
-      (env, Vector (res, t2))
-  | Subset1_Assign (e1, e2, e3) -> (
-      let ((env, Vector (a1, t1)) as base) = eval env e1 in
+      let env = Env.add x1 (vector res t2) env in
+      (env, rhs)
+  | Subset1_Assign (x1, e2, e3) -> (
+      let (Vector (a1, t1) as lhs) = lookup env x1 in
       let env, Vector (a2, t2) = eval env e2 in
-      let env, Vector (a3, t3) = eval env e3 in
+      let env, (Vector (a3, t3) as rhs) = eval env e3 in
       let n1, n2, n3 = (Array.length a1, Array.length a2, Array.length a3) in
       (* We diverge from R and ban NAs as indices during assignment *)
       if Array.exists is_na a2 then raise No_NAs_in_subscripted_assignment ;
@@ -235,27 +249,30 @@ let rec eval env = function
           let n2 = Array.length a2 in
           check_subset1_assign_err t1 n2 n3 t3 ;
           let res = a3 |> recycle n2 t3 |> update_at_pos t1 a1 a2 in
-          (env, Vector (res, t1))
+          let env = Env.add x1 (vector res t1) env in
+          (env, rhs)
       | T_Int ->
           let a2 = Array.map get_int a2 in
-          if is_zero_subsetting a2 then base
+          if is_zero_subsetting a2 then (env, lhs)
           else if is_positive_subsetting a2 then (
             let a2 = Array.filter (fun x -> x <> Some 0) a2 in
             let n2 = Array.length a2 in
             check_subset1_assign_err t1 n2 n3 t3 ;
             let res = a3 |> recycle n2 t3 |> update_at_pos t1 a1 a2 in
-            (env, Vector (res, t1)) )
+            let env = Env.add x1 (vector res t1) env in
+            (env, rhs) )
           else if is_negative_subsetting a2 then (
             let a2 = a2 |> neg_to_bool_vec n1 |> bool_to_pos_vec in
             let n2 = Array.length a2 in
             check_subset1_assign_err t1 n2 n3 t3 ;
             let res = a3 |> recycle n2 t3 |> update_at_pos t1 a1 a2 in
-            (env, Vector (res, t1)) )
+            let env = Env.add x1 (vector res t1) env in
+            (env, rhs) )
           else raise Mixing_with_negative_subscripts )
-  | Subset2_Assign (e1, e2, e3) -> (
-      let env, Vector (a1, t1) = eval env e1 in
+  | Subset2_Assign (x1, e2, e3) -> (
+      let (Vector (a1, t1)) = lookup env x1 in
       let env, Vector (a2, t2) = eval env e2 in
-      let env, Vector (a3, t3) = eval env e3 in
+      let env, (Vector (a3, t3) as rhs) = eval env e3 in
       let n2, n3 = (Array.length a2, Array.length a3) in
       check_subset2_err n2 t2 ;
       if n3 = 0 then raise Replacement_length_is_zero ;
@@ -268,6 +285,7 @@ let rec eval env = function
           if i < 0 then raise Selecting_gt_one_element ;
           let a1 = a1 |> Array.copy |> extend i t1 in
           a1.(i - 1) <- a3.(0) ;
-          (env, Vector (a1, t1)) )
+          let env = Env.add x1 (vector a1 t1) env in
+          (env, rhs) )
 
 let run exp = Stdlib.snd (eval Env.empty exp)

@@ -14,9 +14,10 @@ module Identifier = struct
   type t = string
   let compare = String.compare
   let equal = String.equal
+  let pp = Format.pp_print_text
 end
 
-type identifier = Identifier.t [@@deriving eq]
+type identifier = Identifier.t [@@deriving eq, show]
 
 type expression =
   | Lit                    of literal [@printer fun fmt l -> fprintf fmt "%s" (show_lit l)]
@@ -26,9 +27,11 @@ type expression =
   | Subset1_Nothing        of expression
   | Subset1                of expression * expression
   | Subset2                of expression * expression
-  | Subset1_Nothing_Assign of expression * expression
-  | Subset1_Assign         of expression * expression * expression
-  | Subset2_Assign         of expression * expression * expression
+  | Seq                    of expression list
+  | Assign                 of identifier * expression
+  | Subset1_Nothing_Assign of identifier * expression
+  | Subset1_Assign         of identifier * expression * expression
+  | Subset2_Assign         of identifier * expression * expression
 [@@deriving eq, show { with_path = false }]
 
 type type_tag =
@@ -91,6 +94,8 @@ let vec_of_intoptlist xs = Vector (Array.of_list (List.map opt_int_lit xs), T_In
 let vec_of_bool x = Vector ([| bool_lit x |], T_Bool)
 let vec_of_boollist xs = Vector (Array.of_list (List.map bool_lit xs), T_Bool)
 let vec_of_booloptlist xs = Vector (Array.of_list (List.map opt_bool_lit xs), T_Bool)
+
+let vector v t = Vector (v, t)
 
 let vec_of_lit l =
   match l with

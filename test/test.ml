@@ -359,523 +359,747 @@ let () =
     ; ( "subset1_nothing_assign"
       , [ test_eval "single"
             ( vec_of_intlist [ 0; 0; 0 ]
-            , Subset1_Nothing_Assign (Combine [ int_exp 11; int_exp 12; int_exp 13 ], int_exp 0) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13 ])
+                ; Subset1_Nothing_Assign ("x", int_exp 0)
+                ; Var "x"
+                ] )
         ; test_eval "NA"
             ( vec_of_intoptlist [ None; None; None; None ]
-            , Subset1_Nothing_Assign
-                (Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ], na_exp T_Int) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset1_Nothing_Assign ("x", na_exp T_Int)
+                ; Var "x"
+                ] )
         ; test_eval "multiple 1"
             ( vec_of_intlist [ 1; 2; 1; 2 ]
-            , Subset1_Nothing_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , Combine [ int_exp 1; int_exp 2 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset1_Nothing_Assign ("x", Combine [ int_exp 1; int_exp 2 ])
+                ; Var "x"
+                ] )
         ; test_eval "multiple 2"
             ( vec_of_intlist [ 1; 2; 3; 4 ]
-            , Subset1_Nothing_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset1_Nothing_Assign
+                    ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ])
+                ; Var "x"
+                ] )
         ] )
     ; ( "subset1_nothing_assign.err"
       , [ test_eval_err "wrong length 1"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Nothing_Assign
-                (Combine [ int_exp 11; int_exp 12; int_exp 13 ], Combine [ int_exp 1; int_exp 2 ])
-            )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13 ])
+                ; Subset1_Nothing_Assign ("x", Combine [ int_exp 1; int_exp 2 ])
+                ] )
         ; test_eval_err "wrong length 2"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Nothing_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13 ]
-                , Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13 ])
+                ; Subset1_Nothing_Assign
+                    ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ])
+                ] )
         ; test_eval_err "wrong length 3"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Nothing_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13 ]
-                , Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5; int_exp 6 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13 ])
+                ; Subset1_Nothing_Assign
+                    ( "x"
+                    , Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5; int_exp 6 ]
+                    )
+                ] )
         ; test_eval_err "empty replacement"
             ( Eval.Replacement_length_is_zero
-            , Subset1_Nothing_Assign
-                (Combine [ int_exp 11; int_exp 12; int_exp 13 ], Subset1 (int_exp 1, int_exp 0)) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13 ])
+                ; Subset1_Nothing_Assign ("x", Subset1 (int_exp 1, int_exp 0))
+                ] )
         ; test_eval_err "mixed types"
             ( Eval.type_error T_Int T_Bool
-            , Subset1_Nothing_Assign (Combine [ int_exp 11; int_exp 12; int_exp 13 ], true_exp) )
-        ; test_eval_err "mixed types"
-            ( Eval.type_error T_Int T_Bool
-            , Subset1_Nothing_Assign (Combine [ int_exp 11; int_exp 12; int_exp 13 ], true_exp) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13 ])
+                ; Subset1_Nothing_Assign ("x", true_exp)
+                ] )
         ] )
     ; ( "subset1_assign.logical"
       , [ test_eval "no recycling or extension 1"
             ( vec_of_intlist [ 1; 12; 13; 14; 5 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Combine [ false_exp; true_exp; true_exp; true_exp; false_exp ]
-                , Combine [ int_exp 12; int_exp 13; int_exp 14 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ false_exp; true_exp; true_exp; true_exp; false_exp ]
+                    , Combine [ int_exp 12; int_exp 13; int_exp 14 ] )
+                ; Var "x"
+                ] )
         ; test_eval "no recycling or extension 2"
             ( vec_of_intlist [ 9; 8; 3 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3 ]
-                , Combine [ true_exp; true_exp; false_exp ]
-                , Combine [ int_exp 9; int_exp 8 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ true_exp; true_exp; false_exp ]
+                    , Combine [ int_exp 9; int_exp 8 ] )
+                ; Var "x"
+                ] )
         ; test_eval "recycle replacement"
             ( vec_of_intlist [ 1; 0; 0; 0; 5 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Combine [ false_exp; true_exp; true_exp; true_exp; false_exp ]
-                , Combine [ int_exp 0 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ false_exp; true_exp; true_exp; true_exp; false_exp ]
+                    , Combine [ int_exp 0 ] )
+                ; Var "x"
+                ] )
         ; test_eval "recycle index"
             ( vec_of_intlist [ 11; 2; 12; 13; 5 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Combine [ true_exp; false_exp; true_exp ]
-                , Combine [ int_exp 11; int_exp 12; int_exp 13 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ true_exp; false_exp; true_exp ]
+                    , Combine [ int_exp 11; int_exp 12; int_exp 13 ] )
+                ; Var "x"
+                ] )
         ; test_eval "recycle index and replacement 1"
             ( vec_of_intlist [ 0; 0; 0; 0; 0 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Combine [ true_exp ]
-                , Combine [ int_exp 0 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign ("x", Combine [ true_exp ], Combine [ int_exp 0 ])
+                ; Var "x"
+                ] )
         ; test_eval "recycle index and replacement 2"
             ( vec_of_intlist [ 0; 2; 0; 0; 5 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Combine [ true_exp; false_exp; true_exp ]
-                , Combine [ int_exp 0 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ("x", Combine [ true_exp; false_exp; true_exp ], Combine [ int_exp 0 ])
+                ; Var "x"
+                ] )
         ; test_eval "recycle index and replacement 3"
             ( vec_of_intlist [ 10; 11; 10; 11; 10; 11 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5; int_exp 6 ]
-                , Combine [ true_exp ]
-                , Combine [ int_exp 10; int_exp 11 ] ) )
+            , Seq
+                [ Assign
+                    ( "x"
+                    , Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5; int_exp 6 ]
+                    )
+                ; Subset1_Assign ("x", Combine [ true_exp ], Combine [ int_exp 10; int_exp 11 ])
+                ; Var "x"
+                ] )
         ; test_eval "recycle index and replacement 4"
             ( vec_of_intlist [ 10; 2; 11; 4; 12; 6 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5; int_exp 6 ]
-                , Combine [ true_exp; false_exp ]
-                , Combine [ int_exp 10; int_exp 11; int_exp 12 ] ) )
+            , Seq
+                [ Assign
+                    ( "x"
+                    , Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5; int_exp 6 ]
+                    )
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ true_exp; false_exp ]
+                    , Combine [ int_exp 10; int_exp 11; int_exp 12 ] )
+                ; Var "x"
+                ] )
         ; test_eval "extension 1"
             ( vec_of_intlist [ 11; 12; 13; 14 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3 ]
-                , Combine [ true_exp; true_exp; true_exp; true_exp ]
-                , Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ true_exp; true_exp; true_exp; true_exp ]
+                    , Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ] )
+                ; Var "x"
+                ] )
         ; test_eval "extension 2"
             ( vec_of_intlist [ 11; 12; 3; 13 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3 ]
-                , Combine [ true_exp; true_exp; false_exp; true_exp ]
-                , Combine [ int_exp 11; int_exp 12; int_exp 13 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ true_exp; true_exp; false_exp; true_exp ]
+                    , Combine [ int_exp 11; int_exp 12; int_exp 13 ] )
+                ; Var "x"
+                ] )
         ; test_eval "extension 3"
             ( vec_of_intoptlist [ Some 11; Some 12; Some 13; Some 14; None ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3 ]
-                , Combine [ true_exp; true_exp; true_exp; true_exp; false_exp ]
-                , Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ true_exp; true_exp; true_exp; true_exp; false_exp ]
+                    , Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ] )
+                ; Var "x"
+                ] )
         ; test_eval "extension and recycle replacement 1"
             ( vec_of_intoptlist [ Some 0; Some 0; Some 0; Some 0; None ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3 ]
-                , Combine [ true_exp; true_exp; true_exp; true_exp; false_exp ]
-                , Combine [ int_exp 0 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ true_exp; true_exp; true_exp; true_exp; false_exp ]
+                    , Combine [ int_exp 0 ] )
+                ; Var "x"
+                ] )
         ; test_eval "extension and recycle replacement 2"
             ( vec_of_intoptlist [ Some 9; Some 8; Some 9; Some 8; None ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3 ]
-                , Combine [ true_exp; true_exp; true_exp; true_exp; false_exp ]
-                , Combine [ int_exp 9; int_exp 8 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ true_exp; true_exp; true_exp; true_exp; false_exp ]
+                    , Combine [ int_exp 9; int_exp 8 ] )
+                ; Var "x"
+                ] )
         ; test_eval "extension and recycle replacement 3"
             ( vec_of_intoptlist [ Some 9; Some 8; Some 7; Some 6; None ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3 ]
-                , Combine [ true_exp; true_exp; true_exp; true_exp; false_exp ]
-                , Combine [ int_exp 9; int_exp 8; int_exp 7; int_exp 6 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ true_exp; true_exp; true_exp; true_exp; false_exp ]
+                    , Combine [ int_exp 9; int_exp 8; int_exp 7; int_exp 6 ] )
+                ; Var "x"
+                ] )
         ] )
     ; ( "subset1_assign.logical.err"
       , [ test_eval_err "empty replacement"
             ( Eval.Replacement_length_is_zero
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Combine [ true_exp ]
-                , Subset1 (int_exp 1, int_exp 0) ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign ("x", Combine [ true_exp ], Subset1 (int_exp 1, int_exp 0))
+                ] )
         ; test_eval_err "wrong replacement length 1"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Combine [ true_exp ]
-                , Combine [ int_exp 10; int_exp 11 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign ("x", Combine [ true_exp ], Combine [ int_exp 10; int_exp 11 ])
+                ] )
         ; test_eval_err "wrong replacement length 2"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5; int_exp 6 ]
-                , Combine [ true_exp; false_exp ]
-                , Combine [ int_exp 10; int_exp 11 ] ) )
+            , Seq
+                [ Assign
+                    ( "x"
+                    , Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5; int_exp 6 ]
+                    )
+                ; Subset1_Assign
+                    ("x", Combine [ true_exp; false_exp ], Combine [ int_exp 10; int_exp 11 ])
+                ] )
         ; test_eval_err "wrong replacement length 3"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5; int_exp 6 ]
-                , Combine [ true_exp; false_exp; false_exp ]
-                , Combine [ int_exp 10; int_exp 11; int_exp 12 ] ) )
+            , Seq
+                [ Assign
+                    ( "x"
+                    , Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5; int_exp 6 ]
+                    )
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ true_exp; false_exp; false_exp ]
+                    , Combine [ int_exp 10; int_exp 11; int_exp 12 ] )
+                ] )
         ; test_eval_err "wrong replacement length 4"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3 ]
-                , Combine [ true_exp; true_exp; false_exp ]
-                , Combine [ int_exp 10; int_exp 11; int_exp 12 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ true_exp; true_exp; false_exp ]
+                    , Combine [ int_exp 10; int_exp 11; int_exp 12 ] )
+                ] )
         ; test_eval_err "extension and recycle replacement 3"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3 ]
-                , Combine [ true_exp; true_exp; true_exp; true_exp; false_exp ]
-                , Combine [ int_exp 9; int_exp 8; int_exp 7 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ true_exp; true_exp; true_exp; true_exp; false_exp ]
+                    , Combine [ int_exp 9; int_exp 8; int_exp 7 ] )
+                ] )
         ; test_eval_err "NA in index"
             ( Eval.No_NAs_in_subscripted_assignment
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Combine [ true_exp; false_exp; na_exp T_Bool ]
-                , Combine [ int_exp 0 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ("x", Combine [ true_exp; false_exp; na_exp T_Bool ], Combine [ int_exp 0 ])
+                ] )
         ; test_eval_err "mixed types"
             ( Eval.type_error T_Int T_Bool
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Combine [ true_exp; false_exp ]
-                , Combine [ false_exp ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign ("x", Combine [ true_exp; false_exp ], Combine [ false_exp ])
+                ] )
         ] )
     ; ( "subset1_assign.zero"
-      , [ test_eval "int vector 1" (vec_of_int 7, Subset1_Assign (int_exp 7, int_exp 0, int_exp 42))
+      , [ test_eval "int vector 1"
+            ( vec_of_int 7
+            , Seq [ Assign ("x", int_exp 7); Subset1_Assign ("x", int_exp 0, int_exp 42); Var "x" ]
+            )
         ; test_eval "int vector 2"
-            (vec_of_int 7, Subset1_Assign (int_exp 7, int_exp 0, na_exp T_Int))
+            ( vec_of_int 7
+            , Seq
+                [ Assign ("x", int_exp 7); Subset1_Assign ("x", int_exp 0, na_exp T_Int); Var "x" ]
+            )
         ; test_eval "empty int vector"
-            (empty_vec T_Int, Subset1_Assign (Subset1 (int_exp 0, int_exp 0), int_exp 0, int_exp 1))
+            ( empty_vec T_Int
+            , Seq
+                [ Assign ("x", Subset1 (int_exp 0, int_exp 0))
+                ; Subset1_Assign ("x", int_exp 0, int_exp 1)
+                ; Var "x"
+                ] )
         ; test_eval "empty index vector"
-            (vec_of_int 7, Subset1_Assign (int_exp 7, Subset1 (int_exp 0, int_exp 0), int_exp 1))
+            ( vec_of_int 7
+            , Seq
+                [ Assign ("x", int_exp 7)
+                ; Subset1_Assign ("x", Subset1 (int_exp 0, int_exp 0), int_exp 1)
+                ; Var "x"
+                ] )
         ; test_eval "ignore wrong type"
-            (vec_of_int 7, Subset1_Assign (int_exp 7, Subset1 (int_exp 0, int_exp 0), true_exp))
+            ( vec_of_int 7
+            , Seq
+                [ Assign ("x", int_exp 7)
+                ; Subset1_Assign ("x", Subset1 (int_exp 0, int_exp 0), true_exp)
+                ; Var "x"
+                ] )
         ] )
     ; ( "subset1_assign.zero.err"
       , [ test_eval_err "NAs in index"
             ( Eval.No_NAs_in_subscripted_assignment
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ]
-                , Combine [ int_exp 0; na_exp T_Int ]
-                , Combine [ int_exp 0 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ])
+                ; Subset1_Assign ("x", Combine [ int_exp 0; na_exp T_Int ], Combine [ int_exp 0 ])
+                ] )
         ] )
     ; ( "subset1_assign.positive"
       , [ test_eval "single index"
             ( vec_of_intlist [ 0; 12; 13; 14 ]
-            , Subset1_Assign
-                (Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ], int_exp 1, int_exp 0)
-            )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset1_Assign ("x", int_exp 1, int_exp 0)
+                ; Var "x"
+                ] )
         ; test_eval "single index extension"
             ( vec_of_intoptlist [ Some 11; Some 12; Some 13; Some 14; None; None; None; Some 0 ]
-            , Subset1_Assign
-                (Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ], int_exp 8, int_exp 0)
-            )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset1_Assign ("x", int_exp 8, int_exp 0)
+                ; Var "x"
+                ] )
         ; test_eval "multiple indexes"
             ( vec_of_intlist [ 9; 8; 13; 14 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , Combine [ int_exp 1; int_exp 2 ]
-                , Combine [ int_exp 9; int_exp 8 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset1_Assign
+                    ("x", Combine [ int_exp 1; int_exp 2 ], Combine [ int_exp 9; int_exp 8 ])
+                ; Var "x"
+                ] )
         ; test_eval "multiple indexes with repeats 1"
             ( vec_of_intlist [ 8; 7; 13; 14 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , Combine [ int_exp 1; int_exp 1; int_exp 2 ]
-                , Combine [ int_exp 9; int_exp 8; int_exp 7 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ int_exp 1; int_exp 1; int_exp 2 ]
+                    , Combine [ int_exp 9; int_exp 8; int_exp 7 ] )
+                ; Var "x"
+                ] )
         ; test_eval "multiple indexes with repeats 2"
             ( vec_of_intlist [ 8; 9; 8; 14; 15; 16 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14; int_exp 15; int_exp 16 ]
-                , Combine [ int_exp 1; int_exp 1; int_exp 2; int_exp 3 ]
-                , Combine [ int_exp 9; int_exp 8 ] ) )
+            , Seq
+                [ Assign
+                    ( "x"
+                    , Combine
+                        [ int_exp 11; int_exp 12; int_exp 13; int_exp 14; int_exp 15; int_exp 16 ]
+                    )
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ int_exp 1; int_exp 1; int_exp 2; int_exp 3 ]
+                    , Combine [ int_exp 9; int_exp 8 ] )
+                ; Var "x"
+                ] )
         ; test_eval "multiple indexes extension"
             ( vec_of_intlist [ 0; 12; 9; 8 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 11; int_exp 12 ]
-                , Combine [ int_exp 1; int_exp 3; int_exp 4 ]
-                , Combine [ int_exp 0; int_exp 9; int_exp 8 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ int_exp 1; int_exp 3; int_exp 4 ]
+                    , Combine [ int_exp 0; int_exp 9; int_exp 8 ] )
+                ; Var "x"
+                ] )
         ; test_eval "multiple indexes recycling 1"
             ( vec_of_intlist [ 9; 9; 13; 14 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , Combine [ int_exp 1; int_exp 2 ]
-                , Combine [ int_exp 9 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset1_Assign ("x", Combine [ int_exp 1; int_exp 2 ], Combine [ int_exp 9 ])
+                ; Var "x"
+                ] )
         ; test_eval "multiple indexes recycling 2"
             ( vec_of_intlist [ 9; 8; 9; 8; 15; 16 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14; int_exp 15; int_exp 16 ]
-                , Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ]
-                , Combine [ int_exp 9; int_exp 8 ] ) )
+            , Seq
+                [ Assign
+                    ( "x"
+                    , Combine
+                        [ int_exp 11; int_exp 12; int_exp 13; int_exp 14; int_exp 15; int_exp 16 ]
+                    )
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ]
+                    , Combine [ int_exp 9; int_exp 8 ] )
+                ; Var "x"
+                ] )
         ; test_eval "multiple indexes with zero"
             ( vec_of_intlist [ 8; 9; 13; 14 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , Combine [ int_exp 2; int_exp 0; int_exp 1 ]
-                , Combine [ int_exp 9; int_exp 8 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ int_exp 2; int_exp 0; int_exp 1 ]
+                    , Combine [ int_exp 9; int_exp 8 ] )
+                ; Var "x"
+                ] )
         ] )
     ; ( "subset1_assign.positive.err"
       , [ test_eval_err "NA index 1"
             ( Eval.No_NAs_in_subscripted_assignment
-            , Subset1_Assign
-                (Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ], na_exp T_Int, int_exp 0) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ])
+                ; Subset1_Assign ("x", na_exp T_Int, int_exp 0)
+                ] )
         ; test_eval_err "NA index 2"
             ( Eval.No_NAs_in_subscripted_assignment
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ]
-                , na_exp T_Int
-                , Combine [ int_exp 10; int_exp 11 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ])
+                ; Subset1_Assign ("x", na_exp T_Int, Combine [ int_exp 10; int_exp 11 ])
+                ] )
         ; test_eval_err "NA index 3"
             ( Eval.No_NAs_in_subscripted_assignment
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ]
-                , Combine [ int_exp 1; na_exp T_Int ]
-                , int_exp 10 ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ])
+                ; Subset1_Assign ("x", Combine [ int_exp 1; na_exp T_Int ], int_exp 10)
+                ] )
         ; test_eval_err "NA index 4"
             ( Eval.No_NAs_in_subscripted_assignment
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ]
-                , Combine [ int_exp 1; na_exp T_Int ]
-                , Combine [ int_exp 10; int_exp 11 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ])
+                ; Subset1_Assign
+                    ("x", Combine [ int_exp 1; na_exp T_Int ], Combine [ int_exp 10; int_exp 11 ])
+                ] )
         ; test_eval_err "empty replacement"
             ( Eval.Replacement_length_is_zero
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ]
-                , int_exp 1
-                , Subset1 (int_exp 1, int_exp 0) ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ])
+                ; Subset1_Assign ("x", int_exp 1, Subset1 (int_exp 1, int_exp 0))
+                ] )
         ; test_eval_err "wrong replacement length 1"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , Combine [ int_exp 1; int_exp 2 ]
-                , Combine [ int_exp 9; int_exp 8; int_exp 7 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ int_exp 1; int_exp 2 ]
+                    , Combine [ int_exp 9; int_exp 8; int_exp 7 ] )
+                ] )
         ; test_eval_err "wrong replacement length 2"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , Combine [ int_exp 1; int_exp 1; int_exp 3 ]
-                , Combine [ int_exp 9; int_exp 8 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ int_exp 1; int_exp 1; int_exp 3 ]
+                    , Combine [ int_exp 9; int_exp 8 ] )
+                ] )
         ; test_eval_err "wrong replacement length 3"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , Combine [ int_exp 1; int_exp 2; int_exp 3 ]
-                , Combine [ int_exp 9; int_exp 8 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ int_exp 1; int_exp 2; int_exp 3 ]
+                    , Combine [ int_exp 9; int_exp 8 ] )
+                ] )
         ; test_eval_err "wrong replacement length 4"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , Combine [ int_exp 2; int_exp 0; int_exp 1 ]
-                , Combine [ int_exp 9; int_exp 8; int_exp 7 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ int_exp 2; int_exp 0; int_exp 1 ]
+                    , Combine [ int_exp 9; int_exp 8; int_exp 7 ] )
+                ] )
         ; test_eval_err "mixing with negatives"
             ( Eval.Mixing_with_negative_subscripts
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Combine [ int_exp 1; int_exp ~-1 ]
-                , int_exp 13 ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign ("x", Combine [ int_exp 1; int_exp ~-1 ], int_exp 13)
+                ] )
         ; test_eval_err "mixed types"
             ( Eval.type_error T_Int T_Bool
-            , Subset1_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , Combine [ int_exp 1; int_exp 2; int_exp 3 ]
-                , false_exp ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset1_Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ], false_exp)
+                ] )
         ] )
     ; ( "subset1_assign.negative"
       , [ test_eval "single index"
             ( vec_of_intlist [ 1; 10; 11; 12; 13 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , int_exp ~-1
-                , Combine [ int_exp 10; int_exp 11; int_exp 12; int_exp 13 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ("x", int_exp ~-1, Combine [ int_exp 10; int_exp 11; int_exp 12; int_exp 13 ])
+                ; Var "x"
+                ] )
         ; test_eval "single index and recycle replacement 1"
             ( vec_of_intlist [ 1; 0; 0; 0; 0 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Negate (int_exp 1)
-                , int_exp 0 ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign ("x", Negate (int_exp 1), int_exp 0)
+                ; Var "x"
+                ] )
         ; test_eval "single index and recycle replacement 2"
             ( vec_of_intlist [ 1; 10; 11; 10; 11 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Negate (int_exp 1)
-                , Combine [ int_exp 10; int_exp 11 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign ("x", Negate (int_exp 1), Combine [ int_exp 10; int_exp 11 ])
+                ; Var "x"
+                ] )
         ; test_eval "multiple index"
             ( vec_of_intlist [ 1; 10; 3; 11; 12 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Negate (Combine [ int_exp 1; int_exp 3 ])
-                , Combine [ int_exp 10; int_exp 11; int_exp 12 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Negate (Combine [ int_exp 1; int_exp 3 ])
+                    , Combine [ int_exp 10; int_exp 11; int_exp 12 ] )
+                ; Var "x"
+                ] )
         ; test_eval "multiple index and recycle replacement"
             ( vec_of_intlist [ 1; 0; 3; 0; 0 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Negate (Combine [ int_exp 1; int_exp 3 ])
-                , Combine [ int_exp 0 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ("x", Negate (Combine [ int_exp 1; int_exp 3 ]), Combine [ int_exp 0 ])
+                ; Var "x"
+                ] )
         ; test_eval "multiple index with out-of-bounds"
             ( vec_of_intlist [ 1; 10; 3; 11; 12 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Negate (Combine [ int_exp 3; int_exp 0; int_exp 1; int_exp 10 ])
-                , Combine [ int_exp 10; int_exp 11; int_exp 12 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Negate (Combine [ int_exp 3; int_exp 0; int_exp 1; int_exp 10 ])
+                    , Combine [ int_exp 10; int_exp 11; int_exp 12 ] )
+                ; Var "x"
+                ] )
         ; test_eval "multiple index with out-of-bounds and recycle replacement"
             ( vec_of_intlist [ 1; 0; 3; 0; 0 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Negate (Combine [ int_exp 3; int_exp 0; int_exp 1; int_exp 10 ])
-                , Combine [ int_exp 0 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Negate (Combine [ int_exp 3; int_exp 0; int_exp 1; int_exp 10 ])
+                    , Combine [ int_exp 0 ] )
+                ; Var "x"
+                ] )
         ; test_eval "multiple index with repeats"
             ( vec_of_intlist [ 1; 0; 3; 0; 0 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Negate (Combine [ int_exp 3; int_exp 1; int_exp 1 ])
-                , Combine [ int_exp 0 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Negate (Combine [ int_exp 3; int_exp 1; int_exp 1 ])
+                    , Combine [ int_exp 0 ] )
+                ; Var "x"
+                ] )
         ; test_eval "multiple index with repeats and recycle replacement"
             ( vec_of_intlist [ 1; 10; 3; 11; 12 ]
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Negate (Combine [ int_exp 3; int_exp 1; int_exp 1 ])
-                , Combine [ int_exp 10; int_exp 11; int_exp 12 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Negate (Combine [ int_exp 3; int_exp 1; int_exp 1 ])
+                    , Combine [ int_exp 10; int_exp 11; int_exp 12 ] )
+                ; Var "x"
+                ] )
         ] )
     ; ( "subset1_assign.negative.err"
       , [ test_eval_err "NA index"
             ( Eval.No_NAs_in_subscripted_assignment
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Negate (Combine [ int_exp 1; na_exp T_Int ])
-                , int_exp 13 ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign ("x", Negate (Combine [ int_exp 1; na_exp T_Int ]), int_exp 13)
+                ] )
         ; test_eval_err "empty replacement"
             ( Eval.Replacement_length_is_zero
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Negate (int_exp 1)
-                , Subset1 (int_exp 1, int_exp 0) ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign ("x", Negate (int_exp 1), Subset1 (int_exp 1, int_exp 0))
+                ] )
         ; test_eval_err "wrong replacement length 1"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Negate (int_exp 1)
-                , Combine [ int_exp 10; int_exp 11; int_exp 12 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ("x", Negate (int_exp 1), Combine [ int_exp 10; int_exp 11; int_exp 12 ])
+                ] )
         ; test_eval_err "wrong replacement length 2"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Negate (Combine [ int_exp 1; int_exp 3 ])
-                , Combine [ int_exp 10; int_exp 11 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Negate (Combine [ int_exp 1; int_exp 3 ])
+                    , Combine [ int_exp 10; int_exp 11 ] )
+                ] )
         ; test_eval_err "wrong replacement length 3"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Negate (Combine [ int_exp 1; int_exp 3 ])
-                , Combine [ int_exp 10; int_exp 11; int_exp 12; int_exp 13 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Negate (Combine [ int_exp 1; int_exp 3 ])
+                    , Combine [ int_exp 10; int_exp 11; int_exp 12; int_exp 13 ] )
+                ] )
         ; test_eval_err "ignored index and wrong replacement length 1"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Negate (Combine [ int_exp 1; int_exp 0; int_exp 3; int_exp 10 ])
-                , Combine [ int_exp 10; int_exp 11 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Negate (Combine [ int_exp 1; int_exp 0; int_exp 3; int_exp 10 ])
+                    , Combine [ int_exp 10; int_exp 11 ] )
+                ] )
         ; test_eval_err "ignored index and wrong replacement length 2"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Negate (Combine [ int_exp 1; int_exp 0; int_exp 3; int_exp 10 ])
-                , Combine [ int_exp 10; int_exp 11; int_exp 12; int_exp 13 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Negate (Combine [ int_exp 1; int_exp 0; int_exp 3; int_exp 10 ])
+                    , Combine [ int_exp 10; int_exp 11; int_exp 12; int_exp 13 ] )
+                ] )
         ; test_eval_err "repeated index and wrong replacement length 1"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Negate (Combine [ int_exp 1; int_exp 3; int_exp 1 ])
-                , Combine [ int_exp 10; int_exp 11 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Negate (Combine [ int_exp 1; int_exp 3; int_exp 1 ])
+                    , Combine [ int_exp 10; int_exp 11 ] )
+                ] )
         ; test_eval_err "repeated index and wrong replacement length 2"
             ( Eval.Replacement_length_not_multiple
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Negate (Combine [ int_exp 1; int_exp 3; int_exp 1 ])
-                , Combine [ int_exp 10; int_exp 11; int_exp 12; int_exp 13 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Negate (Combine [ int_exp 1; int_exp 3; int_exp 1 ])
+                    , Combine [ int_exp 10; int_exp 11; int_exp 12; int_exp 13 ] )
+                ] )
         ; test_eval_err "mixing with negatives"
             ( Eval.Mixing_with_negative_subscripts
-            , Subset1_Assign
-                ( Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ]
-                , Negate (Combine [ int_exp 1; int_exp ~-1 ])
-                , int_exp 13 ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign ("x", Negate (Combine [ int_exp 1; int_exp ~-1 ]), int_exp 13)
+                ] )
         ; test_eval_err "mixed types"
             ( Eval.type_error T_Int T_Bool
-            , Subset1_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , Negate (Combine [ int_exp 1; int_exp 2; int_exp 3 ])
-                , false_exp ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset1_Assign
+                    ("x", Negate (Combine [ int_exp 1; int_exp 2; int_exp 3 ]), false_exp)
+                ] )
         ] )
     ; ( "subset2_assign"
       , [ test_eval "int vector 1"
             ( vec_of_intlist [ 9; 12; 13; 14 ]
-            , Subset2_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , Combine [ int_exp 1 ]
-                , Combine [ int_exp 9 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset2_Assign ("x", Combine [ int_exp 1 ], Combine [ int_exp 9 ])
+                ; Var "x"
+                ] )
         ; test_eval "int vector 2"
             ( vec_of_intlist [ 11; 12; 13; 9 ]
-            , Subset2_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , Combine [ int_exp 4 ]
-                , Combine [ int_exp 9 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset2_Assign ("x", Combine [ int_exp 4 ], Combine [ int_exp 9 ])
+                ; Var "x"
+                ] )
         ; test_eval "extension 1"
             ( vec_of_intoptlist [ Some 11; Some 12; Some 13; Some 14; None; None; Some 9 ]
-            , Subset2_Assign
-                (Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ], int_exp 7, int_exp 9)
-            )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset2_Assign ("x", int_exp 7, int_exp 9)
+                ; Var "x"
+                ] )
         ; test_eval "extension 2"
             ( vec_of_intlist [ 9 ]
-            , Subset2_Assign (Subset1 (int_exp 1, int_exp 0), int_exp 1, int_exp 9) )
+            , Seq
+                [ Assign ("x", Subset1 (int_exp 1, int_exp 0))
+                ; Subset2_Assign ("x", int_exp 1, int_exp 9)
+                ; Var "x"
+                ] )
         ] )
     ; ( "subset2_assign.err"
       , [ test_eval_err "index 0"
             ( Eval.Selecting_lt_one_element
-            , Subset2_Assign
-                (Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ], int_exp 0, int_exp 9)
-            )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset2_Assign ("x", int_exp 0, int_exp 9)
+                ] )
         ; test_eval_err "empty vector as index"
             ( Eval.Selecting_lt_one_element
-            , Subset2_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , Subset1 (int_exp 1, int_exp 0)
-                , int_exp 9 ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset2_Assign ("x", Subset1 (int_exp 1, int_exp 0), int_exp 9)
+                ] )
         ; test_eval_err "single negative index"
             ( Eval.Selecting_gt_one_element
-            , Subset2_Assign
-                (Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ], int_exp ~-1, int_exp 9)
-            )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset2_Assign ("x", int_exp ~-1, int_exp 9)
+                ] )
         ; test_eval_err "multiple index 1"
             ( Eval.Selecting_gt_one_element
-            , Subset2_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , Combine [ int_exp 1; int_exp 2 ]
-                , int_exp 9 ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset2_Assign ("x", Combine [ int_exp 1; int_exp 2 ], int_exp 9)
+                ] )
         ; test_eval_err "multiple index 2"
             ( Eval.Selecting_gt_one_element
-            , Subset2_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , Negate (Combine [ int_exp 1; int_exp 2 ])
-                , int_exp 9 ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset2_Assign ("x", Negate (Combine [ int_exp 1; int_exp 2 ]), int_exp 9)
+                ] )
         ; test_eval_err "out-of-bounds with NA"
             ( Eval.Subscript_out_of_bounds
-            , Subset2_Assign
-                (Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ], na_exp T_Int, int_exp 9)
-            )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset2_Assign ("x", na_exp T_Int, int_exp 9)
+                ] )
         ; test_eval_err "replacement vector too long"
             ( Eval.Too_many_elements_supplied
-            , Subset2_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , int_exp 1
-                , Combine [ int_exp 9; int_exp 8 ] ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset2_Assign ("x", int_exp 1, Combine [ int_exp 9; int_exp 8 ])
+                ] )
         ; test_eval_err "replacement vector too short"
             ( Eval.Replacement_length_is_zero
-            , Subset2_Assign
-                ( Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ]
-                , int_exp 1
-                , Subset1 (int_exp 1, int_exp 0) ) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset2_Assign ("x", int_exp 1, Subset1 (int_exp 1, int_exp 0))
+                ] )
         ; test_eval_err "mixed types 1"
             ( Eval.type_error T_Int T_Bool
-            , Subset2_Assign
-                (Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ], true_exp, int_exp 8) )
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset2_Assign ("x", true_exp, int_exp 8)
+                ] )
         ; test_eval_err "mixed types 2"
             ( Eval.type_error T_Bool T_Int
-            , Subset2_Assign
-                (Combine [ true_exp; true_exp; false_exp; true_exp ], int_exp 1, int_exp 8) )
+            , Seq
+                [ Assign ("x", Combine [ true_exp; true_exp; false_exp; true_exp ])
+                ; Subset2_Assign ("x", int_exp 1, int_exp 8)
+                ] )
         ] )
     ]
