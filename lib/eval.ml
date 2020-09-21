@@ -21,6 +21,8 @@ exception Replacement_length_not_multiple
 exception Replacement_length_is_zero
 exception Too_many_elements_supplied
 
+exception Object_not_found
+
 (* Gets a boolean value from a bool Literal.
    Wraps the result in an Option, so that NA is represented by None. *)
 let get_bool = function
@@ -39,7 +41,7 @@ let get_int = function
    If they all have type T, returns T. Raises exceptions if there are multiple types, or if the
    vector is empty (since we can't type it). *)
 let get_common_type = function
-  | [] -> raise Expected_nonempty_vector
+  | [] -> assert false
   | hd :: tl -> (
       (* Try to find a different type. *)
       let res = List.find_opt (fun x -> x <> hd) tl in
@@ -157,25 +159,31 @@ let check_subset2_err n t =
   if t <> T_Int then raise (type_error T_Int t) ;
   ()
 
-let rec eval e =
-  match e with
-  | Lit l -> vec_of_lit l
+let lookup env x =
+  match Env.find_opt x env with
+  | None -> raise Object_not_found
+  | Some v -> v
+
+let rec eval env = function
+  | Lit l -> (env, vec_of_lit l)
+  | Var x -> (env, lookup env x)
   | Combine es ->
-      let vecs = List.map eval es in
+      if List.length es = 0 then raise Expected_nonempty_vector ;
+      let env, vecs = List.fold_map eval env es in
       let t = vecs |> List.map (function Vector (_, t) -> t) |> get_common_type in
       let v = vecs |> List.map (function Vector (a, _) -> a) |> Array.concat in
-      Vector (v, t)
+      (env, Vector (v, t))
   | Negate e1 -> (
-      let (Vector (a1, t1)) = eval e1 in
+      let env, Vector (a1, t1) = eval env e1 in
       match t1 with
       | T_Int ->
           let res = Array.map negate_int a1 in
-          Vector (res, t1)
+          (env, Vector (res, t1))
       | T_Bool -> raise (type_error T_Int t1) )
-  | Subset1_Nothing e1 -> eval e1
+  | Subset1_Nothing e1 -> eval env e1
   | Subset1 (e1, e2) -> (
-      let (Vector (a1, t1)) = eval e1 in
-      let (Vector (a2, t2)) = eval e2 in
+      let env, Vector (a1, t1) = eval env e1 in
+      let env, Vector (a2, t2) = eval env e2 in
       let n1, n2 = (Array.length a1, Array.length a2) in
       match t2 with
       | T_Bool ->
@@ -183,19 +191,19 @@ let rec eval e =
           let a1 = extend len t1 a1 in
           let res =
             a2 |> recycle len t2 |> Array.map get_bool |> bool_to_pos_vec |> get_at_pos t1 a1 in
-          Vector (res, t1)
+          (env, Vector (res, t1))
       | T_Int ->
           let a2 = Array.map get_int a2 in
           if is_positive_subsetting a2 then
             let res = get_at_pos t1 a1 a2 in
-            Vector (res, t1)
+            (env, Vector (res, t1))
           else if is_negative_subsetting a2 && not (contains_na a2) then
             let res = a2 |> neg_to_bool_vec n1 |> bool_to_pos_vec |> get_at_pos t1 a1 in
-            Vector (res, t1)
+            (env, Vector (res, t1))
           else raise Mixing_with_negative_subscripts )
   | Subset2 (e1, e2) -> (
-      let (Vector (a1, _)) = eval e1 in
-      let (Vector (a2, t2)) = eval e2 in
+      let env, Vector (a1, _) = eval env e1 in
+      let env, Vector (a2, t2) = eval env e2 in
       let n1, n2 = (Array.length a1, Array.length a2) in
       check_subset2_err n2 t2 ;
       match get_int a2.(0) with
@@ -204,18 +212,18 @@ let rec eval e =
           if i = 0 then raise Selecting_lt_one_element ;
           if i < 0 then raise Invalid_negative_subscript ;
           if i > n1 then raise Subscript_out_of_bounds ;
-          vec_of_lit a1.(i - 1) )
+          (env, vec_of_lit a1.(i - 1)) )
   | Subset1_Nothing_Assign (e1, e2) ->
-      let (Vector (a1, t1)) = eval e1 in
-      let (Vector (a2, t2)) = eval e2 in
+      let env, Vector (a1, t1) = eval env e1 in
+      let env, Vector (a2, t2) = eval env e2 in
       let n1, n2 = (Array.length a1, Array.length a2) in
       check_subset1_assign_err t1 n1 n2 t2 ;
       let res = recycle n1 t2 a2 in
-      Vector (res, t2)
+      (env, Vector (res, t2))
   | Subset1_Assign (e1, e2, e3) -> (
-      let (Vector (a1, t1) as base) = eval e1 in
-      let (Vector (a2, t2)) = eval e2 in
-      let (Vector (a3, t3)) = eval e3 in
+      let ((env, Vector (a1, t1)) as base) = eval env e1 in
+      let env, Vector (a2, t2) = eval env e2 in
+      let env, Vector (a3, t3) = eval env e3 in
       let n1, n2, n3 = (Array.length a1, Array.length a2, Array.length a3) in
       (* We diverge from R and ban NAs as indices during assignment *)
       if Array.exists is_na a2 then raise No_NAs_in_subscripted_assignment ;
@@ -227,7 +235,7 @@ let rec eval e =
           let n2 = Array.length a2 in
           check_subset1_assign_err t1 n2 n3 t3 ;
           let res = a3 |> recycle n2 t3 |> update_at_pos t1 a1 a2 in
-          Vector (res, t1)
+          (env, Vector (res, t1))
       | T_Int ->
           let a2 = Array.map get_int a2 in
           if is_zero_subsetting a2 then base
@@ -236,18 +244,18 @@ let rec eval e =
             let n2 = Array.length a2 in
             check_subset1_assign_err t1 n2 n3 t3 ;
             let res = a3 |> recycle n2 t3 |> update_at_pos t1 a1 a2 in
-            Vector (res, t1) )
+            (env, Vector (res, t1)) )
           else if is_negative_subsetting a2 then (
             let a2 = a2 |> neg_to_bool_vec n1 |> bool_to_pos_vec in
             let n2 = Array.length a2 in
             check_subset1_assign_err t1 n2 n3 t3 ;
             let res = a3 |> recycle n2 t3 |> update_at_pos t1 a1 a2 in
-            Vector (res, t1) )
+            (env, Vector (res, t1)) )
           else raise Mixing_with_negative_subscripts )
   | Subset2_Assign (e1, e2, e3) -> (
-      let (Vector (a1, t1)) = eval e1 in
-      let (Vector (a2, t2)) = eval e2 in
-      let (Vector (a3, t3)) = eval e3 in
+      let env, Vector (a1, t1) = eval env e1 in
+      let env, Vector (a2, t2) = eval env e2 in
+      let env, Vector (a3, t3) = eval env e3 in
       let n2, n3 = (Array.length a2, Array.length a3) in
       check_subset2_err n2 t2 ;
       if n3 = 0 then raise Replacement_length_is_zero ;
@@ -260,4 +268,6 @@ let rec eval e =
           if i < 0 then raise Selecting_gt_one_element ;
           let a1 = a1 |> Array.copy |> extend i t1 in
           a1.(i - 1) <- a3.(0) ;
-          Vector (a1, t1) )
+          (env, Vector (a1, t1)) )
+
+let run exp = Stdlib.snd (eval Env.empty exp)

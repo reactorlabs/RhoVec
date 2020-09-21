@@ -10,8 +10,17 @@ let show_lit = function
   | Int i -> Int.to_string i
   | NA_bool | NA_int -> "NA"
 
+module Identifier = struct
+  type t = string
+  let compare = String.compare
+  let equal = String.equal
+end
+
+type identifier = Identifier.t [@@deriving eq]
+
 type expression =
   | Lit                    of literal [@printer fun fmt l -> fprintf fmt "%s" (show_lit l)]
+  | Var                    of identifier [@printer fun fmt -> fprintf fmt "%s"]
   | Combine                of expression list
   | Negate                 of expression
   | Subset1_Nothing        of expression
@@ -37,6 +46,10 @@ let show_val = function
   | Vector (a, t) ->
       let inner = a |> Array.map show_lit |> Array.to_list |> String.concat " " in
       "[" ^ inner ^ "]," ^ show_type t
+
+module Env = Map.Make (Identifier)
+
+type environment = value Env.t
 
 let get_tag = function
   | Bool _ | NA_bool -> T_Bool

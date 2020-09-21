@@ -13,14 +13,14 @@ let test_eval desc (expected, expr) =
         if not (Array.for_all (fun x -> get_tag x = t) a) then
           A.failf "Vector `%s` not consistent with its type!" (show_val vec) in
   let run_eval () =
-    let res = Eval.eval expr in
+    let res = Eval.run expr in
     assert_vec_elt_types expected ;
     assert_vec_elt_types res ;
     A.(check testable_value) "same value" expected res in
   A.test_case desc `Quick run_eval
 
 let test_eval_err desc (excptn, expr) =
-  let run_eval () = A.check_raises "same exception" excptn (fun _ -> ignore (Eval.eval expr)) in
+  let run_eval () = A.check_raises "same exception" excptn (fun _ -> ignore (Eval.run expr)) in
   A.test_case desc `Quick run_eval
 
 let () =
