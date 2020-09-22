@@ -386,6 +386,24 @@ let () =
                     ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ])
                 ; Var "x"
                 ] )
+        ; test_eval "return value 1"
+            ( vec_of_int 0
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13 ])
+                ; Subset1_Nothing_Assign ("x", int_exp 0)
+                ] )
+        ; test_eval "return value 2"
+            ( vec_of_na T_Int
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset1_Nothing_Assign ("x", na_exp T_Int)
+                ] )
+        ; test_eval "return value 3"
+            ( vec_of_intlist [ 1; 2 ]
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset1_Nothing_Assign ("x", Combine [ int_exp 1; int_exp 2 ])
+                ] )
         ] )
     ; ( "subset1_nothing_assign.err"
       , [ test_eval_err "wrong length 1"
@@ -562,6 +580,45 @@ let () =
                     , Combine [ int_exp 9; int_exp 8; int_exp 7; int_exp 6 ] )
                 ; Var "x"
                 ] )
+        ; test_eval "return value 1"
+            ( vec_of_intlist [ 9; 8 ]
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ true_exp; true_exp; false_exp ]
+                    , Combine [ int_exp 9; int_exp 8 ] )
+                ] )
+        ; test_eval "return value 2"
+            ( vec_of_intlist [ 10; 11; 12 ]
+            , Seq
+                [ Assign
+                    ( "x"
+                    , Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5; int_exp 6 ]
+                    )
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ true_exp; false_exp ]
+                    , Combine [ int_exp 10; int_exp 11; int_exp 12 ] )
+                ] )
+        ; test_eval "return value 3"
+            ( vec_of_intlist [ 11; 12; 13; 14 ]
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ true_exp; true_exp; true_exp; true_exp; false_exp ]
+                    , Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ] )
+                ] )
+        ; test_eval "return value 4"
+            ( vec_of_intlist [ 9; 8; 7; 6 ]
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ true_exp; true_exp; true_exp; true_exp; false_exp ]
+                    , Combine [ int_exp 9; int_exp 8; int_exp 7; int_exp 6 ] )
+                ] )
         ] )
     ; ( "subset1_assign.logical.err"
       , [ test_eval_err "empty replacement"
@@ -661,6 +718,27 @@ let () =
                 ; Subset1_Assign ("x", Subset1 (int_exp 0, int_exp 0), true_exp)
                 ; Var "x"
                 ] )
+        ; test_eval "return value 1"
+            ( vec_of_na T_Int
+            , Seq [ Assign ("x", int_exp 7); Subset1_Assign ("x", int_exp 0, na_exp T_Int) ] )
+        ; test_eval "return value 2"
+            ( vec_of_int 1
+            , Seq
+                [ Assign ("x", Subset1 (int_exp 0, int_exp 0))
+                ; Subset1_Assign ("x", int_exp 0, int_exp 1)
+                ] )
+        ; test_eval "return value 3"
+            ( vec_of_int 1
+            , Seq
+                [ Assign ("x", int_exp 7)
+                ; Subset1_Assign ("x", Subset1 (int_exp 0, int_exp 0), int_exp 1)
+                ] )
+        ; test_eval "return value 4"
+            ( vec_of_bool true
+            , Seq
+                [ Assign ("x", int_exp 7)
+                ; Subset1_Assign ("x", Subset1 (int_exp 0, int_exp 0), true_exp)
+                ] )
         ] )
     ; ( "subset1_assign.zero.err"
       , [ test_eval_err "NAs in index"
@@ -757,6 +835,35 @@ let () =
                     , Combine [ int_exp 2; int_exp 0; int_exp 1 ]
                     , Combine [ int_exp 9; int_exp 8 ] )
                 ; Var "x"
+                ] )
+        ; test_eval "return value 1"
+            ( vec_of_intlist [ 9; 8 ]
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset1_Assign
+                    ("x", Combine [ int_exp 1; int_exp 2 ], Combine [ int_exp 9; int_exp 8 ])
+                ] )
+        ; test_eval "return value 2"
+            ( vec_of_intlist [ 0; 9; 8 ]
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12 ])
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ int_exp 1; int_exp 3; int_exp 4 ]
+                    , Combine [ int_exp 0; int_exp 9; int_exp 8 ] )
+                ] )
+        ; test_eval "return value 3"
+            ( vec_of_intlist [ 9; 8 ]
+            , Seq
+                [ Assign
+                    ( "x"
+                    , Combine
+                        [ int_exp 11; int_exp 12; int_exp 13; int_exp 14; int_exp 15; int_exp 16 ]
+                    )
+                ; Subset1_Assign
+                    ( "x"
+                    , Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ]
+                    , Combine [ int_exp 9; int_exp 8 ] )
                 ] )
         ] )
     ; ( "subset1_assign.positive.err"
@@ -921,6 +1028,12 @@ let () =
                     , Combine [ int_exp 10; int_exp 11; int_exp 12 ] )
                 ; Var "x"
                 ] )
+        ; test_eval "return value"
+            ( vec_of_intlist [ 10; 11 ]
+            , Seq
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
+                ; Subset1_Assign ("x", Negate (int_exp 1), Combine [ int_exp 10; int_exp 11 ])
+                ] )
         ] )
     ; ( "subset1_assign.negative.err"
       , [ test_eval_err "NA index"
@@ -1038,6 +1151,12 @@ let () =
                 [ Assign ("x", Subset1 (int_exp 1, int_exp 0))
                 ; Subset2_Assign ("x", int_exp 1, int_exp 9)
                 ; Var "x"
+                ] )
+        ; test_eval "return value"
+            ( vec_of_int 9
+            , Seq
+                [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
+                ; Subset2_Assign ("x", Combine [ int_exp 4 ], Combine [ int_exp 9 ])
                 ] )
         ] )
     ; ( "subset2_assign.err"

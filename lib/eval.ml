@@ -235,7 +235,7 @@ let rec eval env = function
       let env = Env.add x1 (vector res t2) env in
       (env, rhs)
   | Subset1_Assign (x1, e2, e3) -> (
-      let (Vector (a1, t1) as lhs) = lookup env x1 in
+      let (Vector (a1, t1)) = lookup env x1 in
       let env, Vector (a2, t2) = eval env e2 in
       let env, (Vector (a3, t3) as rhs) = eval env e3 in
       let n1, n2, n3 = (Array.length a1, Array.length a2, Array.length a3) in
@@ -253,7 +253,7 @@ let rec eval env = function
           (env, rhs)
       | T_Int ->
           let a2 = Array.map get_int a2 in
-          if is_zero_subsetting a2 then (env, lhs)
+          if is_zero_subsetting a2 then (env, rhs)
           else if is_positive_subsetting a2 then (
             let a2 = Array.filter (fun x -> x <> Some 0) a2 in
             let n2 = Array.length a2 in

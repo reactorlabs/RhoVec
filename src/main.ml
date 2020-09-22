@@ -3,7 +3,6 @@ open Expr
 
 (* Big list of TODO:
     - tests for assignment
-      - return value (rhs) is correct
       - more complicated assignment/nesting/sequencing
 
   - parser / pretty printer
