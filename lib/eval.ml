@@ -68,12 +68,12 @@ let is_negative_subsetting = Array.for_all @@ Option.map_or ~default:true (fun x
 
 let contains_na = Array.exists (fun x -> x = None)
 
-(* Grows an array `a` so it has length `n`. Does nothing if `a` is longer than `n`.
+(* Grows an array `a` so it has length `n`. Returns a copy if `a` is longer than `n`.
    If the mode is `Extend, then new elements are filled with NAs.
    If the mode is `Recycle, then new elements are filled by repeating the elements of `a`. *)
 let grow ~mode n t (a : literal array) =
   let m = Array.length a in
-  if m >= n then a
+  if m >= n then Array.copy a
   else
     let res = Array.make n (na_lit t) in
     ( match mode with
@@ -283,7 +283,7 @@ let rec eval env = function
       | Some i ->
           if i = 0 then raise Selecting_lt_one_element ;
           if i < 0 then raise Selecting_gt_one_element ;
-          let a1 = a1 |> Array.copy |> extend i t1 in
+          let a1 = extend i t1 a1 in
           a1.(i - 1) <- a3.(0) ;
           let env = Env.add x1 (vector a1 t1) env in
           (env, rhs) )

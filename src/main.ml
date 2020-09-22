@@ -2,9 +2,6 @@ open Lib
 open Expr
 
 (* Big list of TODO:
-    - tests for assignment
-      - more complicated assignment/nesting/sequencing
-
   - parser / pretty printer
   - test oracle (using ocaml-r?)
   - interactive mode / repl
