@@ -1222,89 +1222,74 @@ let () =
                 ] )
         ] )
     ; ( "environments"
-      , [ test_eval "lookup 1"
-            ( vec_of_int 42
-            , Seq
-                [ Assign ("x", int_exp 42)
-                ; Var "x" ]
-            )
+      , [ test_eval "lookup 1" (vec_of_int 42, Seq [ Assign ("x", int_exp 42); Var "x" ])
         ; test_eval "lookup 2"
-            ( vec_of_int 1
-            , Seq
-                [ Assign ("x", int_exp 42)
-                ; Assign ("x", int_exp 1)
-                ; Var "x" ]
-            )
+            (vec_of_int 1, Seq [ Assign ("x", int_exp 42); Assign ("x", int_exp 1); Var "x" ])
         ; test_eval "lookup 3"
             ( vec_of_int 42
             , Seq
                 [ Assign ("x", int_exp 42)
                 ; Assign ("y", int_exp 1)
                 ; Assign ("z", int_exp 2)
-                ; Var "x" ]
-            )
+                ; Var "x"
+                ] )
         ; test_eval "lookup 4"
             ( vec_of_int 2
             , Seq
                 [ Assign ("x", int_exp 42)
                 ; Assign ("y", int_exp 1)
                 ; Assign ("z", int_exp 2)
-                ; Var "z" ]
-            )
+                ; Var "z"
+                ] )
         ; test_eval "lookup 5"
             ( vec_of_intlist [ 3; 2; 1 ]
             , Seq
                 [ Assign ("x", int_exp 1)
                 ; Assign ("y", int_exp 2)
                 ; Assign ("z", int_exp 3)
-                ; Combine [ Var "z" ; Var "y"; Var "x"] ]
-            )
+                ; Combine [ Var "z"; Var "y"; Var "x" ]
+                ] )
         ; test_eval "assignment as expression 1"
             ( vec_of_intlist [ 11; 12; 13; 13; 12; 13; 13; 14; 14; 14; 14 ]
             , Combine
-              [ Assign ("a", int_exp 11)
-              ; Assign ("b", int_exp 12)
-              ; Assign ("c", int_exp 13)
-              ; Assign ("d", Var "c")
-              ; Var "b"
-              ; Var "d"
-              ; Var "c"
-              ; Assign ("c", int_exp 14)
-              ; Assign ("b", Var "c")
-              ; Var "c"
-              ; Var "b"
-            ]
-            )
+                [ Assign ("a", int_exp 11)
+                ; Assign ("b", int_exp 12)
+                ; Assign ("c", int_exp 13)
+                ; Assign ("d", Var "c")
+                ; Var "b"
+                ; Var "d"
+                ; Var "c"
+                ; Assign ("c", int_exp 14)
+                ; Assign ("b", Var "c")
+                ; Var "c"
+                ; Var "b"
+                ] )
         ; test_eval "assignment as expression 2"
-            ( vec_of_intlist [ 11; 12; 12; 2; 3; 13; 14; 12; 13; 14]
+            ( vec_of_intlist [ 11; 12; 12; 2; 3; 13; 14; 12; 13; 14 ]
             , Seq
-              [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ])
-              ; Combine
-                [ int_exp 11
-                ; Subset2_Assign ("x", int_exp 1, int_exp 12)
-                ; Var "x"
-                ; Subset1_Assign ("x", Combine [ int_exp 2; int_exp 3], Combine [int_exp 13; int_exp 14 ] )
-                ; Var "x"
-                ]
-              ]
-            )
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ])
+                ; Combine
+                    [ int_exp 11
+                    ; Subset2_Assign ("x", int_exp 1, int_exp 12)
+                    ; Var "x"
+                    ; Subset1_Assign
+                        ("x", Combine [ int_exp 2; int_exp 3 ], Combine [ int_exp 13; int_exp 14 ])
+                    ; Var "x"
+                    ]
+                ] )
         ; test_eval "assignment as expression 3"
             ( vec_of_intlist [ 11; 13; 14; 1; 13; 14; 12; 12; 13; 14 ]
             , Seq
-              [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ])
-              ; Combine
-                [ int_exp 11
-                ; Subset1_Assign ("x", Combine [ int_exp 2; int_exp 3], Combine [int_exp 13; int_exp 14 ] )
-                ; Var "x"
-                ; Subset2_Assign ("x", int_exp 1, int_exp 12)
-                ; Var "x"
-                ]
-              ]
-            )
+                [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ])
+                ; Combine
+                    [ int_exp 11
+                    ; Subset1_Assign
+                        ("x", Combine [ int_exp 2; int_exp 3 ], Combine [ int_exp 13; int_exp 14 ])
+                    ; Var "x"
+                    ; Subset2_Assign ("x", int_exp 1, int_exp 12)
+                    ; Var "x"
+                    ]
+                ] )
         ] )
-    ; ( "environments.err"
-      , [ test_eval_err "object not found"
-            ( Eval.Object_not_found
-            , Var "x" )
-      ])
+    ; ("environments.err", [ test_eval_err "object not found" (Eval.Object_not_found, Var "x") ])
     ]
