@@ -62,8 +62,8 @@ let is_positive_subsetting = Array.for_all @@ Option.map_or ~default:true (fun x
 
 let is_zero_subsetting = Array.for_all (fun x -> x = Some 0)
 
-(* Checks that all elements are negative.
-   0 and NA are _not_ allowed for negative subsetting, but we check that elsewhere. *)
+(* Checks that all elements are non-positive.
+   NA is _not_ allowed for negative subsetting, but we check that elsewhere. *)
 let is_negative_subsetting = Array.for_all @@ Option.map_or ~default:true (fun x -> x <= 0)
 
 let contains_na = Array.exists (fun x -> x = None)

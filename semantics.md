@@ -1,24 +1,45 @@
-# Formalization of dplyr
+# Formalization of R vectors
 
 ## Syntax
+
+### Literals
+
+    lit ::=
+        | bool                                      # boolean
+        | num                                       # integer
+
+    bool ::=
+        | False                                     # false
+        | True                                      # true
+        | NA_b                                      # missing
+
+    num ::=
+        | ... | -1 | 0 | 1 | ...                    # number
+        | NA_i                                      # missing
+
+#### Notes
+
+  * R represents missing values with `NA` (not applicable). Each type has its
+    own missing value. E.g., there are three boolean values: `True`, `False`,
+    and `NA_b`.
+
 
 ### Expressions
 
     e ::=
-        | lit                                   # literal
-        | Vec(e_1, ... , e_n)                   # vector constructor
-        | e_1[]                                 # subset1 (nothing)
-        | e_1[e_2]                              # subset1
-        | e_1[-e_2]                             # subset1 (negative)
-        | e_1[[e_2]]                            # subset2
-        | x                                     # variable
-        | x <- e                                # variable assignment
-        | x[] <- e_1                            # subset1 assignment (nothing)
-        | x[e_1] <- e_2                         # subset1 assignment
-        | x[-e_1] <- e_2                        # subset1 assignment (negative)
-        | x[[e_1]] <- e_2                       # subset2 assignment
-        | e_1; e_2                              # sequencing
-        | v                                     # value
+        | lit                                       # literal
+        | x                                         # variable
+        | Combine(e_1, ... , e_n)                   # combine
+        | -e                                        # negation
+        | e_1[]                                     # subset1 (nothing)
+        | e_1[e_2]                                  # subset1
+        | e_1[[e_2]]                                # subset2
+        | e_1; ... ; e_2                            # sequencing
+        | x <- e                                    # variable assignment
+        | x[] <- e_1                                # subset1 (nothing) assignment
+        | x[e_1] <- e_2                             # subset1 assignment
+        | x[[e_1]] <- e_2                           # subset2 assignment
+        | v                                         # value (vector)
 
 #### Notes
 
@@ -31,35 +52,17 @@
     here for evaluation.
 
 
-### Literals
+### Types
 
-    lit ::=
-        | bool                                  # boolean
-        | num                                   # integer
-
-    bool ::=
-        | False                                 # false
-        | True                                  # true
-        | NA_b                                  # missing
-
-    num ::=
-        | /[0-9]+/                              # number
-        | NA_i                                  # missing
-
-#### Notes
-
-  * R represents missing values with `NA` (not applicable). Each type has its
-    own missing value. I.e. there are three boolean values: `True`, `False`, and
-    `NA_b`.
-  * We use regular expression notation to specify what kind of literals are
-    allowed. `/[0-9]+/` describes one or more occurrences of the digits from
-    0 to 9.
+    T ::=
+        | T_Bool                                    # boolean
+        | T_Int                                     # integer
 
 
 ### Values
 
     v ::=
-        | [lit_1 .. lit_n],T                     # vector (and its type)
+        | [lit_1 .. lit_n],T                        # vector (and its type)
 
 #### Notes
 
@@ -68,35 +71,31 @@
   * Vectors are homogeneous; every element in a vector has the same type.
 
 
-### Types
-
-    T ::=
-        | T_Bool                                # boolean
-        | T_Int                                 # integer
-
-
 ### Evaluation contexts
 
     C ::=
-        | <>                                    # hole
-        | Vec(v_1, .., v_n, C, e_1, .., e_m)
-        | C[]
-        | C[e]
+        | <>                                        # hole
+        | Combine(v_1, .., v_n, C, e_1, .., e_m)    # combine
+        | -C                                        # negation
+        | C[]                                       # subset1 (nothing)
+        | C[e]                                      # subset1
         | v[C]
-        | C[[e]]
+        | C[[e]]                                    # subset2
         | v[[C]]
-        | x <- C
-        | x[C] <- e
+        | v_1; .. ; v_n; C; e_1; .. ; e_m           # sequencing
+        | x <- C                                    # variable assignment
+        | x[] <- C                                  # subset1 (nothing) assignment
+        | x[C] <- e                                 # subset1 assignment
         | x[v] <- C
-        | x[[C]] <- e
+        | x[[C]] <- e                               # subset2 assignment
         | x[[v]] <- C
-        | C; e
 
 #### Notes
 
   * We use angle brackets `C<e>` to notate an evaluation context `C` filled with
     expression `e`, since square brackets `[]` are used for vectors and
     subsetting.
+  * Evaluation proceeds in left-to-right order.
 
 
 ### Environments
@@ -109,6 +108,7 @@
   * We use the notation `E{ x := v }` to denote environment `E` being updated
     with the new mapping of variable `x` to value `v`. If a previous value was
     mapped to `x`, it is overwritten.
+  * `E(x)` denotes the value that was bound to `x` in environment `E`.
 
 
 ## Operational Semantics
@@ -120,254 +120,300 @@ updating environment `E` to the new environment `E'`.
 
 
     typeof(lit) = T
-    -------------------------  :: E_Scalar2Vec
+    -------------------------  :: E_Lit
     E C<lit> --> E C<[lit],T>
+
+There are no scalars in R; literals are implicitly converted to
+one-element vectors.
+
+
+    x in E
+    v = E(x)
+    --------------------  :: E_Var
+    E C<x> --> E C<v>
+
+    Error if:
+      - x not in E
+
+Looks up the value of `x` in the environment.
 
 
     (v_1 = [lit_1_1 .. lit_1_m1],T) ... (v_n = [lit_n_1 .. lit_n_mn],T)
-    ------------------------------------------------------------------------------  :: E_VecCtor
-    E C<Vec(v_1, .., v_n)> --> E C<[lit_1_1 .. lit_1_m1 .. lit_n_1 .. lit_n_mn],T>
+    -----------------------------------------------------------------------------------  :: E_Combine
+    E C<Combine(v_1, ..., v_n)> --> E C<[lit_1_1 .. lit_1_m1 .. lit_n_1 .. lit_n_mn],T>
+
+    Error if:
+      - zero arguments provided
+      - vectors have different types
+
+`Combine` takes vectors as arguments, and combines/flattens them into a single
+vector. At least one argument must be supplied; empty vectors cannot be
+constructed this way, since we need to provide a type.
+
+_Note:_ In R, `c()` can construct the empty vector `NULL`, which has type
+`NULL`. Arguments may also have different types, as vectors will be coerced to
+a common type.
+
+
+    v_1 = [lit_1 .. lit_n],T_Int
+    v = [-lit_1 .. -lit_n],T_Int
+    ------------------------------  :: E_Negate
+    E C<-v_1> --> E C<v>
+
+    Error if:
+      - v_1 does not have type T_Int
+
+Negates every element of the vector.
 
 
     v = [lit_1 .. lit_n],T
     ----------------------  :: E_Subset1_Nothing
     E C<v[]> --> E C<v>
 
-
-    v_1 = [lit_1 .. lit_n],T
-    v_2 = [num_1 .. num_m],T_Int
-    forall i in 1..m : num_i >= 0 \/ num_i == NA_i
-    v_3 = get_at_pos(v_1, v_2)
-    ----------------------------------------------  :: E_Subset1_Positive
-    E C<v_1[v_2]> --> E C<v_3>
+Does nothing; returns the original vector.
 
 
-    v_1 = [lit_1 .. lit_n],T
-    v_2 = [bool_1 .. bool_m],T_Bool
-    l = max(n, m)
-    v_1' = extend(v_1, l-n)
-    v_2' = recycle(v_2, v_2, v_2, l-m)
-    v_2'' = bool_vec_to_pos(v_2', 1)
-    v_3 = get_at_pos(v_1', v_2'')
-    ----------------------------------  :: E_Subset1_Bool
-    E C<v_1[v_2]> --> E C<v_3>
+    v_1 = [lit_1 .. lit_n1],T
+    v_2 = [bool_1 .. bool_n2],T_Bool
+    l = max(n1, n2)
+    v_1' = extend(v_1, l-n1)
+    v_2' = recycle(v_2, v_2, v_2, l-n2)
+    v_2'' = bool_to_pos_vec(v_2', 1)
+    v = get_at_pos(v_1', v_2'')
+    -----------------------------------  :: E_Subset1_Bool
+    E C<v_1[v_2]> --> E C<v>
+
+If the index vector contains `True`, then the element at the corresponding
+location is selected; if it contains `False` then the corresponding element is
+skipped; if it contains `NA_b`, then `NA` (of the appropriate type) is selected.
+
+If the boolean vector is too long, we extend the base vector with `NA`s. If the
+boolean vector is too short, we recycle it.
 
 
-    v_1 = [lit_1 .. lit_n],T
-    v_2 = [num_1 .. num_m],T_Int
-    forall i in 1..m : num_i >= 0
+    v_1 = [lit_1 .. lit_n1],T
+    v_2 = [num_1 .. num_n2],T_Int
+    forall i in 1..n2 : num_i >= 0 \/ num_i == NA_i
+    v = get_at_pos(v_1, v_2)
+    -----------------------------------------------  :: E_Subset1_Positive
+    E C<v_1[v_2]> --> E C<v>
+
+    Error if:
+      - v_2 mixes positive and negative subscripts
+
+
+    v_1 = [lit_1 .. lit_n1],T
+    v_2 = [num_1 .. num_n2],T_Int
+    forall i in 1..n2 : num_i <= 0 /\ num_i =/= NA_i
     v_1' = gen_bool_vec(v_1)
-    v_2' = neg_vec_to_bool(v_2, v_1')
-    v_2'' = bool_vec_to_pos(v_2', 1)
-    v_3 = get_at_pos(v_1, v_2'')
-    ---------------------------------  :: E_Subset1_Negative
-    E C<v_1[-v_2] --> E C<v_3>
+    v_2' = neg_to_bool_vec(v_2, v_1')
+    v_2'' = bool_to_pos_vec(v_2', 1)
+    v = get_at_pos(v_1, v_2'')
+    ------------------------------------------------  :: E_Subset1_Negative
+    E C<v_1[v_2] --> E C<v>
+
+    Error if:
+      - v_2 mixes positive and negative subscripts
+      - v_2 mixes negative and NA subscripts
+
+Positive subsetting returns elements at the positions specified by the index
+vector. Indices that are out of bounds are denoted by `NA_i` select `NA` (of the
+appropriate type). Indices that are `0` do not select anything. (If the index
+vector contains only `0`s, then subsetting returns the empty vector.)
+
+Negative subsetting returns elements excluded by the index vector. Indices that
+are out of bounds or repeated are ignored. `NA`s are not allowed as indices.
 
 
-    v_1 = [lit_1 ... lit_n],T
-    v_2 = [m],Int
-    m in 1...n
+    v_1 = [lit_1 ... lit_n1],T
+    v_2 = [i],T_Int
+    i in 1...n1
     ----------------------------------  :: E_Subset2
-    E C<v_1[[v_2]]> --> E C<[lit_m],T>
+    E C<v_1[[v_2]]> --> E C<[lit_i],T>
 
+    Error if:
+      - v_2 has 0 elements
+      - v_2 has more than 1 element
+      - v_2 does not have type T_Int
+      - i == NA_i
+      - i == 0
+      - i < 0
+      - i > n1
 
-    x in E
-    v = E(x)
-    --------------------  :: E_Lookup
-    E C<x> --> E C<v>
+Subsetting with `[[` returns a single-element vector. The index vector must
+contain a single, non-`NA` element that is within bounds.
 
 
     E' = E{ x := v }
     -----------------------  :: E_Assign
     E C<x <- v> --> E' C<v>
 
-
-    x in E
-    E(x) = [lit_1 .. lit_n],T
-    v_2 = [lit'_1 .. lit'_m],T
-    n % m == 0
-    v_3 = recycle(v_2, v_2, v_2, n-m)
-    E' = E{ x := v_3 }
-    ---------------------------------------------  :: E_Subset1_Nothing_Assign
-    E C<x[] <- v_2> --> E' C<v_3>
-
-
-    x in E
-    E(x) = [lit_1 .. lit_l],T
-    v_1 = [num_1 .. num_n],T_Int
-    v_2 = [lit'_1 .. lit'_m],T
-    forall i in 1..n : num_i >= 0
-    v_1' = drop_zeros(v_2)
-    n' = length(v_2')
-    n' % m == 0
-    v_2' = recycle(v_3, v_3, v_3, n'-m)
-    v_3 = update_at_pos(v_1, v_2', v_3')
-    E' = E{ x := v_3 }
-    -----------------------------------------------  :: E_Subset1_Positive_Assign
-    E C<x[v_1] <- v_2> --> E' C<v_3>
+Assignment updates the environment and returns the value being assigned.
 
 
     x in E
     E(x) = v_1
-    v_1 = [lit_1 .. lit_l],T
-    v_2 = [bool_1 .. bool_n],T_Bool
-    forall i in 1..n : bool_i =/= NA_b
-    v_3 = [lit'_1 .. lit'_m],T
-    j = max(l, n)
-    v_1' = extend(v_1, j-l)
-    v_2' = recycle(v_2, v_2, v_2, j-n)
-    v_2'' = bool_vec_to_pos(v_2', 1)
-    j' = length(v_2'')
-    j' % m == 0
-    v_3' = recycle(v_3, v_3, v_3, j'-m)
-    v_4 = update_at_pos(v_1, v_2'', v_3')
-    E' = E{ x := v_4 }
-    ----------------------------------------------  :: E_Subset1_Bool_Assign
-    E C<x[v_2] <- v_3> --> E' C<v_4>
+    v_1 = [lit_1 .. lit_n1],T
+    v_2 = [lit'_1 ... lit'_n2],T
+    n1 % n2 == 0
+    v = recycle(v_2, v_2, v_2, n1-n2)
+    E' = E{ x := v }
+    ---------------------------------  :: E_Subset1_Nothing_Assign
+    E C<x[] <- v_2> --> E' C<v_2>
+
+    Error if:
+      - x not in E
+      - n2 == 0
+      - n1 % n2 =/= 0
+      - v_1 and v_2 have different types
+
+The entire vector is replaced by a new one, which is recycled if necessary. The
+replacement vector is returned.
+
+_Note:_ In R, `n2` does not need to be a multiple of `n1`; however, a warning
+is issued. Additionally, the vectors may have different types, as coercion is
+performed.
 
 
     x in E
     E(x) = v_1
-    v_1 = [lit_1 .. lit_l],T
-    v_2 = [num_1 .. num_n],T_Int
-    forall i in 1..n : num_i >= 0
-    v_3 = [lit'_1 .. lit'_m],T
-    v_1' = gen_bool_vec(v1)
-    v_2' = neg_vec_to_bool(v_2, v_1')
-    v_2'' = bool_vec_to_pos(v_2', 1)
-    n' = length(v_2'')
-    n' % m == 0
-    v_3' = recycle(v_3, v_3, v_3, n'-m)
-    v_4 = update_at_pos(v_1, v_2'', v_3')
-    E' = E{ x := v_4 }
-    -----------------------------------------------  :: E_Subset1_Negative_Assign
-    E C<x[-v_2] <- v_3> --> E' C<v_4>
+    v_1 = [lit_1 .. lit_n1],T
+    v_2 = [bool_1 .. bool_n2],T_Bool
+    v_3 = [lit'_1 ... lit'_n3],T
+    forall i in 1..n2 : bool_i =/= NA_b
+    l = max(n1, n2)
+    v_1' = extend(v_1, l-n1)
+    v_2' = recycle(v_2, v_2, v_2, l-n2)
+    v_2'' = bool_to_pos_vec(v_2', 1)
+    n2' = length(v_2'')
+    n2' % n3 == 0
+    v_3' = recycle(v_3, v_3, v_3, n2'-n3)
+    v = update_at_pos(v_1, v_2'', v_3')
+    E' = E{ x := v }
+    -------------------------------------  :: E_Subset1_Bool_Assign
+    E C<x[v_2] <- v_3> --> E' C<v_3>
+
+    Error if:
+      - x not in E
+      - v_2 contains NAs
+      - n3 == 0
+      - n2' % n3 =/= 0
+      - v_1 and v_3 have different types
+
+This follows similar rules to `E_Subset1_Bool`, where elements corresponding to
+`True` are replaced. The base vector may be extended, the index vector may be
+recycled, and the replacement vector may be recycled.
+
+_Note:_ In R, `n3` does not need to be a multiple of `n_2'` (the length of `v_2`
+after recycling and conversion to a positional vector); however, a warning is
+issued. `v_1` and `v_3` may have different types because of coercion. Finally,
+`v_2` may contain `NA`s, but only if `v_3` has length one.
 
 
     x in E
     E(x) = v_1
-    v_1 = [lit_1 .. lit_i lit_j lit_k .. lit_n],T
-    v_2 = [k],T_Int
+    v_1 = [lit_1 .. lit_n1],T
+    v_2 = [num_1 .. num_n2],T_Int
+    v_3 = [lit'_1 .. lit'_n3],T
+    forall i in 1..n2 : num_i == 0
+    --------------------------------  :: E_Subset1_Zero_Assign
+    E C<x[v_2] <- v_3> --> E' C<v_3>
+
+    Error if:
+      - x not in E
+
+
+    x in E
+    E(x) = v_1
+    v_1 = [lit_1 .. lit_n1],T
+    v_2 = [num_1 .. num_n2],T_Int
+    v_3 = [lit'_1 ... lit'_n3],T
+    forall i in 1..n2 : num_i >= 0
+    v_2' = drop_zeros(v_2)
+    n2' = length(v_3')
+    n2' % n3 == 0
+    v_3' = recycle(v_3, v_3, v_3, n2'-n3)
+    v = update_at_pos(v_1, v_2', v_3')
+    E' = E{ x := v }
+    -------------------------------------  :: E_Subset1_Positive_Assign
+    E C<x[v_2] <- v_3> --> E' C<v_3>
+
+    Error if:
+      - x not in E
+      - v_2 contains NAs
+      - n3 == 0
+      - n2' % n3 =/= 0
+      - v_1 and v_3 have different types
+      - v_2 mixes positive and negative subscripts
+
+
+    x in E
+    E(x) = v_1
+    v_1 = [lit_1 .. lit_n1],T
+    v_2 = [num_1 .. num_n2],T_Int
+    v_3 = [lit'_1 ... lit'_n3],T
+    forall i in 1..n2 : num_i <= 0
+    v_1' = gen_bool_vec(v_1)
+    v_2' = neg_to_bool_vec(v_2, v_1')
+    v_2'' = bool_to_pos_vec(v_2', 1)
+    n2' = length(v_2'')
+    n2' % n3 == 0
+    v_3' = recycle(v_3, v_3, v_3, n2'-n3)
+    v = update_at_pos(v_1, v_2'', v_3')
+    E' = E{ x := v }
+    -------------------------------------  :: E_Subset1_Negative_Assign
+    E C<x[v_2] <- v_3> --> E' C<v_3>
+
+    Error if:
+      - x not in E
+      - v_2 contains NAs
+      - n3 == 0
+      - n2' % n3 =/= 0
+      - v_1 and v_3 have different types
+      - v_2 mixes positive and negative subscripts
+
+These are similar to `E_Subset1_Positive` and `E_Subset1_Negative` where `v_2`
+specifies which elements to replace. The replacement vector may be recycled. If
+all elements of `v_2` are `0`, then nothing is updated and the value of the
+replacement vector is returned.
+
+If the index vector has duplicate values, then the corresponding vector element
+will be overwritten, e.g. `v[c(1, 1)] <- c(10, 11)` replaces the first element
+with `11`.
+
+_Note:_ In R, `n3` does not need to be a multiple of `n_2'` (the length of `v_2`
+after dropping `0`s or conversion to a positional vector); however, a warning is
+issued. `v_1` and `v_3` may have different types because of coercion. Finally,
+`v_2` may contain `NA`s, but only if `v_3` has length one.
+
+
+    x in E
+    E(x) = v_1
+    v_1 = [lit_1 .. lit_n1],T
+    v_2 = [i],T_Int
     v_3 = [lit],T
-    v_4 = [lit_1 .. lit_i lit lit_k .. lit_n],T
-    E' = E{ x := v_4 }
+    l = max(n1, i)
+    extend(v_1, l-n1) = v_1'
+    v_1' = [lit_1 .. lit_j lit_i lit_k .. lit_l],T
+    v = [lit_1 .. lit_j lit lit_k .. lit_l],T
+    E' = E{ x := v }
     ---------------------------------------------  :: E_Subset2_Assign
-    E C<x[[v_2]] <- v_3> --> E' C<v_4>
+    E C<x[[v_2]] <- v_3> --> E' C<v_3>
 
+    Error if:
+      - v_2 has 0 elements
+      - v_2 has more than 1 element
+      - v_2 does not have type T_Int
+      - v_3 has 0 elements
+      - v_3 has more than 1 element
+      - v_1 and v_3 have different types
+      - i == NA_i
+      - i == 0
+      - i < 0
 
-    ---------------------  :: E_Sequence
-    E C<v; e> --> E' C<e>
-
-
-#### Notes
-
-  * In R, some cases cause a warning to be emitted. For these semantics,
-    warnings are treated as errors.
-
-  * `E_Scalar2Vec`: There are no scalars in R; literals are implicitly converted
-    to one-element vectors.
-
-  * `E_VecCtor`: The vector constructor (more precisely, the combine function,
-    `c()`) can take vectors as arguments, and flattens them to return a single
-    vector.
-    * At least one argument must be supplied; empty vectors cannot be
-      constructed this way.
-    * This is a departure from R, where `c()` constructs the `NULL` vector (i.e.
-      a special 0-length vector of type `NULL`).
-
-  * `E_Subset1_Nothing`: Subsetting a vector with nothing (e.g., `v[]`) returns
-    the original vector.
-
-  * `E_Subset1_Zero`: Subsetting a vector with `0` returns an empty vector of
-    the same type.
-
-  * `E_Subset1_Positive`: Subsetting takes a positional vector of positive
-    integers, which describes the index of elements to return. The index vector
-    is non-empty. Indices that are out of bounds or denoted by `NA_i` select
-    `NA` (of the appropriate type).
-    * Indices that are `0` do not select anything. Note that `x[0]` returns the
-      empty vector.
-    * If the index vector is negated, and all of its elements are negative, this
-      is equivalent to positive subsetting.
-    * Positive subsetting can also be accomplished with `v1[-v2]` if `v2` is
-      a vector of negative indices. We could support this if we had general
-      expressions, since `-c(1, 2, 3)` is an expression  that evaluates to
-      `c(-1, -2, -3)`; for now, we use specific syntax `e[-e]`.
-
-  * `E_Subset1_Bool`: Subsetting takes a boolean vector of the same length. If
-    the boolean vector contains `True`, then the element at the corresponding
-    location is selected; if it contains `False`, then the corresponding element
-    is skipped; and if it contains `NA_b`, then `NA` (of the appropriate type)
-    is selected.
-    * If the boolean vector is too long, we extend the other vector with `NA`s
-      (of the appropriate type) until both vectors have the same length.
-    * If the boolean vector is too short, we recycle its elements until both
-      vectors have the same length.
-    * Internally, we convert a boolean vector into a positional vector (see
-      previous cases).
-
-  * `E_Subset1_Negative`: Subsetting takes negative indices; either a vector of
-    positive numbers is negated, or the vector contains negative numbers.
-    Elements at those positions are excluded from the returned vector.
-     * If a negative index is out of bounds, it is ignored.
-     * Repeated indices are ignored.
-     * `NA`s are not allowed as indices.
-     * Internally, the negative vector is converted to a boolean vector, which
-       is then converted to a positional vector.
-     * Negative subsetting can also be accomplished with `v1[v2]` if `v2` is
-       a vector of negative indices. We could support this if we had general
-       expressions, since `-c(1, 2, 3)` is an expression that evaluates to
-       `c(-1, -2, -3)`; for now, we use specific syntax `e[-e]`.
-
-  * `E_Subset1_Nothing_Assign`: The entire vector is replaced by a new one.
-    * If the replacement vector is too short, it gets recycled, but only if the
-      number of elements being replaced is a multiple of the replacement length.
-
-  * `E_Subset1_Positive_Assign`: Elements selected by the index vector are
-    replaced by the corresponding right-hand side vector.
-    * If an index is out of bounds (and positive), the vector is first extended
-      with `NA`s (of the appropriate type).
-    * `0`s are dropped from the index vector.
-    * `NA`s are not allowed in the index vector.
-      * In R, `NA`s actually are allowed, but only if the RHS is a
-        single-element vector.
-    * If the replacement vector is too short, it gets recycled, but only if the
-      number of elements being replaced is a multiple of the replacement length.
-    * If the index vector has duplicate values, then the corresponding vector
-      element will be overwritten, e.g. `v[c(1, 1)] <- c(10, 11)` replaces the
-      first element with `11`.
-
-  * `E_Subset1_Bool_Assign`: A boolean vector is used as an index, and those
-     elements selected by the boolean vector are updated.
-     * If the boolean vector is longer than the original vector, the original
-       vector is extended with `NA`s (of the appropriate type).
-     * If the boolean vector is too short, it is recycled.
-     * The boolean vector is converted to a positional vector.
-     * If the replacement vector is shorter than the positional vector, it gets
-       recycled, but only if the number of elements being replaced is a multiple
-       of the replacement length.
-
-  * `E_Subset1_Negative_Assign`: Similar to `E_Subset1_Negative`, subsetting
-    takes negative indices; either a vector of positive numbers is negated, or
-    the vector contains negative numbers. The elements excluded by these indices
-    are updated by the RHS.
-    * If a negative index is out of bounds, it is ignored.
-    * Repeated indices are ignored.
-    * `NA`s are not allowed as indices.
-    * Internally, the negative vector is converted to a boolean vector, which
-      is then converted to a positional vector.
-    * Assignment follows the same rules as `E_Subset1_Positive_Assign`, where
-      the length of the index vector must be a multiple of the length of the
-      replacement vector. Furthermore, the replacement vector is recycled to
-      achieve the correct length, but only if the number of elements to replace
-      is a multiple of the replacement length.
-
-  * `E_Subset2`: Subsetting a vector with `[[` returns a single-element vector.
-    The vector must contain at least one element, and the index must be within
-    bounds; it cannot be `0` or nothing.
-
-  * `E_Subset2_Assign`: Assignment with `[[` replaces a single element of the
-    vector with a single new value.
+Assignment with `[[` only updates a single element of the vector, i.e. the index
+vector must contain a single, non-NA element. If the index is out of bounds,
+then the base vector is extended with `NA`s.
 
 
 ### Auxiliary Functions
@@ -441,31 +487,31 @@ updating environment `E` to the new environment `E'`.
 
 
     v_1 = [],T_Bool
-    ----------------------------------  :: Aux_BoolVecToPos_BaseCase
-    bool_vec_to_pos(v_1, i) = [],T_Int
+    ----------------------------------  :: Aux_BoolToPosVec_BaseCase
+    bool_to_pos_vec(v_1, i) = [],T_Int
 
 
     v_1 = [True bool_1 .. bool_n],T_Bool
     v_1' = [bool_1 .. bool_n],T_Bool
-    v_2 = bool_vec_to_pos(v_1', i+1)
+    v_2 = bool_to_pos_vec(v_1', i+1)
     v = prepend(i, v_2)
-    ------------------------------------   :: Aux_BoolVecToPos_TrueCase
-    bool_vec_to_pos(v_1, i) = v
+    ------------------------------------   :: Aux_BoolToPosVec_TrueCase
+    bool_to_pos_vec(v_1, i) = v
 
 
     v_1 = [False bool_1 .. bool_n],T_Bool
     v_1' = [bool_1 .. bool_n],T_Bool
-    v = bool_vec_to_pos(v_1', i+1)
-    -------------------------------------  :: Aux_BoolVecToPos_FalseCase
-    bool_vec_to_pos(v_1, i) = v
+    v = bool_to_pos_vec(v_1', i+1)
+    -------------------------------------  :: Aux_BoolToPosVec_FalseCase
+    bool_to_pos_vec(v_1, i) = v
 
 
     v_1 = [NA_b bool_1 .. bool_n],T_Bool
     v_1' = [bool_1 .. bool_n],T_Bool
-    v_2 = bool_vec_to_pos(v_1', i+1)
+    v_2 = bool_to_pos_vec(v_1', i+1)
     v = prepend(NA_i, v_2)
-    ------------------------------------   :: Aux_BoolVecToPos_NACase
-    bool_vec_to_pos(v_1, i) = v
+    ------------------------------------   :: Aux_BoolToPosVec_NACase
+    bool_to_pos_vec(v_1, i) = v
 
 
     --------------------  :: Aux_Extend_BaseCase
@@ -508,35 +554,35 @@ updating environment `E` to the new environment `E'`.
 
 
     v_1 = [lit lit_1 .. lit_n],T
-    v_2 = [lit_1 .. lit_n],T
-    v_3 = gen_bool_vec(v_2)
-    v = prepend(True, v_3)
+    v_1' = [lit_1 .. lit_n],T
+    v_2 = gen_bool_vec(v_1')
+    v = prepend(True, v_2)
     ----------------------------  :: Aux_GenBoolVec_RecurseCase
     gen_bool_vec(v_1) = v
 
 
     v_1 = [],T_Int
     v_2 = [bool_1 .. bool_n],T_Bool
-    -------------------------------  :: Aux_NegVecToBool_BaseCase
-    neg_vec_to_bool(v_1, v_2) = v_2
+    -------------------------------  :: Aux_NegToBoolVec_BaseCase
+    neg_to_bool_vec(v_1, v_2) = v_2
 
 
-    v_1 = [j num_1 .. num_n],T_Int
+    v_1 = [-j num_1 .. num_n],T_Int
     v_1' = [num_1 .. num_n],T_Int
     v_2 = [bool_1 .. bool_i bool_j bool_k .. bool_m],T_Bool
     v_2' = [bool_1 .. bool_i False bool_k .. bool_m],T_Bool
-    v = neg_vec_to_bool(v_1', v_2')
-    -------------------------------------------------------  :: Aux_NegVecToBool_InBoundsCase
-    neg_vec_to_bool(v_1, v_2) = v
+    v = neg_to_bool_vec(v_1', v_2')
+    -------------------------------------------------------  :: Aux_NegToBoolVec_InBoundsCase
+    neg_to_bool_vec(v_1, v_2) = v
 
 
-    v_1 = [j num_1 .. num_n],T_Int
+    v_1 = [-j num_1 .. num_n],T_Int
     v_1' = [num_1 .. num_n],T_Int
     v_2 = [bool_1 .. bool_m],T_Bool
     j not in 1..m
-    v = neg_vec_to_bool(v_1', v_2)
-    -------------------------------  :: Aux_NegVecToBool_OutBoundsCase
-    neg_vec_to_bool(v_1, v_2) = v
+    v = neg_to_bool_vec(v_1', v_2)
+    -------------------------------  :: Aux_NegToBoolVec_OutBoundsCase
+    neg_to_bool_vec(v_1, v_2) = v
 
 
     v_1 = [],T_Int
@@ -555,6 +601,7 @@ updating environment `E` to the new environment `E'`.
     v_1' = [num_1 .. num_n],T_Int
     v_1'' = drop_zeros(v_1')
     v = prepend(num, v_1'')
+    num =/= 0
     --------------------------------  :: Aux_DropZeros_NonZeroCase
     drop_zeros(v_1) = v
 
@@ -580,7 +627,7 @@ updating environment `E` to the new environment `E'`.
     v_1 = [lit_1 .. lit_n],T
     v_2 = [j num_1 .. num_m],T_Int
     v_3 = [lit'_1 .. lit'_m],T
-    j not in 1..m \/ j == NA_i
+    j not in 1..m
     v_1' = extend(v_1, j-m)
     v = update_at_pos(v_1', v_2, v_3)
     ---------------------------------  :: Aux_UpdateAtPos_OutBoundsCase
@@ -593,10 +640,8 @@ updating environment `E` to the new environment `E'`.
 
 These features are likely required.
 
-  * doublecheck environment and assignment/sequencing
+  * check environments and assignment/sequencing one more time
   * implement semantics so we can execute them and write test cases
-  * semantics are probably buggy, already too complicated to keep track of with
-    pencil-and-paper
 
 ### Medium priority
 
