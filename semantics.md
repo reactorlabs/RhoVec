@@ -22,6 +22,9 @@
   * R represents missing values with `NA` (not applicable). Each type has its
     own missing value. E.g., there are three boolean values: `True`, `False`,
     and `NA_b`.
+  * In R, numeric literals default to (double precision) floating point numbers.
+    Integer literals must have an `l` or `L` suffix. For now, we only support
+    integer literals, but do not require the suffix.
 
 
 ### Expressions
@@ -30,7 +33,7 @@
         | lit                                       # literal
         | x                                         # variable
         | Combine(e_1, ... , e_n)                   # combine
-        | -e                                        # negation
+        | -e                                        # negate
         | e_1[]                                     # subset1 (nothing)
         | e_1[e_2]                                  # subset1
         | e_1[[e_2]]                                # subset2
@@ -76,7 +79,7 @@
     C ::=
         | <>                                        # hole
         | Combine(v_1, .., v_n, C, e_1, .., e_m)    # combine
-        | -C                                        # negation
+        | -C                                        # negate
         | C[]                                       # subset1 (nothing)
         | C[e]                                      # subset1
         | v[C]
@@ -156,8 +159,8 @@ a common type.
 
 
     v_1 = [lit_1 .. lit_n],T_Int
-    v = [-lit_1 .. -lit_n],T_Int
-    ------------------------------  :: E_Negate
+    v = negate(v_1)
+    ----------------------------  :: E_Negate
     E C<-v_1> --> E C<v>
 
     Error if:
@@ -197,10 +200,6 @@ boolean vector is too short, we recycle it.
     v = get_at_pos(v_1, v_2)
     -----------------------------------------------  :: E_Subset1_Positive
     E C<v_1[v_2]> --> E C<v>
-
-    Error if:
-      - v_2 mixes positive and negative subscripts
-
 
     v_1 = [lit_1 .. lit_n1],T
     v_2 = [num_1 .. num_n2],T_Int
@@ -322,6 +321,9 @@ issued. `v_1` and `v_3` may have different types because of coercion. Finally,
     Error if:
       - x not in E
 
+This is a special case of `Subset1_Assign` where all elements of `v_2` are `0`:
+nothing is updated and the value of the replacement vector is returned.
+
 
     x in E
     E(x) = v_1
@@ -330,22 +332,13 @@ issued. `v_1` and `v_3` may have different types because of coercion. Finally,
     v_3 = [lit'_1 ... lit'_n3],T
     forall i in 1..n2 : num_i >= 0
     v_2' = drop_zeros(v_2)
-    n2' = length(v_3')
+    n2' = length(v_2')
     n2' % n3 == 0
     v_3' = recycle(v_3, v_3, v_3, n2'-n3)
     v = update_at_pos(v_1, v_2', v_3')
     E' = E{ x := v }
     -------------------------------------  :: E_Subset1_Positive_Assign
     E C<x[v_2] <- v_3> --> E' C<v_3>
-
-    Error if:
-      - x not in E
-      - v_2 contains NAs
-      - n3 == 0
-      - n2' % n3 =/= 0
-      - v_1 and v_3 have different types
-      - v_2 mixes positive and negative subscripts
-
 
     x in E
     E(x) = v_1
@@ -373,9 +366,7 @@ issued. `v_1` and `v_3` may have different types because of coercion. Finally,
       - v_2 mixes positive and negative subscripts
 
 These are similar to `E_Subset1_Positive` and `E_Subset1_Negative` where `v_2`
-specifies which elements to replace. The replacement vector may be recycled. If
-all elements of `v_2` are `0`, then nothing is updated and the value of the
-replacement vector is returned.
+specifies which elements to replace. The replacement vector may be recycled.
 
 If the index vector has duplicate values, then the corresponding vector element
 will be overwritten, e.g. `v[c(1, 1)] <- c(10, 11)` replaces the first element
@@ -401,6 +392,7 @@ issued. `v_1` and `v_3` may have different types because of coercion. Finally,
     E C<x[[v_2]] <- v_3> --> E' C<v_3>
 
     Error if:
+      - x not in E
       - v_2 has 0 elements
       - v_2 has more than 1 element
       - v_2 does not have type T_Int
@@ -451,6 +443,27 @@ then the base vector is extended with `NA`s.
     length(v) = n
 
 
+    v_1 = [],T_Int
+    -----------------  :: Aux_Negate_BaseCase
+    negate(v_1) = v_1
+
+
+    v_1 = [NA_i num_1 .. num_n],T_Int
+    v_1' = [num_1 .. num_n],T_Int
+    v_2 = negate(v_1')
+    v = prepend(NA_i, v_2)
+    ---------------------------------  :: Aux_Negate_NACase
+    negate(v_1) = v_1
+
+
+    v_1 = [num num_1 .. num_n],T_Int
+    v_1' = [num_1 .. num_n],T_Int
+    v_2 = negate(v_1')
+    v = prepend(-num, v_2)
+    --------------------------------  :: Aux_Negate_RecurseCase
+    negate(v_1) = v_1
+
+
     v_1 = [lit_1 .. lit_n],T
     v_2 = [],T_Int
     ---------------------------  :: Aux_GetAtPos_BaseCase
@@ -458,8 +471,7 @@ then the base vector is extended with `NA`s.
 
 
     v_1 = [lit_1 .. lit_n],T
-    v_2 = [i num_1 .. num_m],T_Int
-    i = 0
+    v_2 = [0 num_1 .. num_m],T_Int
     v_2' = [num_1 .. num_m],T_Int
     v = get_at_pos(v_1, v_2')
     ------------------------------  :: Aux_GetAtPos_ZeroCase
@@ -526,8 +538,9 @@ then the base vector is extended with `NA`s.
     extend(v_1, m) = v
 
 
+    m <= 0
     -------------------------------  :: Aux_Recycle_BaseCase
-    recycle(v_1, v_2, v_3, 0) = v_1
+    recycle(v_1, v_2, v_3, m) = v_1
 
 
     v_1 = [lit_i .. lit_j],T
@@ -627,7 +640,7 @@ then the base vector is extended with `NA`s.
     v_1 = [lit_1 .. lit_n],T
     v_2 = [j num_1 .. num_m],T_Int
     v_3 = [lit'_1 .. lit'_m],T
-    j not in 1..m
+    j not in 1..m /\ j =/= NA(T)
     v_1' = extend(v_1, j-m)
     v = update_at_pos(v_1', v_2, v_3)
     ---------------------------------  :: Aux_UpdateAtPos_OutBoundsCase
@@ -635,13 +648,6 @@ then the base vector is extended with `NA`s.
 
 
 ## TODO
-
-### Higher priority
-
-These features are likely required.
-
-  * check environments and assignment/sequencing one more time
-  * implement semantics so we can execute them and write test cases
 
 ### Medium priority
 
