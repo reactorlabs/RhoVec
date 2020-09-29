@@ -20,18 +20,16 @@ end
 type identifier = Identifier.t [@@deriving eq, show]
 
 type expression =
-  | Lit                    of literal [@printer fun fmt l -> fprintf fmt "%s" (show_lit l)]
-  | Var                    of identifier [@printer fun fmt -> fprintf fmt "%s"]
-  | Combine                of expression list
-  | Negate                 of expression
-  | Subset1_Nothing        of expression
-  | Subset1                of expression * expression
-  | Subset2                of expression * expression
-  | Seq                    of expression list
-  | Assign                 of identifier * expression
-  | Subset1_Nothing_Assign of identifier * expression
-  | Subset1_Assign         of identifier * expression * expression
-  | Subset2_Assign         of identifier * expression * expression
+  | Lit            of literal [@printer fun fmt l -> fprintf fmt "%s" (show_lit l)]
+  | Var            of identifier [@printer fun fmt -> fprintf fmt "%s"]
+  | Combine        of expression list
+  | Negate         of expression
+  | Subset1        of expression option * expression
+  | Subset2        of expression * expression
+  | Seq            of expression list
+  | Assign         of identifier * expression
+  | Subset1_Assign of identifier * expression option * expression
+  | Subset2_Assign of identifier * expression * expression
 [@@deriving eq, show { with_path = false }]
 
 type type_tag =

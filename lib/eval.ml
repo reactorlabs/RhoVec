@@ -180,8 +180,8 @@ let rec eval env = function
           let res = Array.map negate_int a1 in
           (env, vector res t1)
       | T_Bool -> raise (type_error T_Int t1) )
-  | Subset1_Nothing e1 -> eval env e1
-  | Subset1 (e1, e2) -> (
+  | Subset1 (None, e2) -> eval env e2
+  | Subset1 (Some e1, e2) -> (
       let env, Vector (a1, t1) = eval env e1 in
       let env, Vector (a2, t2) = eval env e2 in
       let n1, n2 = (Array.length a1, Array.length a2) in
@@ -226,15 +226,15 @@ let rec eval env = function
             inner env acc tl in
       let env, vec = eval env (List.hd es) in
       inner env vec (List.tl es)
-  | Subset1_Nothing_Assign (x1, e2) ->
+  | Subset1_Assign (x1, None, e3) ->
       let (Vector (a1, t1)) = lookup env x1 in
-      let env, (Vector (a2, t2) as rhs) = eval env e2 in
-      let n1, n2 = (Array.length a1, Array.length a2) in
-      check_subset1_assign_err t1 n1 n2 t2 ;
-      let res = recycle n1 t2 a2 in
-      let env = Env.add x1 (vector res t2) env in
+      let env, (Vector (a3, t3) as rhs) = eval env e3 in
+      let n1, n3 = (Array.length a1, Array.length a3) in
+      check_subset1_assign_err t1 n1 n3 t3 ;
+      let res = recycle n1 t3 a3 in
+      let env = Env.add x1 (vector res t3) env in
       (env, rhs)
-  | Subset1_Assign (x1, e2, e3) -> (
+  | Subset1_Assign (x1, Some e2, e3) -> (
       let (Vector (a1, t1)) = lookup env x1 in
       let env, Vector (a2, t2) = eval env e2 in
       let env, (Vector (a3, t3) as rhs) = eval env e3 in
