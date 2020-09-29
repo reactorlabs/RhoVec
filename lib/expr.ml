@@ -24,7 +24,7 @@ type expression =
   | Var            of identifier [@printer fun fmt -> fprintf fmt "%s"]
   | Combine        of expression list
   | Negate         of expression
-  | Subset1        of expression option * expression
+  | Subset1        of expression * expression option
   | Subset2        of expression * expression
   | Seq            of expression list
   | Assign         of identifier * expression

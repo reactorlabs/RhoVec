@@ -180,8 +180,8 @@ let rec eval env = function
           let res = Array.map negate_int a1 in
           (env, vector res t1)
       | T_Bool -> raise (type_error T_Int t1) )
-  | Subset1 (None, e2) -> eval env e2
-  | Subset1 (Some e1, e2) -> (
+  | Subset1 (e1, None) -> eval env e1
+  | Subset1 (e1, Some e2) -> (
       let env, Vector (a1, t1) = eval env e1 in
       let env, Vector (a2, t2) = eval env e2 in
       let n1, n2 = (Array.length a1, Array.length a2) in
