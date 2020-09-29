@@ -17,10 +17,17 @@ let test_eval desc (expected, expr) =
     assert_vec_elt_types expected ;
     assert_vec_elt_types res ;
     A.(check testable_value) "same value" expected res in
+  Stdlib.print_endline ("# " ^ desc) ;
+  Stdlib.print_endline ("# " ^ show_val (Eval.run expr)) ;
+  Stdlib.print_endline (Expr.to_r expr) ;
+  Stdlib.print_newline () ;
   A.test_case desc `Quick run_eval
 
 let test_eval_err desc (excptn, expr) =
   let run_eval () = A.check_raises "same exception" excptn (fun _ -> ignore (Eval.run expr)) in
+  Stdlib.print_endline ("# ERROR: " ^ desc) ;
+  Stdlib.print_endline (Expr.to_r expr) ;
+  Stdlib.print_newline () ;
   A.test_case desc `Quick run_eval
 
 let () =

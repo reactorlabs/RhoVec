@@ -102,3 +102,24 @@ let vec_of_lit l =
   | NA_bool -> Vector ([| l |], T_Bool)
   | NA_int -> Vector ([| l |], T_Int)
 let vec_of_na t = vec_of_lit (na_lit t)
+
+let rec to_r = function
+  | Lit l -> (
+      match l with
+      | Int i -> Int.to_string i
+      | Bool b -> if b then "TRUE" else "FALSE"
+      | NA_bool -> "NA"
+      | NA_int -> "NA_integer_" )
+  | Var x -> x
+  | Combine es ->
+      let ss = es |> List.map to_r |> String.concat ", " in
+      "c(" ^ ss ^ ")"
+  | Negate e -> "-" ^ to_r e
+  | Subset1 (e1, None) -> to_r e1 ^ "[]"
+  | Subset1 (e1, Some e2) -> to_r e1 ^ "[" ^ to_r e2 ^ "]"
+  | Subset2 (e1, e2) -> to_r e1 ^ "[[" ^ to_r e2 ^ "]]"
+  | Seq es -> es |> List.map to_r |> String.concat ";\n"
+  | Assign (x1, e2) -> x1 ^ " <- " ^ to_r e2
+  | Subset1_Assign (x1, None, e3) -> x1 ^ "[] <- " ^ to_r e3
+  | Subset1_Assign (x1, Some e2, e3) -> x1 ^ "[" ^ to_r e2 ^ "] <- " ^ to_r e3
+  | Subset2_Assign (x1, e2, e3) -> x1 ^ "[[" ^ to_r e2 ^ "]] <- " ^ to_r e3
