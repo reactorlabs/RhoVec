@@ -6,6 +6,11 @@ module A = Alcotest
 let pp_value ppf v = Fmt.pf ppf "%s" (show_val v)
 let testable_value = A.testable pp_value equal_value
 
+let dump_file =
+  match Sys.getenv_opt "DUMP" with
+  | None -> None
+  | Some file -> Some (Stdlib.open_out file)
+
 let test_eval desc (expected, expr) =
   (* Also check that all elements of the vector have the right type. *)
   let assert_vec_elt_types = function
@@ -17,17 +22,20 @@ let test_eval desc (expected, expr) =
     assert_vec_elt_types expected ;
     assert_vec_elt_types res ;
     A.(check testable_value) "same value" expected res in
-  Stdlib.print_endline ("# " ^ desc) ;
-  Stdlib.print_endline ("# " ^ Deparse.val_to_r res) ;
-  Stdlib.print_endline (Deparse.to_r expr) ;
-  Stdlib.print_newline () ;
+  ( match dump_file with
+  | None -> ()
+  | Some fout ->
+      Printf.fprintf fout "# %s (LHS = expected, RHS = result)\n" desc ;
+      Printf.fprintf fout "stopifnot(identical(%s, %s))\n\n" (Deparse.val_to_r res)
+        (Deparse.to_r expr) ) ;
   A.test_case desc `Quick check_res
 
 let test_eval_err desc (excptn, expr) =
   let run_eval () = A.check_raises "same exception" excptn (fun _ -> ignore (Eval.run expr)) in
-  Stdlib.print_endline ("# ERROR: " ^ desc) ;
-  Stdlib.print_endline (Deparse.to_r expr) ;
-  Stdlib.print_newline () ;
+  (* if dump_tests then ( *)
+  (*   Stdlib.print_endline ("# ERROR: " ^ desc) ; *)
+  (*   Stdlib.print_endline (Deparse.to_r expr) ; *)
+  (*   Stdlib.print_newline () ) ; *)
   A.test_case desc `Quick run_eval
 
 let () =

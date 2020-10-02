@@ -25,6 +25,12 @@ let rec to_r = function
   | Subset2_Assign (x1, e2, e3) -> Printf.sprintf "%s[[%s]] <- %s" x1 (to_r e2) (to_r e3)
 
 let val_to_r = function
-  | Vector (a, _) ->
-      let inner = a |> Array.map lit_to_r |> Array.to_list |> String.concat ", " in
-      Printf.sprintf "c(%s)" inner
+  | Vector (a, t) ->
+      (* Need a workaround because RhoVec doesn't have the NULL vector, only typed empty vectors. *)
+      if Array.length a = 0 then
+        match t with
+        | T_Bool -> Printf.sprintf "as.logical(NULL)"
+        | T_Int -> Printf.sprintf "as.integer(NULL)"
+      else
+        let inner = a |> Array.map lit_to_r |> Array.to_list |> String.concat ", " in
+        Printf.sprintf "c(%s)" inner

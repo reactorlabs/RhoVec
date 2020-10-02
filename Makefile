@@ -10,6 +10,12 @@ run: exe
 test:
 	dune runtest --force
 
+SUITE := suite.R
+testoracle:
+	dune runtest
+	cd _build/default/test && DUMP=$(SUITE) ./test.exe test "skipeverything" &> /dev/null || true
+	R -f _build/default/test/$(SUITE)
+
 utop:
 	dune utop lib
 
