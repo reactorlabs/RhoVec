@@ -9,7 +9,11 @@ let testable_value = A.testable pp_value equal_value
 let dump_file =
   match Sys.getenv_opt "DUMP" with
   | None -> None
-  | Some file -> Some (Stdlib.open_out file)
+  | Some file ->
+      let fout = Stdlib.open_out file in
+      Printf.fprintf fout
+        "### Each test case is wrapped in a function to keep the global environment clean\n\n" ;
+      Some fout
 
 let test_eval desc (expected, expr) =
   (* Also check that all elements of the vector have the right type. *)
@@ -25,9 +29,10 @@ let test_eval desc (expected, expr) =
   ( match dump_file with
   | None -> ()
   | Some fout ->
-      Printf.fprintf fout "# %s (LHS = expected, RHS = result)\n" desc ;
-      Printf.fprintf fout "stopifnot(identical(%s, %s))\n\n" (Deparse.val_to_r res)
-        (Deparse.to_r expr) ) ;
+      Printf.fprintf fout "# %s\n" desc ;
+      Printf.fprintf fout
+        "(function() {expected <- %s; result <- %s;\nstopifnot(identical(expected, result))})()\n\n"
+        (Deparse.val_to_r res) (Deparse.to_r expr) ) ;
   A.test_case desc `Quick check_res
 
 let test_eval_err desc (excptn, expr) =
