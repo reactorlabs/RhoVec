@@ -43,3 +43,9 @@ jobs:
 
       - name: Test
         run: opam exec -- dune runtest
+
+      - name: Install R
+        run: sudo apt-get install r-base
+
+      - name: Run R test oracle
+        run: make testoracle
