@@ -12,7 +12,10 @@ let dump_file =
   | Some file ->
       let fout = Stdlib.open_out file in
       Printf.fprintf fout
-        "### Each test case is wrapped in a function to keep the global environment clean\n\n" ;
+        "### We use eval and substitute to keep the global environment clean.\n" ;
+      Printf.fprintf fout "runtest <- function(expected, result) {\n" ;
+      Printf.fprintf fout
+        "  stopifnot(identical( eval(substitute(expected)), eval(substitute(result)) ))\n}\n\n";
       Some fout
 
 let test_eval desc (expected, expr) =
@@ -30,9 +33,7 @@ let test_eval desc (expected, expr) =
   | None -> ()
   | Some fout ->
       Printf.fprintf fout "# %s\n" desc ;
-      Printf.fprintf fout
-        "(function() {expected <- %s; result <- %s;\nstopifnot(identical(expected, result))})()\n\n"
-        (Deparse.val_to_r res) (Deparse.to_r expr) ) ;
+      Printf.fprintf fout "runtest(%s, %s)\n\n" (Deparse.val_to_r res) (Deparse.to_r expr) ) ;
   A.test_case desc `Quick check_res
 
 let test_eval_err desc (excptn, expr) =
