@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Install R
+        run: sudo apt-get install r-base
+
       - name: Checkout code
         uses: actions/checkout@v2
 
@@ -44,8 +47,5 @@ jobs:
       - name: Test
         run: opam exec -- dune runtest
 
-      - name: Install R
-        run: sudo apt-get install r-base
-
       - name: Run R test oracle
-        run: make testoracle
+        run: opam exec -- make testoracle
