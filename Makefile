@@ -13,7 +13,7 @@ test:
 SUITE := suite.R
 testoracle:
 	dune runtest
-	cd _build/default/test && DUMP=$(SUITE) ./test.exe test "skipeverything" &> /dev/null || true
+	cd _build/default/test && DUMP=$(SUITE) ./test.exe test --compact "dummy"
 	R -f _build/default/test/$(SUITE)
 
 utop:
