@@ -4,27 +4,28 @@
 
 ### Literals
 
+    bool ::=
+        | NA_b                                      # missing
+        | F                                         # false
+        | T                                         # true
+
+    int ::=
+        | NA_i                                      # missing
+        | <digit>+                                  # number
+
     lit ::=
         | bool                                      # boolean
-        | num                                       # integer
-
-    bool ::=
-        | False                                     # false
-        | True                                      # true
-        | NA_b                                      # missing
-
-    num ::=
-        | ... | -1 | 0 | 1 | ...                    # number
-        | NA_i                                      # missing
+        | int                                       # integer
 
 #### Notes
 
   * R represents missing values with `NA` (not applicable). Each type has its
-    own missing value. E.g., there are three boolean values: `True`, `False`,
-    and `NA_b`.
+    own missing value. E.g., there are three boolean values: `T`, `F`, and
+    `NA_b`.
   * In R, numeric literals default to (double precision) floating point numbers.
     Integer literals must have an `l` or `L` suffix. For now, we only support
     integer literals, but do not require the suffix.
+  * We treat `-1` as a negation expression of the single-element vector `1`.
 
 
 ### Expressions
@@ -46,6 +47,9 @@
 
 #### Notes
 
+  * An identifier `x` is a token that matches the regex
+      `/[a-zA-Z.]([a-zA-Z0-9._)*/`, i.e. the first character must be a letter
+      or `.`, but the remaining characters may be alphanumeric, `_`, or `.`.
   * `..` denotes a possibly empty sequence, i.e., `e_1, .., e_n` may be a list
     of zero expressions.
   * `...` denotes a sequence containing at least one element.
@@ -186,8 +190,8 @@ Does nothing; returns the original vector.
     -----------------------------------  :: E_Subset1_Bool
     E C<v_1[v_2]> --> E C<v>
 
-If the index vector contains `True`, then the element at the corresponding
-location is selected; if it contains `False` then the corresponding element is
+If the index vector contains `T`, then the element at the corresponding
+location is selected; if it contains `F` then the corresponding element is
 skipped; if it contains `NA_b`, then `NA` (of the appropriate type) is selected.
 
 If the boolean vector is too long, we extend the base vector with `NA`s. If the
@@ -195,15 +199,15 @@ boolean vector is too short, we recycle it.
 
 
     v_1 = [lit_1 .. lit_n1],T
-    v_2 = [num_1 .. num_n2],T_Int
-    forall i in 1..n2 : num_i >= 0 \/ num_i == NA_i
+    v_2 = [int_1 .. int_n2],T_Int
+    forall i in 1..n2 : int_i >= 0 \/ int_i == NA_i
     v = get_at_pos(v_1, v_2)
     -----------------------------------------------  :: E_Subset1_Positive
     E C<v_1[v_2]> --> E C<v>
 
     v_1 = [lit_1 .. lit_n1],T
-    v_2 = [num_1 .. num_n2],T_Int
-    forall i in 1..n2 : num_i <= 0 /\ num_i =/= NA_i
+    v_2 = [int_1 .. int_n2],T_Int
+    forall i in 1..n2 : int_i <= 0 /\ int_i =/= NA_i
     v_1' = gen_bool_vec(v_1)
     v_2' = neg_to_bool_vec(v_2, v_1')
     v_2'' = bool_to_pos_vec(v_2', 1)
@@ -300,7 +304,7 @@ performed.
       - v_1 and v_3 have different types
 
 This follows similar rules to `E_Subset1_Bool`, where elements corresponding to
-`True` are replaced. The base vector may be extended, the index vector may be
+`T` are replaced. The base vector may be extended, the index vector may be
 recycled, and the replacement vector may be recycled.
 
 _Note:_ In R, `n3` does not need to be a multiple of `n_2'` (the length of `v_2`
@@ -312,9 +316,9 @@ issued. `v_1` and `v_3` may have different types because of coercion. Finally,
     x in E
     E(x) = v_1
     v_1 = [lit_1 .. lit_n1],T
-    v_2 = [num_1 .. num_n2],T_Int
+    v_2 = [int_1 .. int_n2],T_Int
     v_3 = [lit'_1 .. lit'_n3],T
-    forall i in 1..n2 : num_i == 0
+    forall i in 1..n2 : int_i == 0
     --------------------------------  :: E_Subset1_Zero_Assign
     E C<x[v_2] <- v_3> --> E' C<v_3>
 
@@ -328,9 +332,9 @@ nothing is updated and the value of the replacement vector is returned.
     x in E
     E(x) = v_1
     v_1 = [lit_1 .. lit_n1],T
-    v_2 = [num_1 .. num_n2],T_Int
+    v_2 = [int_1 .. int_n2],T_Int
     v_3 = [lit'_1 ... lit'_n3],T
-    forall i in 1..n2 : num_i >= 0
+    forall i in 1..n2 : int_i >= 0
     v_2' = drop_zeros(v_2)
     n2' = length(v_2')
     n2' % n3 == 0
@@ -343,9 +347,9 @@ nothing is updated and the value of the replacement vector is returned.
     x in E
     E(x) = v_1
     v_1 = [lit_1 .. lit_n1],T
-    v_2 = [num_1 .. num_n2],T_Int
+    v_2 = [int_1 .. int_n2],T_Int
     v_3 = [lit'_1 ... lit'_n3],T
-    forall i in 1..n2 : num_i <= 0
+    forall i in 1..n2 : int_i <= 0
     v_1' = gen_bool_vec(v_1)
     v_2' = neg_to_bool_vec(v_2, v_1')
     v_2'' = bool_to_pos_vec(v_2', 1)
@@ -415,7 +419,7 @@ then the base vector is extended with `NA`s.
 
 
     -------------------  :: Aux_Typeof_Int
-    typeof(num) = T_Int
+    typeof(int) = T_Int
 
 
     -----------------  :: Aux_NA_Bool
@@ -448,18 +452,18 @@ then the base vector is extended with `NA`s.
     negate(v_1) = v_1
 
 
-    v_1 = [NA_i num_1 .. num_n],T_Int
-    v_1' = [num_1 .. num_n],T_Int
+    v_1 = [NA_i int_1 .. int_n],T_Int
+    v_1' = [int_1 .. int_n],T_Int
     v_2 = negate(v_1')
     v = prepend(NA_i, v_2)
     ---------------------------------  :: Aux_Negate_NACase
     negate(v_1) = v_1
 
 
-    v_1 = [num num_1 .. num_n],T_Int
-    v_1' = [num_1 .. num_n],T_Int
+    v_1 = [int int_1 .. int_n],T_Int
+    v_1' = [int_1 .. int_n],T_Int
     v_2 = negate(v_1')
-    v = prepend(-num, v_2)
+    v = prepend(-int, v_2)
     --------------------------------  :: Aux_Negate_RecurseCase
     negate(v_1) = v_1
 
@@ -471,17 +475,17 @@ then the base vector is extended with `NA`s.
 
 
     v_1 = [lit_1 .. lit_n],T
-    v_2 = [0 num_1 .. num_m],T_Int
-    v_2' = [num_1 .. num_m],T_Int
+    v_2 = [0 int_1 .. int_m],T_Int
+    v_2' = [int_1 .. int_m],T_Int
     v = get_at_pos(v_1, v_2')
     ------------------------------  :: Aux_GetAtPos_ZeroCase
     get_at_pos(v_1, v_2) = v
 
 
     v_1 = [lit_1 .. lit_n],T
-    v_2 = [i num_1 .. num_m],T_Int
+    v_2 = [i int_1 .. int_m],T_Int
     i in 1..n
-    v_2' = [num_1 .. num_m],T_Int
+    v_2' = [int_1 .. int_m],T_Int
     v_3 = get_at_pos(v_1, v_2')
     v = prepend(lit_i, v_3)
     ------------------------------  :: Aux_GetAtPos_InBoundsCase
@@ -489,9 +493,9 @@ then the base vector is extended with `NA`s.
 
 
     v_1 = [lit_1 .. lit_n],T
-    v_2 = [i num_1 .. num_m],T_Int
+    v_2 = [i int_1 .. int_m],T_Int
     i not in 1..n \/ i = NA_i
-    v_2' = [num_1 .. num_m],T_Int
+    v_2' = [int_1 .. int_m],T_Int
     v_3 = get_at_pos(v_1, v_2')
     v = prepend(NA(T), v_3)
     ------------------------------  :: Aux_GetAtPos_OutBoundsCase
@@ -503,18 +507,18 @@ then the base vector is extended with `NA`s.
     bool_to_pos_vec(v_1, i) = [],T_Int
 
 
-    v_1 = [True bool_1 .. bool_n],T_Bool
+    v_1 = [T bool_1 .. bool_n],T_Bool
     v_1' = [bool_1 .. bool_n],T_Bool
     v_2 = bool_to_pos_vec(v_1', i+1)
     v = prepend(i, v_2)
-    ------------------------------------   :: Aux_BoolToPosVec_TrueCase
+    ------------------------------------   :: Aux_BoolToPosVec_TCase
     bool_to_pos_vec(v_1, i) = v
 
 
-    v_1 = [False bool_1 .. bool_n],T_Bool
+    v_1 = [F bool_1 .. bool_n],T_Bool
     v_1' = [bool_1 .. bool_n],T_Bool
     v = bool_to_pos_vec(v_1', i+1)
-    -------------------------------------  :: Aux_BoolToPosVec_FalseCase
+    -------------------------------------  :: Aux_BoolToPosVec_FCase
     bool_to_pos_vec(v_1, i) = v
 
 
@@ -569,7 +573,7 @@ then the base vector is extended with `NA`s.
     v_1 = [lit lit_1 .. lit_n],T
     v_1' = [lit_1 .. lit_n],T
     v_2 = gen_bool_vec(v_1')
-    v = prepend(True, v_2)
+    v = prepend(T, v_2)
     ----------------------------  :: Aux_GenBoolVec_RecurseCase
     gen_bool_vec(v_1) = v
 
@@ -580,17 +584,17 @@ then the base vector is extended with `NA`s.
     neg_to_bool_vec(v_1, v_2) = v_2
 
 
-    v_1 = [-j num_1 .. num_n],T_Int
-    v_1' = [num_1 .. num_n],T_Int
+    v_1 = [-j int_1 .. int_n],T_Int
+    v_1' = [int_1 .. int_n],T_Int
     v_2 = [bool_1 .. bool_i bool_j bool_k .. bool_m],T_Bool
-    v_2' = [bool_1 .. bool_i False bool_k .. bool_m],T_Bool
+    v_2' = [bool_1 .. bool_i F bool_k .. bool_m],T_Bool
     v = neg_to_bool_vec(v_1', v_2')
     -------------------------------------------------------  :: Aux_NegToBoolVec_InBoundsCase
     neg_to_bool_vec(v_1, v_2) = v
 
 
-    v_1 = [-j num_1 .. num_n],T_Int
-    v_1' = [num_1 .. num_n],T_Int
+    v_1 = [-j int_1 .. int_n],T_Int
+    v_1' = [int_1 .. int_n],T_Int
     v_2 = [bool_1 .. bool_m],T_Bool
     j not in 1..m
     v = neg_to_bool_vec(v_1', v_2)
@@ -603,18 +607,18 @@ then the base vector is extended with `NA`s.
     drop_zeros(v_1) = [],T_Int
 
 
-    v_1 = [0 num_1 .. num_n],T_Int
-    v_1' = [num_1 .. num_n],T_Int
+    v_1 = [0 int_1 .. int_n],T_Int
+    v_1' = [int_1 .. int_n],T_Int
     v = drop_zeros(v_1')
     ------------------------------  :: Aux_DropZeros_ZeroCase
     drop_zeros(v_1) = v
 
 
-    v_1 = [num num_1 .. num_n],T_Int
-    v_1' = [num_1 .. num_n],T_Int
+    v_1 = [int int_1 .. int_n],T_Int
+    v_1' = [int_1 .. int_n],T_Int
     v_1'' = drop_zeros(v_1')
-    v = prepend(num, v_1'')
-    num =/= 0
+    v = prepend(int, v_1'')
+    int =/= 0
     --------------------------------  :: Aux_DropZeros_NonZeroCase
     drop_zeros(v_1) = v
 
@@ -627,10 +631,10 @@ then the base vector is extended with `NA`s.
 
 
     v_1 = [lit_1 .. lit_i lit_j lit_k .. lit_n],T
-    v_2 = [j num_1 .. num_m],T_Int
+    v_2 = [j int_1 .. int_m],T_Int
     v_3 = [lit' lit'_1 .. lit'_m],T
     v_1' = [lit_1 .. lit_i lit' lit_k .. lit_n],T
-    v_2' = [num_1 .. num_m],T_Int
+    v_2' = [int_1 .. int_m],T_Int
     v_3' = [lit'_1 .. lit'_m],T
     v = update_at_pos(v_1', v_2', v_3')
     ---------------------------------------------  :: Aux_UpdateAtPos_InBoundsCase
@@ -638,7 +642,7 @@ then the base vector is extended with `NA`s.
 
 
     v_1 = [lit_1 .. lit_n],T
-    v_2 = [j num_1 .. num_m],T_Int
+    v_2 = [j int_1 .. int_m],T_Int
     v_3 = [lit'_1 .. lit'_m],T
     j not in 1..m /\ j =/= NA(T)
     v_1' = extend(v_1, j-m)
