@@ -8,19 +8,33 @@ type type_error =
 exception Type_error of type_error
 let type_error expected received = Type_error { expected; received }
 
+exception Expected_nonempty_vector
+
+(* subscript out of bounds *)
 exception Subscript_out_of_bounds
+
+(* attempt to select less than one element *)
 exception Selecting_lt_one_element
+
+(* attempt to select more than one element *)
 exception Selecting_gt_one_element
 
+(* only 0's may be mixed with negative subscripts *)
 exception Mixing_with_negative_subscripts
-exception Invalid_negative_subscript
+
+(* NAs are not allowed in subscripted assignments *)
 exception No_NAs_in_subscripted_assignment
 
-exception Expected_nonempty_vector
+(* number of items to replace is not a multiple of replacement length *)
 exception Replacement_length_not_multiple
+
+(* replacement has length zero *)
 exception Replacement_length_is_zero
+
+(* more elements supplied than there are to replace *)
 exception Too_many_elements_supplied
 
+(* object not found *)
 exception Object_not_found
 
 (* Gets a boolean value from a bool Literal.
@@ -63,8 +77,11 @@ let is_positive_subsetting = Array.for_all @@ Option.map_or ~default:true (fun x
 let is_zero_subsetting = Array.for_all (fun x -> x = Some 0)
 
 (* Checks that all elements are non-positive.
-   NA is _not_ allowed for negative subsetting, but we check that elsewhere. *)
-let is_negative_subsetting = Array.for_all @@ Option.map_or ~default:true (fun x -> x <= 0)
+   NA is not allowed for negative subsetting. *)
+let is_negative_subsetting = Array.for_all @@ Option.map_or ~default:false (fun x -> x <= 0)
+
+let is_mixing_subscripts a =
+  not (is_zero_subsetting a || is_positive_subsetting a || is_negative_subsetting a)
 
 let contains_na = Array.exists (fun x -> x = None)
 
@@ -127,7 +144,6 @@ let bool_to_pos_vec (idxs : bool option array) =
    Expects the inputs to be valid (i.e. no NAs). *)
 let neg_to_bool_vec n (idxs : int option array) =
   assert (is_negative_subsetting idxs) ;
-  assert (Stdlib.not @@ contains_na idxs) ;
   let res = Array.make n (Some true) in
   idxs |> Array.map Option.get
   |> Array.map (fun x -> ~-x)
@@ -197,7 +213,7 @@ let rec eval env = function
           if is_positive_subsetting a2 then
             let res = get_at_pos t1 a1 a2 in
             (env, vector res t1)
-          else if is_negative_subsetting a2 && not (contains_na a2) then
+          else if is_negative_subsetting a2 then
             let res = a2 |> neg_to_bool_vec n1 |> bool_to_pos_vec |> get_at_pos t1 a1 in
             (env, vector res t1)
           else raise Mixing_with_negative_subscripts )
@@ -210,7 +226,7 @@ let rec eval env = function
       | None -> raise Subscript_out_of_bounds
       | Some i ->
           if i = 0 then raise Selecting_lt_one_element ;
-          if i < 0 then raise Invalid_negative_subscript ;
+          if i < 0 then raise Selecting_gt_one_element ;
           if i > n1 then raise Subscript_out_of_bounds ;
           (env, vec_of_lit a1.(i - 1)) )
   | Assign (x, e) ->
@@ -239,10 +255,10 @@ let rec eval env = function
       let env, Vector (a2, t2) = eval env e2 in
       let env, (Vector (a3, t3) as rhs) = eval env e3 in
       let n1, n2, n3 = (Array.length a1, Array.length a2, Array.length a3) in
-      (* We diverge from R and ban NAs as indices during assignment *)
-      if Array.exists is_na a2 then raise No_NAs_in_subscripted_assignment ;
       match t2 with
       | T_Bool ->
+          (* We diverge from R and ban NAs as indices during assignment *)
+          if Array.exists is_na a2 then raise No_NAs_in_subscripted_assignment ;
           let len = Stdlib.max n1 n2 in
           let a1 = extend len t1 a1 in
           let a2 = a2 |> recycle len t2 |> Array.map get_bool |> bool_to_pos_vec in
@@ -253,6 +269,9 @@ let rec eval env = function
           (env, rhs)
       | T_Int ->
           let a2 = Array.map get_int a2 in
+          (* The error checking order is tricky: we want the "mixing subcripts" error to fire, even if we have NAs. *)
+          if is_mixing_subscripts a2 then raise Mixing_with_negative_subscripts ;
+          if contains_na a2 then raise No_NAs_in_subscripted_assignment ;
           if is_zero_subsetting a2 then (env, rhs)
           else if is_positive_subsetting a2 then (
             let a2 = Array.filter (fun x -> x <> Some 0) a2 in
@@ -268,7 +287,7 @@ let rec eval env = function
             let res = a3 |> recycle n2 t3 |> update_at_pos t1 a1 a2 in
             let env = Env.add x1 (vector res t1) env in
             (env, rhs) )
-          else raise Mixing_with_negative_subscripts )
+          else assert false )
   | Subset2_Assign (x1, e2, e3) -> (
       let (Vector (a1, t1)) = lookup env x1 in
       let env, Vector (a2, t2) = eval env e2 in
@@ -279,7 +298,7 @@ let rec eval env = function
       if n3 > 1 then raise Too_many_elements_supplied ;
       if t1 <> t3 then raise (type_error t1 t3) ;
       match get_int a2.(0) with
-      | None -> raise Subscript_out_of_bounds
+      | None -> raise Selecting_gt_one_element
       | Some i ->
           if i = 0 then raise Selecting_lt_one_element ;
           if i < 0 then raise Selecting_gt_one_element ;

@@ -6,26 +6,82 @@ module A = Alcotest
 let pp_value ppf v = Fmt.pf ppf "%s" (show_val v)
 let testable_value = A.testable pp_value equal_value
 
+let excptn_to_string excptn =
+  let open Eval in
+  match excptn with
+  | Subscript_out_of_bounds -> "subscript out of bounds"
+  | Selecting_lt_one_element -> "attempt to select less than one element"
+  | Selecting_gt_one_element -> "attempt to select more than one element"
+  | Mixing_with_negative_subscripts -> "only 0's may be mixed with negative subscripts"
+  | No_NAs_in_subscripted_assignment -> "NAs are not allowed in subscripted assignments"
+  | Replacement_length_not_multiple ->
+      "number of items to replace is not a multiple of replacement length"
+  | Replacement_length_is_zero -> "replacement has length zero"
+  | Too_many_elements_supplied -> "more elements supplied than there are to replace"
+  | Object_not_found -> "not found"
+  | e ->
+      Stdlib.prerr_endline "Unrecognized exception" ;
+      raise e
+
+let dump_file =
+  match Sys.getenv_opt "DUMP" with
+  | None -> None
+  | Some file ->
+      let fout = Stdlib.open_out file in
+      let pf = Printf.fprintf fout in
+      pf "### We use eval and substitute to keep the global environment clean.\n" ;
+      pf "runtest <- function(expected, expr) {\n" ;
+      pf "  stopifnot(identical( eval(substitute(expected)), eval(substitute(expr)) ))\n}\n\n" ;
+      pf "### To check for errors, we grep the error message.\n" ;
+      pf "runerr <- function(excptn, expr) {\n" ;
+      pf "  stopifnot(tryCatch(\n" ;
+      pf "    eval(substitute(expr)),\n" ;
+      pf "    finally = FALSE,\n" ;
+      pf "    error = function(c) grepl(excptn, conditionMessage(c), fixed = TRUE)\n  ))\n}\n\n" ;
+      pf "runwarn <- function(excptn, expr) {\n" ;
+      pf "  stopifnot(tryCatch(\n" ;
+      pf "    eval(substitute(expr)),\n" ;
+      pf "    finally = FALSE,\n" ;
+      pf "    warning = function(c) grepl(excptn, conditionMessage(c), fixed = TRUE)\n  ))\n}\n\n" ;
+      Some fout
+
 let test_eval desc (expected, expr) =
   (* Also check that all elements of the vector have the right type. *)
   let assert_vec_elt_types = function
     | Vector (a, t) as vec ->
         if not (Array.for_all (fun x -> get_tag x = t) a) then
           A.failf "Vector `%s` not consistent with its type!" (show_val vec) in
-  let run_eval () =
-    let res = Eval.run expr in
+  let res = Eval.run expr in
+  let check_res () =
     assert_vec_elt_types expected ;
     assert_vec_elt_types res ;
     A.(check testable_value) "same value" expected res in
-  A.test_case desc `Quick run_eval
+  ( match dump_file with
+  | None -> ()
+  | Some fout ->
+      Printf.fprintf fout "# %s\n" desc ;
+      Printf.fprintf fout "runtest(%s, %s)\n\n" (Deparse.val_to_r res) (Deparse.to_r expr) ) ;
+  A.test_case desc `Quick check_res
 
-let test_eval_err desc (excptn, expr) =
+(* Optional argument `is_r` is set to false if we don't want to validate a test case against R. *)
+(* Optional argument `is_r_warning` is set to true if a RhoVec error should be an R warning. *)
+let test_eval_err desc ?(is_r = true) ?(is_r_warning = false) (excptn, expr) =
   let run_eval () = A.check_raises "same exception" excptn (fun _ -> ignore (Eval.run expr)) in
+  ( match dump_file with
+  | None -> ()
+  | Some fout ->
+      if is_r then (
+        let tester = if not is_r_warning then "runerr" else "runwarn" in
+        Printf.fprintf fout "# ERROR: %s\n" desc ;
+        Printf.fprintf fout "%s(\"%s\", %s)\n\n" tester (excptn_to_string excptn)
+          (Deparse.to_r expr) ) ) ;
   A.test_case desc `Quick run_eval
 
 let () =
   A.run "testsuite"
-    [ ( "literals"
+    (* The dummy test is so that we have something to run, when generating the R test suite. *)
+    [ ("dummy", [ A.test_case "dummy test" `Quick (fun () -> A.(check int) "same value" 1 1) ])
+    ; ( "literals"
       , [ test_eval "int 42" (vec_of_int 42, int_exp 42)
         ; test_eval "int -1" (vec_of_int ~-1, int_exp ~-1)
         ; test_eval "int NA" (vec_of_intoptlist [ None ], na_exp T_Int)
@@ -72,10 +128,10 @@ let () =
             )
         ] )
     ; ( "combine.err"
-      , [ test_eval_err "empty" (Eval.Expected_nonempty_vector, Combine [])
-        ; test_eval_err "mixed types 1"
+      , [ test_eval_err "empty" ~is_r:false (Eval.Expected_nonempty_vector, Combine [])
+        ; test_eval_err "mixed types 1" ~is_r:false
             (Eval.type_error T_Int T_Bool, Combine [ int_exp 0; true_exp; false_exp ])
-        ; test_eval_err "mixed types 2"
+        ; test_eval_err "mixed types 2" ~is_r:false
             (Eval.type_error T_Bool T_Int, Combine [ false_exp; true_exp; int_exp 1; false_exp ])
         ] )
     ; ( "negate"
@@ -98,7 +154,7 @@ let () =
             )
         ] )
     ; ( "negate.err"
-      , [ test_eval_err "bool"
+      , [ test_eval_err "bool" ~is_r:false
             (Eval.type_error T_Int T_Bool, Negate (Combine [ true_exp; false_exp ]))
         ] )
     ; ( "subset1_nothing"
@@ -117,7 +173,7 @@ let () =
                 , None ) )
         ] )
     ; ( "subset1_nothing.err"
-      , [ test_eval_err "mixed types"
+      , [ test_eval_err "mixed types" ~is_r:false
             (Eval.type_error T_Int T_Bool, Subset1 (Combine [ int_exp 0; false_exp ], None))
         ] )
     ; ( "subset1.logical"
@@ -350,7 +406,7 @@ let () =
                 (Combine [ int_exp 1; int_exp 2; int_exp 3 ], Subset1 (int_exp 1, Some (int_exp 0)))
             )
         ; test_eval_err "single negative index"
-            ( Eval.Invalid_negative_subscript
+            ( Eval.Selecting_gt_one_element
             , Subset2 (Combine [ int_exp 1; int_exp 2; int_exp 3 ], int_exp ~-1) )
         ; test_eval_err "multiple index 1"
             ( Eval.Selecting_gt_one_element
@@ -370,7 +426,7 @@ let () =
         ; test_eval_err "out-of-bounds with NA"
             ( Eval.Subscript_out_of_bounds
             , Subset2 (Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ], na_exp T_Int) )
-        ; test_eval_err "mixed types"
+        ; test_eval_err "mixed types" ~is_r:false
             ( Eval.type_error T_Int T_Bool
             , Subset2 (Combine [ int_exp 1; int_exp 2; int_exp 3 ], true_exp) )
         ] )
@@ -423,19 +479,19 @@ let () =
                 ] )
         ] )
     ; ( "subset1_nothing_assign.err"
-      , [ test_eval_err "wrong length 1"
+      , [ test_eval_err "wrong length 1" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13 ])
                 ; Subset1_Assign ("x", None, Combine [ int_exp 1; int_exp 2 ])
                 ] )
-        ; test_eval_err "wrong length 2"
+        ; test_eval_err "wrong length 2" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13 ])
                 ; Subset1_Assign ("x", None, Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ])
                 ] )
-        ; test_eval_err "wrong length 3"
+        ; test_eval_err "wrong length 3" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13 ])
@@ -451,7 +507,7 @@ let () =
                 [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13 ])
                 ; Subset1_Assign ("x", None, Subset1 (int_exp 1, Some (int_exp 0)))
                 ] )
-        ; test_eval_err "mixed types"
+        ; test_eval_err "mixed types" ~is_r:false
             ( Eval.type_error T_Int T_Bool
             , Seq
                 [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13 ])
@@ -646,14 +702,14 @@ let () =
                 ; Subset1_Assign
                     ("x", Some (Combine [ true_exp ]), Subset1 (int_exp 1, Some (int_exp 0)))
                 ] )
-        ; test_eval_err "wrong replacement length 1"
+        ; test_eval_err "wrong replacement length 1" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
                 ; Subset1_Assign
                     ("x", Some (Combine [ true_exp ]), Combine [ int_exp 10; int_exp 11 ])
                 ] )
-        ; test_eval_err "wrong replacement length 2"
+        ; test_eval_err "wrong replacement length 2" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign
@@ -663,7 +719,7 @@ let () =
                 ; Subset1_Assign
                     ("x", Some (Combine [ true_exp; false_exp ]), Combine [ int_exp 10; int_exp 11 ])
                 ] )
-        ; test_eval_err "wrong replacement length 3"
+        ; test_eval_err "wrong replacement length 3" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign
@@ -675,7 +731,7 @@ let () =
                     , Some (Combine [ true_exp; false_exp; false_exp ])
                     , Combine [ int_exp 10; int_exp 11; int_exp 12 ] )
                 ] )
-        ; test_eval_err "wrong replacement length 4"
+        ; test_eval_err "wrong replacement length 4" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ])
@@ -684,7 +740,7 @@ let () =
                     , Some (Combine [ true_exp; true_exp; false_exp ])
                     , Combine [ int_exp 10; int_exp 11; int_exp 12 ] )
                 ] )
-        ; test_eval_err "extension and recycle replacement 3"
+        ; test_eval_err "extension and recycle replacement 3" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3 ])
@@ -693,7 +749,8 @@ let () =
                     , Some (Combine [ true_exp; true_exp; true_exp; true_exp; false_exp ])
                     , Combine [ int_exp 9; int_exp 8; int_exp 7 ] )
                 ] )
-        ; test_eval_err "NA in index"
+        ; test_eval_err "NA in index" ~is_r:false
+            (* R allows this because the RHS has only one element *)
             ( Eval.No_NAs_in_subscripted_assignment
             , Seq
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
@@ -702,7 +759,7 @@ let () =
                     , Some (Combine [ true_exp; false_exp; na_exp T_Bool ])
                     , Combine [ int_exp 0 ] )
                 ] )
-        ; test_eval_err "mixed types"
+        ; test_eval_err "mixed types" ~is_r:false
             ( Eval.type_error T_Int T_Bool
             , Seq
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
@@ -769,7 +826,8 @@ let () =
                 ] )
         ] )
     ; ( "subset1_assign.zero.err"
-      , [ test_eval_err "NAs in index"
+      , [ test_eval_err "NA in index" ~is_r:false
+            (* R allows this because the RHS has only one element *)
             ( Eval.No_NAs_in_subscripted_assignment
             , Seq
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ])
@@ -897,7 +955,8 @@ let () =
                 ] )
         ] )
     ; ( "subset1_assign.positive.err"
-      , [ test_eval_err "NA index 1"
+      , [ test_eval_err "NA index 1" ~is_r:false
+            (* R allows this because the RHS has only one element *)
             ( Eval.No_NAs_in_subscripted_assignment
             , Seq
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ])
@@ -909,7 +968,8 @@ let () =
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ])
                 ; Subset1_Assign ("x", Some (na_exp T_Int), Combine [ int_exp 10; int_exp 11 ])
                 ] )
-        ; test_eval_err "NA index 3"
+        ; test_eval_err "NA index 3" ~is_r:false
+            (* R allows this because the RHS has only one element *)
             ( Eval.No_NAs_in_subscripted_assignment
             , Seq
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ])
@@ -930,7 +990,7 @@ let () =
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4 ])
                 ; Subset1_Assign ("x", Some (int_exp 1), Subset1 (int_exp 1, Some (int_exp 0)))
                 ] )
-        ; test_eval_err "wrong replacement length 1"
+        ; test_eval_err "wrong replacement length 1" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
@@ -939,7 +999,7 @@ let () =
                     , Some (Combine [ int_exp 1; int_exp 2 ])
                     , Combine [ int_exp 9; int_exp 8; int_exp 7 ] )
                 ] )
-        ; test_eval_err "wrong replacement length 2"
+        ; test_eval_err "wrong replacement length 2" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
@@ -948,7 +1008,7 @@ let () =
                     , Some (Combine [ int_exp 1; int_exp 1; int_exp 3 ])
                     , Combine [ int_exp 9; int_exp 8 ] )
                 ] )
-        ; test_eval_err "wrong replacement length 3"
+        ; test_eval_err "wrong replacement length 3" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
@@ -957,7 +1017,7 @@ let () =
                     , Some (Combine [ int_exp 1; int_exp 2; int_exp 3 ])
                     , Combine [ int_exp 9; int_exp 8 ] )
                 ] )
-        ; test_eval_err "wrong replacement length 4"
+        ; test_eval_err "wrong replacement length 4" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
@@ -972,7 +1032,7 @@ let () =
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
                 ; Subset1_Assign ("x", Some (Combine [ int_exp 1; int_exp ~-1 ]), int_exp 13)
                 ] )
-        ; test_eval_err "mixed types"
+        ; test_eval_err "mixed types" ~is_r:false
             ( Eval.type_error T_Int T_Bool
             , Seq
                 [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
@@ -1071,7 +1131,7 @@ let () =
         ] )
     ; ( "subset1_assign.negative.err"
       , [ test_eval_err "NA index"
-            ( Eval.No_NAs_in_subscripted_assignment
+            ( Eval.Mixing_with_negative_subscripts
             , Seq
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
                 ; Subset1_Assign
@@ -1084,14 +1144,14 @@ let () =
                 ; Subset1_Assign
                     ("x", Some (Negate (int_exp 1)), Subset1 (int_exp 1, Some (int_exp 0)))
                 ] )
-        ; test_eval_err "wrong replacement length 1"
+        ; test_eval_err "wrong replacement length 1" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
                 ; Subset1_Assign
                     ("x", Some (Negate (int_exp 1)), Combine [ int_exp 10; int_exp 11; int_exp 12 ])
                 ] )
-        ; test_eval_err "wrong replacement length 2"
+        ; test_eval_err "wrong replacement length 2" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
@@ -1100,7 +1160,7 @@ let () =
                     , Some (Negate (Combine [ int_exp 1; int_exp 3 ]))
                     , Combine [ int_exp 10; int_exp 11 ] )
                 ] )
-        ; test_eval_err "wrong replacement length 3"
+        ; test_eval_err "wrong replacement length 3" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
@@ -1109,7 +1169,7 @@ let () =
                     , Some (Negate (Combine [ int_exp 1; int_exp 3 ]))
                     , Combine [ int_exp 10; int_exp 11; int_exp 12; int_exp 13 ] )
                 ] )
-        ; test_eval_err "ignored index and wrong replacement length 1"
+        ; test_eval_err "ignored index and wrong replacement length 1" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
@@ -1118,7 +1178,7 @@ let () =
                     , Some (Negate (Combine [ int_exp 1; int_exp 0; int_exp 3; int_exp 10 ]))
                     , Combine [ int_exp 10; int_exp 11 ] )
                 ] )
-        ; test_eval_err "ignored index and wrong replacement length 2"
+        ; test_eval_err "ignored index and wrong replacement length 2" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
@@ -1127,7 +1187,7 @@ let () =
                     , Some (Negate (Combine [ int_exp 1; int_exp 0; int_exp 3; int_exp 10 ]))
                     , Combine [ int_exp 10; int_exp 11; int_exp 12; int_exp 13 ] )
                 ] )
-        ; test_eval_err "repeated index and wrong replacement length 1"
+        ; test_eval_err "repeated index and wrong replacement length 1" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
@@ -1136,7 +1196,7 @@ let () =
                     , Some (Negate (Combine [ int_exp 1; int_exp 3; int_exp 1 ]))
                     , Combine [ int_exp 10; int_exp 11 ] )
                 ] )
-        ; test_eval_err "repeated index and wrong replacement length 2"
+        ; test_eval_err "repeated index and wrong replacement length 2" ~is_r_warning:true
             ( Eval.Replacement_length_not_multiple
             , Seq
                 [ Assign ("x", Combine [ int_exp 1; int_exp 2; int_exp 3; int_exp 4; int_exp 5 ])
@@ -1152,7 +1212,7 @@ let () =
                 ; Subset1_Assign
                     ("x", Some (Negate (Combine [ int_exp 1; int_exp ~-1 ])), int_exp 13)
                 ] )
-        ; test_eval_err "mixed types"
+        ; test_eval_err "mixed types" ~is_r:false
             ( Eval.type_error T_Int T_Bool
             , Seq
                 [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
@@ -1227,8 +1287,8 @@ let () =
                 [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
                 ; Subset2_Assign ("x", Negate (Combine [ int_exp 1; int_exp 2 ]), int_exp 9)
                 ] )
-        ; test_eval_err "out-of-bounds with NA"
-            ( Eval.Subscript_out_of_bounds
+        ; test_eval_err "assign with NA index"
+            ( Eval.Selecting_gt_one_element
             , Seq
                 [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
                 ; Subset2_Assign ("x", na_exp T_Int, int_exp 9)
@@ -1245,13 +1305,13 @@ let () =
                 [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
                 ; Subset2_Assign ("x", int_exp 1, Subset1 (int_exp 1, Some (int_exp 0)))
                 ] )
-        ; test_eval_err "mixed types 1"
+        ; test_eval_err "mixed types 1" ~is_r:false
             ( Eval.type_error T_Int T_Bool
             , Seq
                 [ Assign ("x", Combine [ int_exp 11; int_exp 12; int_exp 13; int_exp 14 ])
                 ; Subset2_Assign ("x", true_exp, int_exp 8)
                 ] )
-        ; test_eval_err "mixed types 2"
+        ; test_eval_err "mixed types 2" ~is_r:false
             ( Eval.type_error T_Bool T_Int
             , Seq
                 [ Assign ("x", Combine [ true_exp; true_exp; false_exp; true_exp ])
