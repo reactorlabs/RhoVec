@@ -1,6 +1,8 @@
 open Angstrom
 open Expr
 
+let ( let* ) = ( >>= )
+
 let reserved = [ "NA_b"; "F"; "T"; "NA_i"; "Combine" ]
 
 (* let combine = token "Combine" *)
