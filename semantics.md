@@ -48,7 +48,7 @@
 #### Notes
 
   * An identifier `x` is a token that matches the regex
-      `/[a-zA-Z.]([a-zA-Z0-9._)*/`, i.e. the first character must be a letter
+      `/[a-zA-Z.][a-zA-Z0-9._]*/`, i.e. the first character must be a letter
       or `.`, but the remaining characters may be alphanumeric, `_`, or `.`.
   * `..` denotes a possibly empty sequence, i.e., `e_1, .., e_n` may be a list
     of zero expressions.
