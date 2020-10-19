@@ -21,11 +21,11 @@ let is_letter = function
 let is_first_ident x = '.' == x || is_letter x
 let is_ident x = '_' == x || is_first_ident x || is_digit x
 
-let ws = skip_while is_ws
+let ws = skip_while is_space
+let wsnl = skip_while is_ws
 let digits = take_while1 is_digit
 let with_ws p = ws *> p <* ws
 
-let combine = string "Combine"
 let leftarrow = string "<-"
 let comma = char ','
 let semicolon = char ';'
@@ -54,52 +54,47 @@ let variable =
 
 let lit = boolean <|> integer >>| fun l -> Lit l
 let var = variable >>| fun s -> Var s
-let atom = lit <|> var
 
-(* Combine ( EXPR , ... , EXPR ) *)
-let combine expr = combine *> parens (sep_by1 comma expr) >>| fun es -> Combine es
+let combine expr = string "Combine" *> parens (sep_by1 comma expr) >>| fun es -> Combine es
 
-(* - EXPR *)
-let negate expr = char '-' *> expr >>| fun e -> Negate e
+let base expr = lit <|> combine expr <|> parens expr
 
-(* EXPR ([] | [EXPR]) *)
-let subset1 expr =
-  let subset1 e1 e2 = Subset1 (e1, e2) in
-  let empty = string "[]" *> return None in
-  let index = bracks1 expr >>| Option.some in
-  lift2 subset1 expr (empty <|> index)
+let index expr be =
+  string "[]" *> return (Subset1 (be, None))
+  <|> (bracks1 expr >>| fun e -> Subset1 (be, Some e))
+  <|> (bracks2 expr >>| fun e -> Subset2 (be, e))
 
-(* EXPR [[ EXPR ]] *)
-let subset2 expr =
-  let subset2 e1 e2 = Subset2 (e1, e2) in
-  lift2 subset2 expr (bracks2 expr)
+let rvalue expr =
+  let rec rvalue' expr be =
+    peek_char >>= function
+    | Some '[' -> index expr be >>= rvalue' expr
+    | _ -> return be in
+  base expr >>= rvalue' expr
 
+let lvalue expr =
+  let rec lvalue' expr v =
+    peek_char >>= function
+    | Some '[' -> index expr v >>= lvalue' expr
+    | _ -> return v in
+  var >>= lvalue' expr
+
+let neg expr =
+  fix (fun neg -> rvalue expr <|> lvalue expr <|> (char '-' *> neg >>| fun e -> Negate e))
+
+let assign expr =
+  let[@warning "-4-8"] assign' lhs _ rhs =
+    match lhs with
+    | Var x -> Assign (x, rhs)
+    | Subset1 (Var x, e2) -> Subset1_Assign (x, e2, rhs)
+    | Subset2 (Var x, e2) -> Subset2_Assign (x, e2, rhs) in
+  lift3 assign' (lvalue expr) leftarrow expr
+
+let expr = fix (fun expr -> assign expr <|> neg expr) <?> "expr"
+
+(*
 (* EXPR ; ... ; EXPR *)
 let sequence expr = sep_by1 semicolon expr >>| fun es -> Seq es
-
-(* IDENT <- EXPR *)
-let assign expr =
-  let assign x _ e = Assign (x, e) in
-  lift3 assign variable leftarrow expr
-
-(* IDENT ([] | [EXPR]) <- EXPR *)
-let subset1_assign expr =
-  let subset1 x1 e2 _ e3 = Subset1_Assign (x1, e2, e3) in
-  let empty = string "[]" *> return None in
-  let index = bracks1 expr >>| Option.some in
-  lift4 subset1 variable (empty <|> index) leftarrow expr
-
-(* IDENT [[ EXPR ]] <- EXPR *)
-let subset2_assign expr =
-  let subset2 x1 e2 _ e3 = Subset2_Assign (x1, e2, e3) in
-  lift4 subset2 variable (bracks2 expr) leftarrow expr
-
-let expr = atom <?> "expr"
-
-(* let expr = *)
-(*   fix (fun expr -> *)
-(*       subset2 <|> assign2 <|> assign <|> atom <|> combine <|> negate) *)
-(*   <?> "expr" *)
+*)
 
 let tryparse p (str : string) =
   match parse_string ~consume:All p str with
