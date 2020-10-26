@@ -11,7 +11,6 @@ let is_space = function
 let is_eol = function
   | '\n' | '\r' -> true
   | _ -> false
-let is_ws x = is_space x || is_eol x
 let is_digit = function
   | '0' .. '9' -> true
   | _ -> false
@@ -22,13 +21,14 @@ let is_first_ident x = '.' == x || is_letter x
 let is_ident x = '_' == x || is_first_ident x || is_digit x
 
 let ws = skip_while is_space
-let wsnl = skip_while is_ws
+let nl = skip_while is_eol
 let digits = take_while1 is_digit
 let with_ws p = ws *> p <* ws
+let with_nl p = nl *> p <* nl
 
 let leftarrow = string "<-"
 let comma = char ','
-let semicolon = char ';'
+let seq_sep = with_nl (char ';') <|> nl *> return '\n'
 let parens p = char '(' *> p <* char ')'
 let bracks1 p = char '[' *> p <* char ']'
 let bracks2 p = string "[[" *> p <* string "]]"
@@ -55,7 +55,7 @@ let variable =
 let lit = boolean <|> integer >>| fun l -> Lit l
 let var = variable >>| fun s -> Var s
 
-let combine expr = string "Combine" *> parens (sep_by1 comma expr) >>| fun es -> Combine es
+let combine expr = string "Combine" *> ws *> parens (sep_by1 comma expr) >>| fun es -> Combine es
 
 let base expr = lit <|> combine expr <|> parens expr
 
@@ -64,22 +64,17 @@ let index expr be =
   <|> (bracks1 expr >>| fun e -> Subset1 (be, Some e))
   <|> (bracks2 expr >>| fun e -> Subset2 (be, e))
 
-let rvalue expr =
-  let rec rvalue' expr be =
-    peek_char >>= function
-    | Some '[' -> index expr be >>= rvalue' expr
-    | _ -> return be in
-  base expr >>= rvalue' expr
+let rec lrvalue expr e =
+  peek_char >>= function
+  | Some '[' -> index expr e <* ws >>= lrvalue expr
+  | _ -> return e
 
-let lvalue expr =
-  let rec lvalue' expr v =
-    peek_char >>= function
-    | Some '[' -> index expr v >>= lvalue' expr
-    | _ -> return v in
-  var >>= lvalue' expr
+let rvalue expr = with_ws (base expr) >>= lrvalue expr
+
+let lvalue expr = with_ws var >>= lrvalue expr
 
 let neg expr =
-  fix (fun neg -> rvalue expr <|> lvalue expr <|> (char '-' *> neg >>| fun e -> Negate e))
+  fix (fun neg -> rvalue expr <|> lvalue expr <|> (with_ws (char '-') *> neg >>| fun e -> Negate e))
 
 let assign expr =
   let[@warning "-4-8"] assign' lhs _ rhs =
@@ -89,12 +84,19 @@ let assign expr =
     | Subset2 (Var x, e2) -> Subset2_Assign (x, e2, rhs) in
   lift3 assign' (lvalue expr) leftarrow expr
 
-let expr = fix (fun expr -> assign expr <|> neg expr) <?> "expr"
+(* only allow nl for sequences; otherwise could be confusing, but it's also
+   context-sensitive since open paren/bracket allows nls to separate tokens
+   without ending the expression *)
 
-(*
-(* EXPR ; ... ; EXPR *)
-let sequence expr = sep_by1 semicolon expr >>| fun es -> Seq es
-*)
+(* TODO:
+   doesn't work with trailing semicolon
+   no support for curly braces, only top level can have sequences *)
+
+let expr =
+  let expr = fix (fun expr -> assign expr <|> neg expr) <?> "expr" in
+  sep_by1 seq_sep (with_nl expr) >>| function
+  | [ e ] -> e
+  | es -> Seq es
 
 let tryparse p (str : string) =
   match parse_string ~consume:All p str with
