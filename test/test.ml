@@ -1393,4 +1393,14 @@ let () =
                 ] )
         ] )
     ; ("environments.err", [ test_eval_err "object not found" (Eval.Object_not_found, Var "x") ])
+    ; ( "seq"
+      , [ test_eval "multiple expressions" (vec_of_int 3, Seq [ int_exp 1; int_exp 2; int_exp 3 ])
+        ; test_eval "nested"
+            ( vec_of_int 6
+            , Seq
+                [ int_exp 1
+                ; Seq [ int_exp 2; int_exp 3 ]
+                ; Seq [ Seq [ int_exp 4; Seq [ int_exp 5 ] ]; int_exp 6 ]
+                ] )
+        ] )
     ]

@@ -6,7 +6,7 @@ let lit_to_r = function
   | NA_bool -> "NA"
   | NA_int -> "NA_integer_"
 
-let rec to_r = function
+let rec to_r ?(depth=0) = function
   | Lit l -> lit_to_r l
   | Var x -> x
   | Combine es ->
@@ -17,8 +17,12 @@ let rec to_r = function
   | Subset1 (e1, Some e2) -> Printf.sprintf "%s[%s]" (to_r e1) (to_r e2)
   | Subset2 (e1, e2) -> Printf.sprintf "%s[[%s]]" (to_r e1) (to_r e2)
   | Seq es ->
-      let inner = es |> List.map to_r |> String.concat "\n  " in
-      Printf.sprintf "{\n  %s\n}" inner
+      let padding depth = String.make (depth * 2) ' ' in
+      let to_r' e =
+        let depth = depth + 1 in
+        (padding depth) ^ (to_r ~depth e) in
+      let inner = es |> List.map to_r' |> String.concat "\n" in
+      Printf.sprintf "{\n%s\n%s}" inner (padding depth)
   | Assign (x1, e2) -> Printf.sprintf "%s <- %s" x1 (to_r e2)
   | Subset1_Assign (x1, None, e3) -> Printf.sprintf "%s[] <- %s" x1 (to_r e3)
   | Subset1_Assign (x1, Some e2, e3) -> Printf.sprintf "%s[%s] <- %s" x1 (to_r e2) (to_r e3)
