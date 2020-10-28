@@ -78,7 +78,7 @@ let test_eval_err desc ?(is_r = true) ?(is_r_warning = false) (excptn, expr) =
   A.test_case desc `Quick run_eval
 
 let () =
-  A.run "eval testsuite"
+  A.run "eval-testsuite"
     (* The dummy test is so that we have something to run, when generating the R test suite. *)
     [ ("dummy", [ A.test_case "dummy test" `Quick (fun () -> A.(check int) "same value" 1 1) ])
     ; ( "literals"

@@ -1,6 +1,8 @@
 open Angstrom
 open Expr
 
+exception Parse_error of string
+
 (* TODO: rename this file to parse *)
 
 let reserved = [ "NA_b"; "F"; "T"; "NA_i"; "Combine" ]
@@ -21,17 +23,22 @@ let is_blank x = is_space x || is_eol x
 let is_first_ident x = '.' == x || is_letter x
 let is_ident x = '_' == x || is_first_ident x || is_digit x
 
-let ws = skip_while is_space
-let nl = skip_while is_eol
-let blank = skip_while is_blank
+let ws = take_while is_space
+let ws1 = take_while1 is_space
+let eol = take_while is_eol
+let eol1 = take_while1 is_eol
+let blank = take_while is_blank
+let blank1 = take_while1 is_blank
 let digits = take_while1 is_digit
 let with_ws p = ws *> p <* ws
-let with_nl p = nl *> p <* nl
+let with_ws1 p = ws1 *> p <* ws1
+let with_eol p = eol *> p <* eol
+let with_eol1 p = eol1 *> p <* eol1
 let with_blank p = blank *> p <* blank
 
 let leftarrow = string "<-"
 let comma = char ','
-let seq_sep = with_blank (char ';') <|> nl *> return '\n'
+let seq_sep = with_blank (char ';') <|> eol1 *> return '\n'
 let trailing = with_blank (char ';') <|> blank *> return '\n'
 let parens p = char '(' *> p <* char ')'
 let bracks1 p = char '[' *> p <* char ']'
@@ -59,7 +66,7 @@ let var = variable >>| fun s -> Var s
 
 let combine expr = string "Combine" *> ws *> parens (sep_by1 comma expr) >>| fun es -> Combine es
 
-let base expr = lit <|> combine expr <|> parens expr
+let base expr = var <|> lit <|> combine expr <|> parens expr
 
 let rec lrvalue expr e =
   let index be =
@@ -70,8 +77,8 @@ let rec lrvalue expr e =
   | Some '[' -> index e <* ws >>= lrvalue expr
   | _ -> return e
 
-let rvalue expr = with_ws (base expr) >>= lrvalue expr
-let lvalue expr = with_ws var >>= lrvalue expr
+let rvalue expr = with_blank (base expr) >>= lrvalue expr
+let lvalue expr = with_blank var >>= lrvalue expr
 
 let neg expr =
   fix (fun neg -> rvalue expr <|> lvalue expr <|> (with_ws (char '-') *> neg >>| fun e -> Negate e))
@@ -84,28 +91,28 @@ let assign expr =
     | Subset2 (Var x, e2) -> Subset2_Assign (x, e2, rhs) in
   lift3 assign' (lvalue expr) leftarrow expr
 
-(* only allow nl for sequences; otherwise could be confusing, but it's also
-   context-sensitive since open paren/bracket allows nls to separate tokens
+(* only allow eol for sequences; otherwise could be confusing, but it's also
+   context-sensitive since open paren/bracket allows eols to separate tokens
    without ending the expression *)
 
 let seq expr =
-  sep_by1 seq_sep (with_nl expr) <* trailing >>| function
+  sep_by1 seq_sep expr <* trailing >>| function
   | [ e ] -> e
   | es -> Seq es
 
-let expr' = fix (fun expr -> assign expr <|> neg expr <|> braces (seq expr)) <?> "expr"
+let expr' = fix (fun expr -> assign expr <|> neg expr <|> braces (seq expr))
 
 let expr = seq expr'
 
 let tryparse p (str : string) =
   match parse_string ~consume:All p str with
   | Ok v -> v
-  | Error msg -> failwith msg
+  | Error msg -> raise (Parse_error msg)
 
 let parse (str : string) =
   match parse_string ~consume:All expr str with
   | Ok v -> v
-  | Error msg -> failwith msg
+  | Error msg -> raise (Parse_error msg)
 
 let run (str : string) =
   let v = Eval.run @@ parse str in
