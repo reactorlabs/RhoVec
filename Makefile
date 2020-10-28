@@ -1,30 +1,40 @@
-SHELL := /bin/bash
+SHELL    := /bin/bash
 
-EXEC  := rhovec
+EXEC     := rhovec
+
+BUILDDIR := _build/default
+TESTDIR  := $(BUILDDIR)/test
+SRCDIR   := $(BUILDDIR)/src
 
 all: exe
 
 run: exe
 	./$(EXEC)
 
-test:
-	dune runtest --force
+test: test-parse test-eval
 
-SUITE := suite.R
-testoracle:
-	dune runtest
-	cd _build/default/test && DUMP=$(SUITE) ./test.exe test --compact "dummy"
-	R -f _build/default/test/$(SUITE)
+test-parse:
+	dune build test/parse.exe
+	cd $(TESTDIR) && ./parse.exe
+
+test-eval:
+	dune build test/eval.exe
+	cd $(TESTDIR) && ./eval.exe
+
+test-oracle:
+	dune build test/eval.exe
+	cd $(TESTDIR) && DUMP=suite.R ./eval.exe test --compact "dummy"
+	R -f $(TESTDIR)/suite.R
 
 utop:
 	dune utop lib
 
 debug: bc
-	ocamldebug _build/default/src/main.bc
+	ocamldebug $(SRCDIR)/main.bc
 
 exe:
 	dune build src/main.exe
-	cp _build/default/src/main.exe $(EXEC)
+	cp $(SRCDIR)/main.exe $(EXEC)
 	@chmod 755 $(EXEC)
 
 bc:
@@ -48,4 +58,4 @@ clean:
 	rm -rf _coverage
 	rm -f $(EXEC)
 
-.PHONY: all run test utop debug exe bc fmt coverage deps clean
+.PHONY: all run test test-parse test-eval testoracle utop debug exe bc fmt coverage deps clean

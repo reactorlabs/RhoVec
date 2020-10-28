@@ -1,6 +1,8 @@
 open Angstrom
 open Expr
 
+(* TODO: rename this file to parse *)
+
 let reserved = [ "NA_b"; "F"; "T"; "NA_i"; "Combine" ]
 
 let is_space = function
