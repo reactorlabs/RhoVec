@@ -15,11 +15,11 @@ test: test-parse test-eval
 
 test-parse:
 	dune build test/parse.exe
-	cd $(TESTDIR) && ./parse.exe
+	cd $(TESTDIR) && ./parse.exe --compact
 
 test-eval:
 	dune build test/eval.exe
-	cd $(TESTDIR) && ./eval.exe
+	cd $(TESTDIR) && ./eval.exe --compact
 
 test-oracle:
 	dune build test/eval.exe
