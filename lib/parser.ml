@@ -4,6 +4,7 @@ open Expr
 exception Parse_error of string
 
 (* TODO: rename this file to parse *)
+(* TODO: refactor? cleanup and comment *)
 
 let reserved = [ "NA_b"; "F"; "T"; "NA_i"; "Combine" ]
 
@@ -68,6 +69,7 @@ let combine expr = string "Combine" *> ws *> parens (sep_by1 comma expr) >>| fun
 
 let base expr = var <|> lit <|> combine expr <|> parens expr
 
+(* TODO: whitespace inside bracks? *)
 let rec lrvalue expr e =
   let index be =
     string "[]" *> return (Subset1 (be, None))
@@ -80,6 +82,7 @@ let rec lrvalue expr e =
 let rvalue expr = with_blank (base expr) >>= lrvalue expr
 let lvalue expr = with_blank var >>= lrvalue expr
 
+(* TODO: is both lvalue and rvalue redundant? *)
 let neg expr =
   fix (fun neg -> rvalue expr <|> lvalue expr <|> (with_ws (char '-') *> neg >>| fun e -> Negate e))
 
@@ -88,7 +91,8 @@ let assign expr =
     match lhs with
     | Var x -> Assign (x, rhs)
     | Subset1 (Var x, e2) -> Subset1_Assign (x, e2, rhs)
-    | Subset2 (Var x, e2) -> Subset2_Assign (x, e2, rhs) in
+    | Subset2 (Var x, e2) -> Subset2_Assign (x, e2, rhs)
+    | _ -> assert false in
   lift3 assign' (lvalue expr) leftarrow expr
 
 (* only allow eol for sequences; otherwise could be confusing, but it's also

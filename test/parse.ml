@@ -47,7 +47,7 @@ let () =
         ; test_parse "whitespace 7" (Var "x", " \n x\n ")
         ; test_parse "semicolon 1" (Var "x", "x;")
         ; test_parse "semicolon 2" (Var "x", "x ; ")
-        ; test_parse "semicolon 2" (Var "x", "x \n; \n")
+        ; test_parse "semicolon 3" (Var "x", "x \n; \n")
         ; test_parse_err "keyword" "Combine"
         ; test_parse_err "underscore 1" "_abc"
         ; test_parse_err "underscore 2" "_123"
@@ -64,7 +64,7 @@ let () =
         ; test_parse "whitespace 7" (true_exp, " \n T\n ")
         ; test_parse "semicolon 1" (true_exp, "T;")
         ; test_parse "semicolon 2" (true_exp, "T ; ")
-        ; test_parse "semicolon 2" (true_exp, "T \n; \n")
+        ; test_parse "semicolon 3" (true_exp, "T \n; \n")
         ; test_parse "NA_b" (na_exp T_Bool, "NA_b")
         ] )
     ; ( "integer"
@@ -81,7 +81,39 @@ let () =
         ; test_parse "whitespace 7" (int_exp 1, " \n 1\n ")
         ; test_parse "semicolon 1" (int_exp 1, "1;")
         ; test_parse "semicolon 2" (int_exp 1, "1 ; ")
-        ; test_parse "semicolon 2" (int_exp 1, "1 \n; \n")
+        ; test_parse "semicolon 3" (int_exp 1, "1 \n; \n")
         ; test_parse_err "123xyz" "123xyz"
         ] )
+    ; ( "combine"
+      , [ test_parse "Combine(1)" (Combine [ int_exp 1 ], "Combine(1)")
+        ; test_parse "Combine(1,x)" (Combine [ int_exp 1; Var "x" ], "Combine(1,x)")
+        ; test_parse "Combine(Combine(Combine(1),2),Combine(3),4)"
+            ( Combine
+                [ Combine [ Combine [ int_exp 1 ]; int_exp 2 ]; Combine [ int_exp 3 ]; int_exp 4 ]
+            , "Combine(Combine(Combine(1),2),Combine(3),4)" )
+        ; test_parse "whitespace 1" (Combine [ int_exp 1; Var "x" ], " Combine ( 1 , x ) ")
+        ; test_parse "whitespace 2" (Combine [ int_exp 1; Var "x" ], "\nCombine ( 1 , x )\n")
+        ; test_parse "whitespace 3" (Combine [ int_exp 1; Var "x" ], "\n Combine ( 1 , x )\n ")
+        ; test_parse "whitespace 4" (Combine [ int_exp 1; Var "x" ], "\n Combine (\n1\n,\nx\n)\n ")
+        ; test_parse "semicolon 1" (Combine [ int_exp 1; Var "x" ], "Combine(1, x);")
+        ; test_parse "semicolon 2" (Combine [ int_exp 1; Var "x" ], "Combine(1, x) ; ")
+        ; test_parse "semicolon 3" (Combine [ int_exp 1; Var "x" ], "Combine(1, x)\n ;\n ")
+        ; test_parse_err "whitespace err" "Combine\n(1,x) "
+        ; test_parse_err "semicolon err" "Combine(1,x);\n;"
+        ; test_parse_err "Combine()" "Combine()"
+        ] )
+    ; ( "parens"
+      , [ test_parse "(1)" (int_exp 1, "(1)")
+        ; test_parse "(x)" (Var "x", "(x)")
+        ; test_parse "(Combine((1),((x))))" (Combine [ int_exp 1; Var "x" ], "(Combine((1),((x))))")
+        ; test_parse "whitespace 1" (int_exp 1, " ( 1 ) ")
+        ; test_parse "whitespace 2" (int_exp 1, "\n(\n1\n)\n")
+        ; test_parse "semicolon 1" (int_exp 1, "(1);")
+        ; test_parse "semicolon 2" (int_exp 1, "(1) ; ")
+        ; test_parse "semicolon 3" (int_exp 1, "(1)\n ;\n ")
+        ] )
+      (* indexing *)
+      (* neg *)
+      (* assign *)
+      (* seq *)
     ]
