@@ -36,6 +36,7 @@ let with_ws1 p = ws1 *> p <* ws1
 let with_eol p = eol *> p <* eol
 let with_eol1 p = eol1 *> p <* eol1
 let with_blank p = blank *> p <* blank
+let with_blank_ws p = blank *> p <* ws
 
 let leftarrow = string "<-"
 let comma = char ','
@@ -79,12 +80,13 @@ let rec subset expr e =
   | Some '[' -> brackets e <* ws >>= subset expr
   | _ -> return e
 
-let rvalue expr = blank *> base expr <* ws >>= subset expr
-let lvalue expr = blank *> var <* ws >>= subset expr
+let rvalue expr = with_blank_ws (base expr) >>= subset expr
+let lvalue expr = with_blank_ws var >>= subset expr
 
 (* TODO: is both lvalue and rvalue redundant? *)
 let neg expr =
-  fix (fun neg -> rvalue expr <|> lvalue expr <|> (with_ws (char '-') *> neg >>| fun e -> Negate e))
+  fix (fun neg ->
+      rvalue expr <|> lvalue expr <|> (with_blank_ws (char '-') *> neg >>| fun e -> Negate e))
 
 let assign expr =
   let[@warning "-4-8"] assign' lhs _ rhs =

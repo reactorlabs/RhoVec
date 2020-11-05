@@ -165,7 +165,29 @@ let () =
         ; test_parse_err "subset2 err 1" "x[[]]"
         ; test_parse_err "subset2 err 2" "x[[ ]]"
         ] )
-      (* neg *)
+    ; ( "negate"
+      , [ test_parse "-T" (Negate true_exp, "-T")
+        ; test_parse "-1" (Negate (int_exp 1), "-1")
+        ; test_parse "-z" (Negate (Var "z"), "-z")
+        ; test_parse "-Combine(1,2,-3)"
+            (Negate (Combine [ int_exp 1; int_exp 2; Negate (int_exp 3) ]), "-Combine(1,2,-3)")
+        ; test_parse "-(-2)" (Negate (Negate (int_exp 2)), "-(-2)")
+        ; test_parse "y[-1]" (Subset1 (Var "y", Some (Negate (int_exp 1))), "y[-1]")
+        ; test_parse "z[-Combine(1,2,3)]"
+            ( Subset1 (Var "z", Some (Negate (Combine [ int_exp 1; int_exp 2; int_exp 3 ])))
+            , "z[-Combine(1,2,3)]" )
+        ; test_parse "z[Combine(-1,-2,-3)]"
+            ( Subset1
+                ( Var "z"
+                , Some (Combine [ Negate (int_exp 1); Negate (int_exp 2); Negate (int_exp 3) ]) )
+            , "z[Combine(-1,-2,-3)]" )
+        ; test_parse "--1" (Negate (Negate (int_exp 1)), "--1")
+        ; test_parse "whitespace 1" (Negate (Var "a"), " - a ")
+        ; test_parse "whitespace 2" (Negate (Var "a"), "\n- a\n")
+        ; test_parse "whitespace 3" (Negate (Var "a"), "\n-\na\n")
+        ; test_parse "whitespace 4" (Negate (Negate (Var "a")), "- - a")
+        ; test_parse_err "negative err" "-"
+        ] )
       (* assign *)
       (* seq *)
     ]
