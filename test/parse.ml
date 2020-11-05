@@ -112,7 +112,59 @@ let () =
         ; test_parse "semicolon 2" (int_exp 1, "(1) ; ")
         ; test_parse "semicolon 3" (int_exp 1, "(1)\n ;\n ")
         ] )
-      (* indexing *)
+    ; ( "indexing"
+      , [ test_parse "x[]" (Subset1 (Var "x", None), "x[]")
+        ; test_parse "x[NA_b]" (Subset1 (Var "x", Some (na_exp T_Bool)), "x[NA_b]")
+        ; test_parse "x[[1]]" (Subset2 (Var "x", int_exp 1), "x[[1]]")
+        ; test_parse "1[[0]]" (Subset2 (int_exp 1, int_exp 0), "1[[0]]")
+        ; test_parse "Combine(1, 2, 3)[[1]]"
+            ( Subset2 (Combine [ int_exp 1; int_exp 2; int_exp 3 ], int_exp 1)
+            , "Combine(1, 2, 3)[[1]]" )
+        ; test_parse "Combine(1, 2, 3)[Combine(1, 2, 3)[[T]]]"
+            ( Subset1
+                ( Combine [ int_exp 1; int_exp 2; int_exp 3 ]
+                , Some (Subset2 (Combine [ int_exp 1; int_exp 2; int_exp 3 ], true_exp)) )
+            , "Combine(1, 2, 3)[Combine(1, 2, 3)[[T]]]" )
+        ; test_parse "(x)[]" (Subset1 (Var "x", None), "(x)[]")
+        ; test_parse "x[Combine(0)[1]][2][[3]][]"
+            ( Subset1
+                ( Subset2
+                    ( Subset1
+                        ( Subset1 (Var "x", Some (Subset1 (Combine [ int_exp 0 ], Some (int_exp 1))))
+                        , Some false_exp )
+                    , int_exp 3 )
+                , None )
+            , "x[Combine(0)[1]][F][[3]][]" )
+        ; test_parse "subset_nothing whitespace 1" (Subset1 (Var "x", None), " x[] ")
+        ; test_parse "subset_nothing whitespace 2" (Subset1 (Var "x", None), "\nx[]\n")
+        ; test_parse "subset_nothing whitespace 3" (Subset1 (Var "x", None), "x []")
+        ; test_parse "subset_nothing whitespace 4" (Subset1 (Var "x", None), "x [  ]")
+        ; test_parse "subset_nothing whitespace 5" (Subset1 (Var "x", None), "x [\n]")
+        ; test_parse "subset1 whitespace 1" (Subset1 (Var "x", Some (int_exp 1)), " x [1] ")
+        ; test_parse "subset1 whitespace 2" (Subset1 (Var "x", Some (int_exp 1)), "\nx [1]\n")
+        ; test_parse "subset1 whitespace 3" (Subset1 (Var "x", Some (int_exp 1)), "x [ 1 ]")
+        ; test_parse "subset1 whitespace 4" (Subset1 (Var "x", Some (int_exp 1)), "x [\n1\n]")
+        ; test_parse "subset1 whitespace 5"
+            (Subset1 (Subset1 (Var "x", Some (int_exp 1)), Some (int_exp 1)), "x [ 1 ] [ 1 ]")
+        ; test_parse "subset1 whitespace 6"
+            ( Subset1 (Var "x", Some (Combine [ int_exp 1; int_exp 2; int_exp 3 ]))
+            , "x [ Combine(1, 2,\n3) ]" )
+        ; test_parse "subset2 whitespace 1" (Subset2 (Var "x", int_exp 1), " x [[1]] ")
+        ; test_parse "subset2 whitespace 2" (Subset2 (Var "x", int_exp 1), "\nx [[1]]\n")
+        ; test_parse "subset2 whitespace 3" (Subset2 (Var "x", int_exp 1), "x [[ 1 ]]")
+        ; test_parse "subset2 whitespace 4" (Subset2 (Var "x", int_exp 1), "x [[\n1\n]]")
+        ; test_parse "subset2 whitespace 5"
+            (Subset2 (Subset2 (Var "x", int_exp 1), int_exp 1), "x [[ 1 ]] [[ 1 ]]")
+        ; test_parse "semicolon 1" (Subset1 (Var "x", None), "x[];")
+        ; test_parse "semicolon 2" (Subset1 (Var "x", Some (int_exp 1)), "x[1] \n;")
+        ; test_parse "semicolon 3" (Subset2 (Var "x", int_exp 1), "x[[1]] \n;\n")
+        ; test_parse_err "whitespace err 1" "x\n[]"
+        ; test_parse_err "whitespace err 2" "x[]\n[]"
+        ; test_parse_err "whitespace err 3" "x[ [1]]"
+        ; test_parse_err "whitespace err 4" "x[[1] ]"
+        ; test_parse_err "subset2 err 1" "x[[]]"
+        ; test_parse_err "subset2 err 2" "x[[ ]]"
+        ] )
       (* neg *)
       (* assign *)
       (* seq *)

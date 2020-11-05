@@ -41,9 +41,9 @@ let leftarrow = string "<-"
 let comma = char ','
 let seq_sep = with_blank (char ';') <|> eol1 *> return '\n'
 let trailing = with_blank (char ';') <|> blank *> return '\n'
-let parens p = char '(' *> p <* char ')'
-let bracks1 p = char '[' *> p <* char ']'
-let bracks2 p = string "[[" *> p <* string "]]"
+let parens p = char '(' *> with_blank p <* char ')'
+let bracks1 p = char '[' *> with_blank p <* char ']'
+let bracks2 p = string "[[" *> with_blank p <* string "]]"
 let braces p = char '{' *> p <* char '}'
 
 (* NA_b | F | T *)
@@ -65,22 +65,22 @@ let variable = ident >>= fun s -> if List.mem s reserved then fail "keyword" els
 let lit = boolean <|> integer >>| fun l -> Lit l
 let var = variable >>| fun s -> Var s
 
-let combine expr = string "Combine" *> ws *> parens (sep_by1 comma expr) >>| fun es -> Combine es
+let combine expr =
+  string "Combine" *> ws *> parens (sep_by1 comma (with_blank expr)) >>| fun es -> Combine es
 
 let base expr = var <|> lit <|> combine expr <|> parens expr
 
-(* TODO: whitespace inside bracks? *)
-let rec lrvalue expr e =
-  let index be =
-    string "[]" *> return (Subset1 (be, None))
+let rec subset expr e =
+  let brackets be =
+    char '[' *> blank *> char ']' *> return (Subset1 (be, None))
     <|> (bracks1 expr >>| fun e -> Subset1 (be, Some e))
     <|> (bracks2 expr >>| fun e -> Subset2 (be, e)) in
   peek_char >>= function
-  | Some '[' -> index e <* ws >>= lrvalue expr
+  | Some '[' -> brackets e <* ws >>= subset expr
   | _ -> return e
 
-let rvalue expr = with_blank (base expr) >>= lrvalue expr
-let lvalue expr = with_blank var >>= lrvalue expr
+let rvalue expr = blank *> base expr <* ws >>= subset expr
+let lvalue expr = blank *> var <* ws >>= subset expr
 
 (* TODO: is both lvalue and rvalue redundant? *)
 let neg expr =
