@@ -42,14 +42,14 @@ exception Object_not_found
 let get_bool = function
   | Bool b -> Some b
   | NA_bool -> None
-  | (Int _ | NA_int) as l -> raise (type_error T_Bool (get_tag l))
+  | Int _ | NA_int -> assert false
 
 (* Gets an integer value from a int Literal.
    Wraps the result in an Option, so that NA is represented by None. *)
 let get_int = function
   | Int i -> Some i
   | NA_int -> None
-  | (Bool _ | NA_bool) as l -> raise (type_error T_Int (get_tag l))
+  | Bool _ | NA_bool -> assert false
 
 (* Checks that all types are the same.
    If they all have type T, returns T. Raises exceptions if there are multiple types, or if the
@@ -68,7 +68,7 @@ let get_common_type = function
 let negate_int = function
   | Int i -> Int ~-i
   | NA_int -> NA_int
-  | Bool _ | NA_bool -> raise (type_error T_Int T_Bool)
+  | Bool _ | NA_bool -> assert false
 
 (* Checks that all elements are non-negative or NA.
    0 and NA are allowed for positive subsetting. *)

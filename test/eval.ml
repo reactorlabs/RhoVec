@@ -171,6 +171,8 @@ let () =
             , Subset1
                 ( Combine [ int_exp 5; na_exp T_Int; Combine [ int_exp 6; int_exp 7; na_exp T_Int ] ]
                 , None ) )
+        ; test_eval "empty bool"
+            (empty_vec T_Bool, Subset1 (Subset1 (true_exp, Some (int_exp 0)), None))
         ] )
     ; ( "subset1_nothing.err"
       , [ test_eval_err "mixed types" ~is_r:false

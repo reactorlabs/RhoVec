@@ -47,6 +47,7 @@ fmt:
 coverage: clean
 	BISECT_ENABLE=yes dune build
 	dune runtest --force
+	cd $(TESTDIR) && DUMP=suite.R ./eval.exe test --compact "dummy"
 	bisect-ppx-report html
 	bisect-ppx-report summary
 

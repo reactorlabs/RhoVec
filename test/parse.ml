@@ -188,6 +188,37 @@ let () =
         ; test_parse "whitespace 4" (Negate (Negate (Var "a")), "- - a")
         ; test_parse_err "negative err" "-"
         ] )
-      (* assign *)
+    ; ( "assign"
+      , [ test_parse "x<-NA_i" (Assign ("x", na_exp T_Int), "x<-NA_i")
+        ; test_parse "x[]<-T" (Subset1_Assign ("x", None, true_exp), "x[]<-T")
+        ; test_parse "y[1]<-2" (Subset1_Assign ("y", Some (int_exp 1), int_exp 2), "y[1]<-2")
+        ; test_parse "z[Combine(1,2,3)]<-Combine(4,5,6)"
+            ( Subset1_Assign
+                ( "z"
+                , Some (Combine [ int_exp 1; int_exp 2; int_exp 3 ])
+                , Combine [ int_exp 4; int_exp 5; int_exp 6 ] )
+            , "z[Combine(1,2,3)]<-Combine(4,5,6)" )
+        ; test_parse "z[-Combine(1,2,3)]<-2"
+            ( Subset1_Assign
+                ("z", Some (Negate (Combine [ int_exp 1; int_exp 2; int_exp 3 ])), int_exp 2)
+            , "z[-Combine(1,2,3)]<-2" )
+        ; test_parse "z[Combine(T,F,F)]<-2"
+            ( Subset1_Assign ("z", Some (Combine [ true_exp; false_exp; false_exp ]), int_exp 2)
+            , "z[Combine(T,F,F)]<-2" )
+        ; test_parse "a[[1]]<-y" (Subset2_Assign ("a", int_exp 1, Var "y"), "a[[1]]<-y")
+        ; test_parse "whitespace 1" (Subset2_Assign ("a", int_exp 1, Var "y"), "a[[1]] <- y")
+        ; test_parse "whitespace 2" (Subset2_Assign ("a", int_exp 1, Var "y"), "a[[1]] <-\ny")
+        ; test_parse "semicolon 1" (Subset2_Assign ("a", int_exp 1, Var "y"), "a[[1]] <- y;")
+        ; test_parse "semicolon 2" (Subset2_Assign ("a", int_exp 1, Var "y"), "a[[1]] <- y \n; ")
+        ; test_parse "semicolon 3" (Subset2_Assign ("a", int_exp 1, Var "y"), "a[[1]] <- y \n; \n")
+        ; test_parse_err "assign err" "1<-NA_i"
+        ; test_parse_err "subset_nothing_assign err" "1[]<-T"
+        ; test_parse_err "subset1_assign err" "T[1]<-2"
+        ; test_parse_err "subset2_assign err" "1[[1]]<-1"
+        ; test_parse_err "nested err 1" "x[1][2] <- 3"
+        ; test_parse_err "nested err 2" "x[[1]][2] <- 3"
+        ; test_parse_err "nested err 3" "x[1][[2]] <- 3"
+        ; test_parse_err "nested err 4" "x[[1]][[2]] <- 3"
+        ] )
       (* seq *)
     ]

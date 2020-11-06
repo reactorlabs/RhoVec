@@ -94,7 +94,7 @@ let assign expr =
     | Var x -> Assign (x, rhs)
     | Subset1 (Var x, e2) -> Subset1_Assign (x, e2, rhs)
     | Subset2 (Var x, e2) -> Subset2_Assign (x, e2, rhs)
-    | _ -> assert false in
+    | _ -> raise (Parse_error "nested assignment") in
   lift3 assign' (lvalue expr) leftarrow expr
 
 (* only allow eol for sequences; otherwise could be confusing, but it's also
