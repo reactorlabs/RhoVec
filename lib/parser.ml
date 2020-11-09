@@ -85,8 +85,7 @@ let lvalue expr = with_blank_ws var >>= subset expr
 
 (* TODO: is both lvalue and rvalue redundant? *)
 let neg expr =
-  fix (fun neg ->
-      rvalue expr <|> lvalue expr <|> (with_blank_ws (char '-') *> neg >>| fun e -> Negate e))
+  rvalue expr <|> lvalue expr <|> (with_blank_ws (char '-') *> expr >>| fun e -> Negate e)
 
 let assign expr =
   let[@warning "-4-8"] assign' lhs _ rhs =

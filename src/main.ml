@@ -1,21 +1,14 @@
 open Lib
-open Expr
 
-(* Big list of TODO:
-  - parser / pretty printer
-  - test oracle (using ocaml-r?)
+(* TODO:
   - interactive mode / repl
 *)
 
 let () =
-  let e =
-    Combine
-      [ int_exp 1
-      ; Negate (Combine [ int_exp ~-2; int_exp ~-3 ])
-      ; int_exp 4
-      ; int_exp 5
-      ; na_exp T_Int
-      ] in
-  let res = Eval.run e in
-  Format.printf "The result of evaluating:\n%s\n\nis:\n%s\n" (Deparse.to_r e) (show_val res) ;
+  let str = "Combine(1, -Combine(-2, -3), 4, 5, \n NA_i);" in
+  let expr = Parser.parse str in
+  let res = Eval.run expr in
+  Format.printf "Input:\n%S\n\n" str ;
+  Format.printf "Parsed expression:\n%s\n\n" (Deparse.to_r expr) ;
+  Format.printf "Evaluated result:\n%s\n\n" (Expr.show_val res) ;
   print_endline "Nothing else for now, maybe you meant to run the tests?"

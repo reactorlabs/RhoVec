@@ -211,6 +211,19 @@ let () =
         ; test_parse "semicolon 1" (Subset2_Assign ("a", int_exp 1, Var "y"), "a[[1]] <- y;")
         ; test_parse "semicolon 2" (Subset2_Assign ("a", int_exp 1, Var "y"), "a[[1]] <- y \n; ")
         ; test_parse "semicolon 3" (Subset2_Assign ("a", int_exp 1, Var "y"), "a[[1]] <- y \n; \n")
+        ; test_parse "nested 1" (Assign ("x", Assign ("y", false_exp)), "x <- y <- F")
+        ; test_parse "nested 2"
+            (Assign ("x", Subset1_Assign ("y", None, false_exp)), "x <- y[] <- F")
+        ; test_parse "nested 3"
+            (Assign ("x", Subset1_Assign ("y", Some (int_exp 1), false_exp)), "x <- y[1] <- F")
+        ; test_parse "nested 4"
+            (Assign ("x", Subset2_Assign ("y", int_exp 1, false_exp)), "x <- y[[1]] <- F")
+        ; test_parse "nested 5"
+            (Subset1_Assign ("x", None, Assign ("y", false_exp)), "x[] <- y <- F")
+        ; test_parse "nested 6"
+            (Subset1_Assign ("x", Some (int_exp 1), Assign ("y", false_exp)), "x[1] <- y <- F")
+        ; test_parse "nested 7"
+            (Subset2_Assign ("x", int_exp 1, Assign ("y", false_exp)), "x[[1]] <- y <- F")
         ; test_parse_err "assign err" "1<-NA_i"
         ; test_parse_err "subset_nothing_assign err" "1[]<-T"
         ; test_parse_err "subset1_assign err" "T[1]<-2"
@@ -220,5 +233,90 @@ let () =
         ; test_parse_err "nested err 3" "x[1][[2]] <- 3"
         ; test_parse_err "nested err 4" "x[[1]][[2]] <- 3"
         ] )
-      (* seq *)
+    ; ( "seq"
+      , [ test_parse "single 1" (Var "x", "x")
+        ; test_parse "single 2" (Var "x", "x\n")
+        ; test_parse "single 3" (Var "x", "x;")
+        ; test_parse "single 4" (Var "x", "x;\n")
+        ; test_parse "semicolon 1"
+            ( Seq [ true_exp; int_exp 1; Combine [ int_exp 1; int_exp 2; int_exp 3 ]; Var "x" ]
+            , "T;1;Combine(1,2,3);x" )
+        ; test_parse "semicolon 2"
+            ( Seq [ true_exp; int_exp 1; Combine [ int_exp 1; int_exp 2; int_exp 3 ]; Var "x" ]
+            , "T ; 1 ; Combine(1,2,3) ; x" )
+        ; test_parse "semicolon 3"
+            ( Seq [ true_exp; int_exp 1; Combine [ int_exp 1; int_exp 2; int_exp 3 ]; Var "x" ]
+            , "T;\n1;\nCombine(1,2,3);\nx" )
+        ; test_parse "newline"
+            ( Seq [ true_exp; int_exp 1; Combine [ int_exp 1; int_exp 2; int_exp 3 ]; Var "x" ]
+            , "T\n1\nCombine(1,2,3)\nx" )
+        ; test_parse "block 1"
+            ( Seq [ true_exp; int_exp 1; Combine [ int_exp 1; int_exp 2; int_exp 3 ]; Var "x" ]
+            , "{T;1;Combine(1,2,3);x}" )
+        ; test_parse "block 2"
+            ( Seq [ true_exp; int_exp 1; Combine [ int_exp 1; int_exp 2; int_exp 3 ]; Var "x" ]
+            , "{\nT ; 1 ; Combine(1,2,3) ; x\n}" )
+        ; test_parse "block 3"
+            ( Seq [ true_exp; int_exp 1; Combine [ int_exp 1; int_exp 2; int_exp 3 ]; Var "x" ]
+            , "{T;\n1;\nCombine(1,2,3);\nx}" )
+        ; test_parse "block 4"
+            ( Seq [ true_exp; int_exp 1; Combine [ int_exp 1; int_exp 2; int_exp 3 ]; Var "x" ]
+            , "{\nT\n1\nCombine(1,2,3)\nx\n}" )
+        ; test_parse "trailing 1" (Seq [ int_exp 1; int_exp 2; int_exp 3 ], "1;2;3;")
+        ; test_parse "trailing 2" (Seq [ int_exp 1; int_exp 2; int_exp 3 ], "1;2;3\n")
+        ; test_parse "trailing 3" (Seq [ int_exp 1; int_exp 2; int_exp 3 ], "1;2;3;\n")
+        ; test_parse "trailing 4" (Seq [ int_exp 1; int_exp 2; int_exp 3 ], "1;2;3\n;")
+        ; test_parse "trailing 5" (Seq [ int_exp 1; int_exp 2; int_exp 3 ], "{1;2;3}\n")
+        ; test_parse "trailing 6" (Seq [ int_exp 1; int_exp 2; int_exp 3 ], "{1;2;3};")
+        ; test_parse "trailing 7" (Seq [ int_exp 1; int_exp 2; int_exp 3 ], "{1;2;3}\n;")
+        ; test_parse "assign 1"
+            (Seq [ Assign ("x", int_exp 1); Assign ("y", Var "x"); Var "y" ], "x <- 1; y <- x; y")
+        ; test_parse "assign 2"
+            (Seq [ Subset1_Assign ("x", None, int_exp 1); Var "x" ], "x[] <- 1\n x")
+        ; test_parse "assign 3"
+            (Seq [ Subset1_Assign ("x", Some (int_exp 2), int_exp 1); Var "x" ], "x[2] <-\n1\n x")
+        ; test_parse "assign 4"
+            (Seq [ Subset2_Assign ("x", int_exp 2, int_exp 1); Var "x" ], "x[[2]] <-\n1\n x")
+        ; test_parse "block expr 1"
+            (Combine [ Seq [ int_exp 1; int_exp 2; int_exp 3 ]; int_exp 4 ], "Combine({1;2;3},4)")
+        ; test_parse "block expr 2"
+            (Combine [ Seq [ int_exp 1; int_exp 2; int_exp 3 ]; int_exp 4 ], "Combine({1\n2\n3},4)")
+        ; test_parse "block expr 3" (Seq [ Var "x"; Var "y"; Var "z" ], "({x;y;z})")
+        ; test_parse "block expr 4" (Seq [ Var "x"; Var "y"; Var "z" ], "({x\ny\nz})")
+        ; test_parse "block expr 5"
+            (Subset1 (Var "x", Some (Seq [ int_exp 1; int_exp 2 ])), "x[{1;2}]")
+        ; test_parse "block expr 6"
+            (Subset1 (Var "x", Some (Seq [ int_exp 1; int_exp 2 ])), "x[{1\n2}]")
+        ; test_parse "block expr 7" (Subset2 (Var "x", Seq [ int_exp 1; int_exp 2 ]), "x[[{1;2}]]")
+        ; test_parse "block expr 8" (Subset2 (Var "x", Seq [ int_exp 1; int_exp 2 ]), "x[[{1\n2}]]")
+        ; test_parse "block expr 9" (Negate (Seq [ int_exp 1; Var "x" ]), "-{1;x}")
+        ; test_parse "block expr 10" (Negate (Seq [ int_exp 1; Var "x" ]), "-{1\nx}")
+          (* TODO: parser doesn't accept this, complains about end_of_input so it's expecting more input *)
+          (* ; test_parse "block expr 11" (Subset1_Assign ("x", None, Seq [int_exp 1; int_exp 2]), "x[] <- {1}") *)
+
+          (* ; test_parse "block expr 12" (Subset1_Assign ("x", None, Seq [int_exp 1; int_exp 2]), "x[] <- {1\n2}") *)
+          (* ; test_parse "block expr 13" (Subset1_Assign ("x", Some (Seq [int_exp 1; int_exp 2]), Seq [Var "x"; Var "y"]), "x[{1;2}] <- {x;y}") *)
+          (* ; test_parse "block expr 14" (Subset1_Assign ("x", Some (Seq [int_exp 1; int_exp 2]), Seq [Var "x"; Var "y"]), "x[{1\n2}] <- {x\ny}") *)
+          (* ; test_parse "block expr 15" (Subset2_Assign ("x", Seq [int_exp 1; int_exp 2], Seq [Var "x"; Var "y"]), "x[[{1;2}]] <- {x;y}") *)
+          (* ; test_parse "block expr 16" (Subset2_Assign ("x", Seq [int_exp 1; int_exp 2], Seq [Var "x"; Var "y"]), "x[[{1\n2}]] <- {x\ny}") *)
+        ; test_parse "nested block 1"
+            (Seq [ int_exp 1; int_exp 2; Seq [ int_exp 3; int_exp 4 ]; int_exp 5 ], "1;2;{3;4};5")
+        ; test_parse "nested block 2"
+            ( Seq [ int_exp 1; int_exp 2; Seq [ int_exp 3; int_exp 4 ]; int_exp 5 ]
+            , "1\n2\n{\n3\n4\n}\n5" )
+        ; test_parse "nested block 3"
+            ( Seq
+                [ int_exp 1
+                ; int_exp 2
+                ; Seq [ int_exp 3; Seq [ int_exp 4; int_exp 5; int_exp 6 ]; int_exp 7 ]
+                ; int_exp 8
+                ]
+            , "1;2;{3;{4;5;{6}};7};8" )
+        ; test_parse_err "seq err" "1 x T"
+        ; test_parse_err "trailing err" "1;x;T;;"
+        ; test_parse_err "assignment err 1" "x <-;"
+        ; test_parse_err "assignment err 2" "x <-"
+        ; test_parse_err "assignment err 3" "x <-\n"
+        ; test_parse_err "nested err" "1 {2; 3}"
+        ] )
     ]
