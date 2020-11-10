@@ -45,31 +45,29 @@ let trailing = with_blank (char ';') <|> blank *> return '\n'
 let parens p = char '(' *> with_blank p <* char ')'
 let bracks1 p = char '[' *> with_blank p <* char ']'
 let bracks2 p = string "[[" *> with_blank p <* string "]]"
-let braces p = char '{' *> p <* char '}'
+let braces p = blank *> char '{' *> p <* char '}'
 
-(* NA_b | F | T *)
-let boolean =
-  string "NA_b" *> return NA_bool
-  <|> string "F" *> return (Bool false)
-  <|> string "T" *> return (Bool true)
+let literal =
+  (* NA_b | F | T *)
+  let boolean =
+    string "NA_b" *> return NA_bool
+    <|> string "F" *> return (Bool false)
+    <|> string "T" *> return (Bool true) in
+  (* NA_i | /[0-9]+/ *)
+  let integer = string "NA_i" *> return NA_int <|> (digits >>| fun i -> Int (int_of_string i)) in
+  boolean <|> integer >>| fun l -> Lit l
 
-(* NA_i | /[0-9]+/ *)
-let integer = string "NA_i" *> return NA_int <|> (digits >>| fun i -> Int (int_of_string i))
-
-(* /[a-zA-Z.][a-zA-Z0-9._]+/ *)
-let ident =
-  peek_char_fail >>= fun c -> if is_first_ident c then take_while is_ident else fail "ident"
-
-(* An identifier that is not reserved. *)
-let variable = ident >>= fun s -> if List.mem s reserved then fail "keyword" else return s
-
-let lit = boolean <|> integer >>| fun l -> Lit l
-let var = variable >>| fun s -> Var s
+let variable =
+  (* /[a-zA-Z.][a-zA-Z0-9._]+/ *)
+  let ident =
+    peek_char_fail >>= fun c -> if is_first_ident c then take_while is_ident else fail "ident" in
+  (* An identifier that is not reserved. *)
+  ident >>= fun s -> if List.mem s reserved then fail "keyword" else return s >>| fun s -> Var s
 
 let combine expr =
   string "Combine" *> ws *> parens (sep_by1 comma (with_blank expr)) >>| fun es -> Combine es
 
-let base expr = var <|> lit <|> combine expr <|> parens expr
+let base expr = variable <|> literal <|> combine expr <|> parens expr
 
 let rec subset expr e =
   let brackets be =
@@ -81,11 +79,8 @@ let rec subset expr e =
   | _ -> return e
 
 let rvalue expr = with_blank_ws (base expr) >>= subset expr
-let lvalue expr = with_blank_ws var >>= subset expr
-
-(* TODO: is both lvalue and rvalue redundant? *)
-let neg expr =
-  rvalue expr <|> lvalue expr <|> (with_blank_ws (char '-') *> expr >>| fun e -> Negate e)
+let lvalue expr = with_blank_ws variable >>= subset expr
+let negate expr = with_blank_ws (char '-') *> expr >>| fun e -> Negate e
 
 let assign expr =
   let[@warning "-4-8"] assign' lhs _ rhs =
@@ -96,16 +91,12 @@ let assign expr =
     | _ -> raise (Parse_error "nested assignment") in
   lift3 assign' (lvalue expr) leftarrow expr
 
-(* only allow eol for sequences; otherwise could be confusing, but it's also
-   context-sensitive since open paren/bracket allows eols to separate tokens
-   without ending the expression *)
-
 let seq expr =
   sep_by1 seq_sep expr <* trailing >>| function
   | [ e ] -> e
   | es -> Seq es
 
-let expr' = fix (fun expr -> assign expr <|> neg expr <|> braces (seq expr))
+let expr' = fix (fun expr -> assign expr <|> rvalue expr <|> negate expr <|> braces (seq expr))
 
 let expr = seq expr'
 

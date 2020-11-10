@@ -1,6 +1,9 @@
 open Lib
 open Expr
 
+(* TODO: use parser *)
+(* TODO: see if some parser tests can be used here *)
+
 module A = Alcotest
 
 let pp_value ppf v = Fmt.pf ppf "%s" (show_val v)
