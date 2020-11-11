@@ -8,17 +8,17 @@ let testable_expr = A.testable Expr.pp_expression Expr.equal_expression
 
 let test_parse desc (expected, str) =
   let run_parser () =
-    let ast = Parser.parse str in
+    let ast = Parse.parse str in
     A.(check testable_expr) "same expression" expected ast in
   A.test_case desc `Quick run_parser
 
 let test_parse_err desc str =
   let run_parser () =
     try
-      ignore (Parser.parse str) ;
+      ignore (Parse.parse str) ;
       raise Expected_failure
     with
-    | Parser.Parse_error _ -> ()
+    | Parse.Parse_error _ -> ()
     | Expected_failure -> A.failf "Expected a parse exception but got success!"
     | _ -> A.failf "Incorrect exception received!" in
   A.test_case desc `Quick run_parser
