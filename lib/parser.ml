@@ -3,9 +3,6 @@ open Expr
 
 exception Parse_error of string
 
-(* TODO: rename this file to parse *)
-(* TODO: some blurb about parser combinators *)
-
 (* Reserved keywords/literals *)
 let reserved = [ "NA_b"; "F"; "T"; "NA_i"; "Combine" ]
 
@@ -120,47 +117,43 @@ let expr =
           | Some '[' -> brackets e <* ws >>= subset
           | _ -> return e in
 
-        (* rvalue ::= indexable rvalue'
-           rvalue' ::= subset rvalue' | <empty>
-
-           Effectively, this is:
-             rvalue ::= indexable subset*
-
-           rvalue is a term from C/C++, meaning something that can appear on the RHS of an
-           assignment.
-        *)
-        (* TODO: combine this with negation? *)
-        let rvalue = with_blank_ws indexable >>= subset in
-
-        (* assign ::= lvalue <- subexpr
-           lvalue ::= variable lvalue'
-           lvalue' ::= subset lvalue' | <empty>
+        (* assign ::= assignable <- subexpr
+           assignable ::= variable assignable'
+           assignable' ::= subset assignable' | <empty>
 
            Effectively, this is:
              assign ::= variable subset* <- subexpr
 
            However, for now, assignment with multiple subsets is not allowed.
-
-           lvalue is a term from C/C++, meaning something that can appear on the LHS of an
-           assignment.
         *)
         let assign =
-          let lvalue = with_blank_ws variable >>= subset in
+          let assignable = with_blank_ws variable >>= subset in
           let[@warning "-4-8"] assign' lhs _ rhs =
             match lhs with
             | Var x -> Assign (x, rhs)
             | Subset1 (Var x, e2) -> Subset1_Assign (x, e2, rhs)
             | Subset2 (Var x, e2) -> Subset2_Assign (x, e2, rhs)
             | _ -> raise (Parse_error "nested assignment") in
-          lift3 assign' lvalue (string "<-") subexpr in
+          lift3 assign' assignable (string "<-") subexpr in
 
-        (* TODO: make the - optional *)
-        let negate =
-          fix (fun negate ->
-              with_blank_ws (char '-') *> (rvalue <|> negate <|> braces (sequence subexpr))
-              >>| fun e -> Negate e) in
+        (* nonassign ::= nonneg | neg
 
-        assign <|> rvalue <|> negate <|> braces (sequence subexpr)) in
+           neg ::= - nonassign
+           nonneg ::= indexable subset* | { sequence }
+        *)
+        let nonassign =
+          fix (fun nonassign ->
+              let neg = with_blank_ws (char '-') *> nonassign >>| fun e -> Negate e in
+              let nonneg = with_blank_ws indexable >>= subset <|> braces (sequence subexpr) in
+              neg <|> nonneg) in
+
+        (* Putting everything together, a subexpression is an assignment expression or a
+           non-assignment expression.
+
+           NOTE: Order is significant! The assign parser must run before the nonassign parser.
+           Otherwise, the left-hand side of an assignment expression is parsed as a complete
+           nonassign expression. *)
+        assign <|> nonassign) in
 
   (* The expression parser parses a sequence of subexpressions, which do not need to be wrapped by
      curly braces. *)
