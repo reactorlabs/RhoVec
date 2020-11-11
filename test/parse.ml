@@ -82,7 +82,7 @@ let () =
         ; test_parse "semicolon 1" (int_exp 1, "1;")
         ; test_parse "semicolon 2" (int_exp 1, "1 ; ")
         ; test_parse "semicolon 3" (int_exp 1, "1 \n; \n")
-        ; test_parse_err "123xyz" "123xyz"
+        ; test_parse_err "literal err" "123xyz"
         ] )
     ; ( "combine"
       , [ test_parse "Combine(1)" (Combine [ int_exp 1 ], "Combine(1)")
@@ -100,7 +100,7 @@ let () =
         ; test_parse "semicolon 3" (Combine [ int_exp 1; Var "x" ], "Combine(1, x)\n ;\n ")
         ; test_parse_err "whitespace err" "Combine\n(1,x) "
         ; test_parse_err "semicolon err" "Combine(1,x);\n;"
-        ; test_parse_err "Combine()" "Combine()"
+        ; test_parse_err "empty combine err" "Combine()"
         ] )
     ; ( "parens"
       , [ test_parse "(1)" (int_exp 1, "(1)")
@@ -182,6 +182,7 @@ let () =
                 , Some (Combine [ Negate (int_exp 1); Negate (int_exp 2); Negate (int_exp 3) ]) )
             , "z[Combine(-1,-2,-3)]" )
         ; test_parse "--1" (Negate (Negate (int_exp 1)), "--1")
+        ; test_parse "-(2)" (Negate (int_exp 2), "-(2)")
         ; test_parse "whitespace 1" (Negate (Var "a"), " - a ")
         ; test_parse "whitespace 2" (Negate (Var "a"), "\n- a\n")
         ; test_parse "whitespace 3" (Negate (Var "a"), "\n-\na\n")
@@ -206,6 +207,9 @@ let () =
             ( Subset1_Assign ("z", Some (Combine [ true_exp; false_exp; false_exp ]), int_exp 2)
             , "z[Combine(T,F,F)]<-2" )
         ; test_parse "a[[1]]<-y" (Subset2_Assign ("a", int_exp 1, Var "y"), "a[[1]]<-y")
+        ; test_parse "x <- -(4)" (Assign ("x", Negate (int_exp 4)), "x <- -(4)")
+        ; test_parse "x <- (-4)" (Assign ("x", Negate (int_exp 4)), "x <- (-4)")
+        ; test_parse "-(x <- 4)" (Negate (Assign ("x", int_exp 4)), "-(x <- 4)")
         ; test_parse "whitespace 1" (Subset2_Assign ("a", int_exp 1, Var "y"), "a[[1]] <- y")
         ; test_parse "whitespace 2" (Subset2_Assign ("a", int_exp 1, Var "y"), "a[[1]] <-\ny")
         ; test_parse "semicolon 1" (Subset2_Assign ("a", int_exp 1, Var "y"), "a[[1]] <- y;")
@@ -224,7 +228,9 @@ let () =
             (Subset1_Assign ("x", Some (int_exp 1), Assign ("y", false_exp)), "x[1] <- y <- F")
         ; test_parse "nested 7"
             (Subset2_Assign ("x", int_exp 1, Assign ("y", false_exp)), "x[[1]] <- y <- F")
-        ; test_parse_err "assign err" "1<-NA_i"
+        ; test_parse_err "assign err 1" "1<-NA_i"
+        ; test_parse_err "assign err 2" "(x) <- 2"
+        ; test_parse_err "assign err 3" "-x <- 2"
         ; test_parse_err "subset_nothing_assign err" "1[]<-T"
         ; test_parse_err "subset1_assign err" "T[1]<-2"
         ; test_parse_err "subset2_assign err" "1[[1]]<-1"

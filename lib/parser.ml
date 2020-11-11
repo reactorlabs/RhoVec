@@ -4,10 +4,12 @@ open Expr
 exception Parse_error of string
 
 (* TODO: rename this file to parse *)
-(* TODO: refactor? cleanup and comment *)
+(* TODO: some blurb about parser combinators *)
 
+(* Reserved keywords/literals *)
 let reserved = [ "NA_b"; "F"; "T"; "NA_i"; "Combine" ]
 
+(* Common helpers for parsers *)
 let is_space = function
   | ' ' | '\t' -> true
   | _ -> false
@@ -20,96 +22,151 @@ let is_digit = function
 let is_letter = function
   | 'a' .. 'z' | 'A' .. 'Z' -> true
   | _ -> false
+
 let is_blank x = is_space x || is_eol x
 let is_first_ident x = '.' == x || is_letter x
 let is_ident x = '_' == x || is_first_ident x || is_digit x
 
 let ws = take_while is_space
-let ws1 = take_while1 is_space
-let eol = take_while is_eol
-let eol1 = take_while1 is_eol
 let blank = take_while is_blank
-let blank1 = take_while1 is_blank
-let digits = take_while1 is_digit
-let with_ws p = ws *> p <* ws
-let with_ws1 p = ws1 *> p <* ws1
-let with_eol p = eol *> p <* eol
-let with_eol1 p = eol1 *> p <* eol1
 let with_blank p = blank *> p <* blank
 let with_blank_ws p = blank *> p <* ws
 
-let leftarrow = string "<-"
-let comma = char ','
-let seq_sep = with_blank (char ';') <|> eol1 *> return '\n'
-let trailing = with_blank (char ';') <|> blank *> return '\n'
 let parens p = char '(' *> with_blank p <* char ')'
 let bracks1 p = char '[' *> with_blank p <* char ']'
 let bracks2 p = string "[[" *> with_blank p <* string "]]"
 let braces p = blank *> char '{' *> p <* char '}'
 
-let literal =
-  (* NA_b | F | T *)
-  let boolean =
-    string "NA_b" *> return NA_bool
-    <|> string "F" *> return (Bool false)
-    <|> string "T" *> return (Bool true) in
-  (* NA_i | /[0-9]+/ *)
-  let integer = string "NA_i" *> return NA_int <|> (digits >>| fun i -> Int (int_of_string i)) in
-  boolean <|> integer >>| fun l -> Lit l
+(* The actual expression parser. Note that the "grammar" in expr.ml needs to be refactored to avoid
+   left recursion. *)
+let expr =
+  (* literal ::= boolean | integer
+     boolean ::= NA_b | F | T
+     integer ::= NA_i | [0-9]+ *)
+  let literal =
+    let boolean =
+      string "NA_b" *> return NA_bool
+      <|> string "F" *> return (Bool false)
+      <|> string "T" *> return (Bool true) in
+    let integer =
+      string "NA_i" *> return NA_int <|> (take_while1 is_digit >>| fun i -> Int (int_of_string i))
+    in
+    boolean <|> integer >>| fun l -> Lit l in
 
-let variable =
-  (* /[a-zA-Z.][a-zA-Z0-9._]+/ *)
-  let ident =
-    peek_char_fail >>= fun c -> if is_first_ident c then take_while is_ident else fail "ident" in
-  (* An identifier that is not reserved. *)
-  ident >>= fun s -> if List.mem s reserved then fail "keyword" else return s >>| fun s -> Var s
+  (* An identifier
+      - starts with a letter or a .
+      - uses alphanumeric characters or . or _
+      - is not a reserved word *)
+  let variable =
+    let identifier =
+      peek_char_fail >>= fun c -> if is_first_ident c then take_while is_ident else fail "ident"
+    in
+    identifier >>= fun s ->
+    if List.mem s reserved then fail "keyword" else return s >>| fun s -> Var s in
 
-let combine expr =
-  string "Combine" *> ws *> parens (sep_by1 comma (with_blank expr)) >>| fun es -> Combine es
+  (* sequence ::= expr
+                | expr SEP ... SEP expr
+     SEP ::= ; | [\n\r]+
 
-let base expr = variable <|> literal <|> combine expr <|> parens expr
+     The sequence parser parses a top-level sequence of expressions, separated by semicolons or
+     newlines. The sequence does not need to be wrapped by curly braces, and may be followed by a
+     trailing semicolon or trailing newlines.
 
-let rec subset expr e =
-  let brackets be =
-    char '[' *> blank *> char ']' *> return (Subset1 (be, None))
-    <|> (bracks1 expr >>| fun e -> Subset1 (be, Some e))
-    <|> (bracks2 expr >>| fun e -> Subset2 (be, e)) in
-  peek_char >>= function
-  | Some '[' -> brackets e <* ws >>= subset expr
-  | _ -> return e
+     If the sequence contains only one expression, then the outer Seq node is removed.
+  *)
+  let sequence expr =
+    let trailing = with_blank (char ';') <|> blank *> return '\n' in
+    let seq_sep = with_blank (char ';') <|> take_while1 is_eol *> return '\n' in
+    sep_by1 seq_sep expr <* trailing >>| function
+    | [ e ] -> e
+    | es -> Seq es in
 
-let rvalue expr = with_blank_ws (base expr) >>= subset expr
-let lvalue expr = with_blank_ws variable >>= subset expr
-let negate expr = with_blank_ws (char '-') *> expr >>| fun e -> Negate e
+  (* The subexpr parser parses expressions that can appear as subexpressions. It does not parse
+     top-level expressions (but a subexpression can appear as a top-level expression). The key
+     point is that a sequence is a subexpression only if it is wrapped by curly braces. *)
+  let subexpr =
+    fix (fun subexpr ->
+        (* indexable ::= variable | literal | Combine(subexpr, ..., subexpr) | (subexpr)
 
-let assign expr =
-  let[@warning "-4-8"] assign' lhs _ rhs =
-    match lhs with
-    | Var x -> Assign (x, rhs)
-    | Subset1 (Var x, e2) -> Subset1_Assign (x, e2, rhs)
-    | Subset2 (Var x, e2) -> Subset2_Assign (x, e2, rhs)
-    | _ -> raise (Parse_error "nested assignment") in
-  lift3 assign' (lvalue expr) leftarrow expr
+           indexable is an expression that can be indexed:
+             - a variable
+             - a literal
+             - a Combine expression
+             - any subexpression that is parenthesized
 
-let seq expr =
-  sep_by1 seq_sep expr <* trailing >>| function
-  | [ e ] -> e
-  | es -> Seq es
+           NOTE: Order is significant! The variable parser must run before the literal parser.
+           This allows "Tt" to be accepted by the variable parser, but "T" is rejected (because it
+           is reserved) and then parsed by the literal parser. Otherwise, "Tt" is parsed as a
+           literal but with only "T" consumed and "t" remaining in the input. *)
+        let indexable =
+          (* The arguments to Combine are comma-separated, and there must be at least one argument.
+             Any kind of whitespace is allowed within the parentheses of Combine. *)
+          let combine =
+            string "Combine" *> ws *> parens (sep_by1 (char ',') (with_blank subexpr)) >>| fun es ->
+            Combine es in
+          variable <|> literal <|> combine <|> parens subexpr in
 
-let expr' = fix (fun expr -> assign expr <|> rvalue expr <|> negate expr <|> braces (seq expr))
+        (* subset ::= [] subset | [subexpr] subset | [[subexpr]] subset | <empty>
 
-let expr = seq expr'
+           This parser handles the square brackets used for subsetting. It is written this way to
+           avoid left recursion; a sequence of 0 or more subsets is valid.
+        *)
+        let rec subset e =
+          let brackets be =
+            char '[' *> blank *> char ']' *> return (Subset1 (be, None))
+            <|> (bracks1 subexpr >>| fun e -> Subset1 (be, Some e))
+            <|> (bracks2 subexpr >>| fun e -> Subset2 (be, e)) in
+          peek_char >>= function
+          | Some '[' -> brackets e <* ws >>= subset
+          | _ -> return e in
 
-let tryparse p (str : string) =
-  match parse_string ~consume:All p str with
-  | Ok v -> v
-  | Error msg -> raise (Parse_error msg)
+        (* rvalue ::= indexable rvalue'
+           rvalue' ::= subset rvalue' | <empty>
+
+           Effectively, this is:
+             rvalue ::= indexable subset*
+
+           rvalue is a term from C/C++, meaning something that can appear on the RHS of an
+           assignment.
+        *)
+        (* TODO: combine this with negation? *)
+        let rvalue = with_blank_ws indexable >>= subset in
+
+        (* assign ::= lvalue <- subexpr
+           lvalue ::= variable lvalue'
+           lvalue' ::= subset lvalue' | <empty>
+
+           Effectively, this is:
+             assign ::= variable subset* <- subexpr
+
+           However, for now, assignment with multiple subsets is not allowed.
+
+           lvalue is a term from C/C++, meaning something that can appear on the LHS of an
+           assignment.
+        *)
+        let assign =
+          let lvalue = with_blank_ws variable >>= subset in
+          let[@warning "-4-8"] assign' lhs _ rhs =
+            match lhs with
+            | Var x -> Assign (x, rhs)
+            | Subset1 (Var x, e2) -> Subset1_Assign (x, e2, rhs)
+            | Subset2 (Var x, e2) -> Subset2_Assign (x, e2, rhs)
+            | _ -> raise (Parse_error "nested assignment") in
+          lift3 assign' lvalue (string "<-") subexpr in
+
+        (* TODO: make the - optional *)
+        let negate =
+          fix (fun negate ->
+              with_blank_ws (char '-') *> (rvalue <|> negate <|> braces (sequence subexpr))
+              >>| fun e -> Negate e) in
+
+        assign <|> rvalue <|> negate <|> braces (sequence subexpr)) in
+
+  (* The expression parser parses a sequence of subexpressions, which do not need to be wrapped by
+     curly braces. *)
+  sequence subexpr
 
 let parse (str : string) =
   match parse_string ~consume:All expr str with
   | Ok v -> v
   | Error msg -> raise (Parse_error msg)
-
-let run (str : string) =
-  let v = Eval.run @@ parse str in
-  Expr.show_val v
