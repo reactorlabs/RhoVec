@@ -1,3 +1,3 @@
 (tests
- (names parse eval)
+ (names eval_suite parse_suite)
  (libraries lib alcotest))

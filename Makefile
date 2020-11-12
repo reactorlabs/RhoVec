@@ -14,16 +14,16 @@ run: exe
 test: test-parse test-eval
 
 test-parse:
-	dune build test/parse.exe
-	cd $(TESTDIR) && ./parse.exe --compact
+	dune build test/parse_suite.exe
+	cd $(TESTDIR) && ./parse_suite.exe --compact
 
 test-eval:
-	dune build test/eval.exe
-	cd $(TESTDIR) && ./eval.exe --compact
+	dune build test/eval_suite.exe
+	cd $(TESTDIR) && ./eval_suite.exe --compact
 
 test-oracle:
-	dune build test/eval.exe
-	cd $(TESTDIR) && DUMP=suite.R ./eval.exe test --compact "dummy"
+	dune build test/eval_suite.exe
+	cd $(TESTDIR) && DUMP=suite.R ./eval_suite.exe test --compact "dummy"
 	R -f $(TESTDIR)/suite.R
 
 utop:
