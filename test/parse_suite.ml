@@ -6,12 +6,16 @@ exception Expected_failure
 
 let testable_expr = A.testable Expr.pp_expression Expr.equal_expression
 
+(* Create a test case that parses `str` and checks that it matches `expected`. *)
 let test_parse desc (expected, str) =
   let run_parser () =
     let ast = Parse.parse str in
     A.(check testable_expr) "same expression" expected ast in
   A.test_case desc `Quick run_parser
 
+(* Create a test case that expects parsing `str` to throw a `Parse_error`.
+   We don't use `Alcotest.check_raises` because that compares two exceptions, including the error
+   message. *)
 let test_parse_err desc str =
   let run_parser () =
     try
@@ -25,7 +29,7 @@ let test_parse_err desc str =
 
 let () =
   let open Expr in
-  A.run "parse-testsuite"
+  A.run "parse_suite"
     [ ( "variable"
       , [ test_parse "x" (Var "x", "x")
         ; test_parse "x123" (Var "x123", "x123")
@@ -100,7 +104,6 @@ let () =
         ; test_parse "semicolon 3" (Combine [ int_exp 1; Var "x" ], "Combine(1, x)\n ;\n ")
         ; test_parse_err "whitespace err" "Combine\n(1,x) "
         ; test_parse_err "semicolon err" "Combine(1,x);\n;"
-        ; test_parse_err "empty combine err" "Combine()"
         ] )
     ; ( "parens"
       , [ test_parse "(1)" (int_exp 1, "(1)")

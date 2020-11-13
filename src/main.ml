@@ -9,6 +9,6 @@ let () =
   let expr = Parse.parse str in
   let res = Eval.run expr in
   Format.printf "Input:\n%S\n\n" str ;
-  Format.printf "Parsed expression:\n%s\n\n" (Deparse.to_r expr) ;
+  Format.printf "Parsed expression:\n%s\n\n" (Expr.show_expression expr) ;
   Format.printf "Evaluated result:\n%s\n\n" (Expr.show_val res) ;
   print_endline "Nothing else for now, maybe you meant to run the tests?"

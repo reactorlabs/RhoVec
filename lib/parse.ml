@@ -96,10 +96,10 @@ let expr =
            is reserved) and then parsed by the literal parser. Otherwise, "Tt" is parsed as a
            literal but with only "T" consumed and "t" remaining in the input. *)
         let indexable =
-          (* The arguments to Combine are comma-separated, and there must be at least one argument.
-             Any kind of whitespace is allowed within the parentheses of Combine. *)
+          (* The arguments to Combine are comma-separated. Any kind of whitespace is allowed within
+             the parentheses of Combine. *)
           let combine =
-            string "Combine" *> ws *> parens (sep_by1 (char ',') (with_blank subexpr)) >>| fun es ->
+            string "Combine" *> ws *> parens (sep_by (char ',') (with_blank subexpr)) >>| fun es ->
             Combine es in
           variable <|> literal <|> combine <|> parens subexpr in
 
