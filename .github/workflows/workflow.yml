@@ -48,4 +48,4 @@ jobs:
         run: opam exec -- dune runtest
 
       - name: Run R test oracle
-        run: opam exec -- make testoracle
+        run: opam exec -- make test-oracle
