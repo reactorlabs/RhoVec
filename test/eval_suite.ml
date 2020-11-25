@@ -5,8 +5,6 @@ open Expr
    dumped to `file` as an R script. Executing the R script ensures that evaluating the test cases
    as R code results in the same expected values. *)
 
-(* TODO: see if some parser tests can be used here *)
-
 module A = Alcotest
 
 let pp_value ppf v = Fmt.pf ppf "%s" (show_val v)
@@ -205,7 +203,8 @@ let () =
         ; test_eval "index 2" (vec_of_int 12, "Combine(11, 12, 13, 14)[2]")
         ; test_eval "index 3" (vec_of_int 13, "Combine(11, 12, 13, 14)[3]")
         ; test_eval "index 4" (vec_of_int 14, "Combine(11, 12, 13, 14)[4]")
-        ; test_eval "index 5 out-of-bounds" (vec_of_na T_Int, "Combine(11, 12, 13, 14)[5]")
+        ; test_eval "index 5" (vec_of_int 13, "Combine(11, 12, 13, 14)[Combine(1, 2, 3, 4)[3]]")
+        ; test_eval "index 6 out-of-bounds" (vec_of_na T_Int, "Combine(11, 12, 13, 14)[5]")
         ; test_eval "index NA" (vec_of_na T_Int, "Combine(11, 12, 13, 14)[NA_i]")
         ; test_eval "multiple indexes"
             (vec_of_intlist [ 11; 13 ], "Combine(11, 12, 13, 14)[Combine(1, 3)]")
@@ -299,6 +298,7 @@ let () =
             (Eval.Replacement_length_is_zero, "x <- Combine(11, 12, 13); x[] <- 1[0]")
         ; test_eval_err "mixed types" ~is_r:false
             (Eval.type_error T_Int T_Bool, "x <- Combine(11, 12, 13); x[] <- T")
+        ; test_eval_err "not found" (Eval.Object_not_found, "x[] <- 1")
         ] )
     ; ( "subset1_assign.logical"
       , [ test_eval "no recycling or extension 1"
@@ -380,6 +380,7 @@ let () =
         ; test_eval_err "mixed types" ~is_r:false
             ( Eval.type_error T_Int T_Bool
             , "x <- Combine(1, 2, 3, 4, 5); x[Combine(T, F)] <- Combine(F)" )
+        ; test_eval_err "not found" (Eval.Object_not_found, "x[T] <- 1")
         ] )
     ; ( "subset1_assign.zero"
       , [ test_eval "int vector 1" (vec_of_int 7, "x <- 7; x[0] <- 42; x")
@@ -397,6 +398,7 @@ let () =
             (* R allows this because the RHS has only one element *)
             ( Eval.No_NAs_in_subscripted_assignment
             , "x <- Combine(1, 2, 3, 4); x[Combine(0, NA_i)] <- Combine(0)" )
+        ; test_eval_err "not found" (Eval.Object_not_found, "x[0] <- 1")
         ] )
     ; ( "subset1_assign.positive"
       , [ test_eval "single index"
@@ -468,6 +470,7 @@ let () =
             , "x <- Combine(1, 2, 3, 4, 5); x[Combine(1, -1)] <- 13" )
         ; test_eval_err "mixed types" ~is_r:false
             (Eval.type_error T_Int T_Bool, "x <- Combine(11, 12, 13, 14); x[Combine(1, 2, 3)] <- F")
+        ; test_eval_err "not found" (Eval.Object_not_found, "x[1] <- 1")
         ] )
     ; ( "subset1_assign.negative"
       , [ test_eval "single index"
@@ -531,6 +534,7 @@ let () =
             , "x <- Combine(1, 2, 3, 4, 5); x[-Combine(1, -1)] <- 13" )
         ; test_eval_err "mixed types" ~is_r:false
             (Eval.type_error T_Int T_Bool, "x <- Combine(11, 12, 13, 14); x[-Combine(1, 2, 3)] <- F")
+        ; test_eval_err "not found" (Eval.Object_not_found, "x[-1] <- 1")
         ] )
     ; ( "subset2_assign"
       , [ test_eval "int vector 1"
@@ -568,6 +572,16 @@ let () =
             (Eval.type_error T_Int T_Bool, "x <- Combine(11, 12, 13, 14); x[[T]] <- 8")
         ; test_eval_err "mixed types 2" ~is_r:false
             (Eval.type_error T_Bool T_Int, "x <- Combine(T, T, F, T); x[[1]] <- 8")
+        ; test_eval_err "not found" (Eval.Object_not_found, "x[[1]] <- 1")
+        ] )
+    ; ( "assignment"
+      , [ test_eval "assign 1" (vec_of_na T_Int, "x <- NA_i")
+        ; test_eval "assign 2" (vec_of_int ~-4, "x <- -(4)")
+        ; test_eval "assign 3" (vec_of_int ~-4, "x <- (-4)")
+        ; test_eval "assign 4" (vec_of_int ~-4, "-(x <- 4)")
+        ; test_eval "nested 1" (vec_of_bool false, "x <- y <- F")
+        ; test_eval "nested 2" (vec_of_bool false, "x <- y <- F; x")
+        ; test_eval "nested 3" (vec_of_bool false, "x <- y <- F; y")
         ] )
     ; ( "environments"
       , [ test_eval "lookup 1" (vec_of_int 42, "x <- 42; x")
@@ -592,5 +606,21 @@ let () =
     ; ( "seq"
       , [ test_eval "multiple expressions" (vec_of_int 3, "1; 2; 3")
         ; test_eval "nested" (vec_of_int 6, "{ 1; { 2; 3 }; { { 4; { 5 } }; 6 } }")
+        ; test_eval "block expr 1" (vec_of_intlist [ 3; 4 ], "Combine({1;2;3},4)")
+        ; test_eval "block expr 2" (vec_of_intlist [ 3; 4 ], "Combine({1\n2\n3},4)")
+        ; test_eval "block expr 3" (vec_of_int 2, "x <- Combine(1, 2, 3, 4, 5); x[{1;2}]")
+        ; test_eval "block expr 4" (vec_of_int 2, "x <- Combine(1, 2, 3, 4, 5); x[{1\n2}]")
+        ; test_eval "block expr 5" (vec_of_int 2, "x <- Combine(1, 2, 3, 4, 5); x[[{1;2}]]")
+        ; test_eval "block expr 6" (vec_of_int 2, "x <- Combine(1, 2, 3, 4, 5); x[[{1\n2}]]")
+        ; test_eval "block expr 7" (vec_of_int ~-3, "-{4;3}")
+        ; test_eval "block expr 8" (vec_of_int ~-3, "-{4\n3}")
+        ; test_eval "block expr 9"
+            (vec_of_intlist [ 11; 4 ], "x <- Combine(11, 12); x[{1;2}] <- {3;4}; x")
+        ; test_eval "block expr 10"
+            (vec_of_intlist [ 11; 4 ], "x <- Combine(11, 12); x[{1\n2}] <- {3\n4}; x")
+        ; test_eval "block expr 11"
+            (vec_of_intlist [ 11; 4 ], "x <- Combine(11, 12); x[[{1;2}]] <- {3;4}; x")
+        ; test_eval "block expr 12"
+            (vec_of_intlist [ 11; 4 ], "x <- Combine(11, 12); x[[{1\n2}]] <- {3\n4}; x")
         ] )
     ]

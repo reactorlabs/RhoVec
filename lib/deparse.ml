@@ -12,7 +12,7 @@ let rec to_r ?(depth = 0) = function
   | Combine es ->
       let inner = es |> List.map to_r |> String.concat ", " in
       Printf.sprintf "c(%s)" inner
-  | Negate e -> Printf.sprintf "-%s" (to_r e)
+  | Negate e -> Printf.sprintf "-(%s)" (to_r e)
   | Subset1 (e1, None) -> Printf.sprintf "%s[]" (to_r e1)
   | Subset1 (e1, Some e2) -> Printf.sprintf "%s[%s]" (to_r e1) (to_r e2)
   | Subset2 (e1, e2) -> Printf.sprintf "%s[[%s]]" (to_r e1) (to_r e2)
