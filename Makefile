@@ -45,8 +45,7 @@ fmt:
 	dune build @fmt --auto-promote || true
 
 coverage: clean
-	BISECT_ENABLE=yes dune build
-	dune runtest --force
+	dune runtest --instrument-with bisect_ppx --force
 	@# Run the deparser
 	cd $(TESTDIR) && DUMP=suite.R ./eval_suite.exe test --compact "dummy"
 	bisect-ppx-report html
