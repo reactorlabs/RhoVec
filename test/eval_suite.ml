@@ -10,23 +10,6 @@ module A = Alcotest
 let pp_value ppf v = Fmt.pf ppf "%s" (show_val v)
 let testable_value = A.testable pp_value equal_value
 
-let excptn_to_string excptn =
-  let open Eval in
-  match excptn with
-  | Subscript_out_of_bounds -> "subscript out of bounds"
-  | Selecting_lt_one_element -> "attempt to select less than one element"
-  | Selecting_gt_one_element -> "attempt to select more than one element"
-  | Mixing_with_negative_subscripts -> "only 0's may be mixed with negative subscripts"
-  | No_NAs_in_subscripted_assignment -> "NAs are not allowed in subscripted assignments"
-  | Replacement_length_not_multiple ->
-      "number of items to replace is not a multiple of replacement length"
-  | Replacement_length_is_zero -> "replacement has length zero"
-  | Too_many_elements_supplied -> "more elements supplied than there are to replace"
-  | Object_not_found -> "not found"
-  | e ->
-      Stdlib.prerr_endline "Unrecognized exception" ;
-      raise e
-
 (* If we're dumping to an R script, open the file and output the test harness code. *)
 let dump_file =
   match Sys.getenv_opt "DUMP" with
@@ -87,7 +70,7 @@ let test_eval_err desc ?(is_r = true) ?(is_r_warning = false) (excptn, input) =
       if is_r then (
         let tester = if not is_r_warning then "runerr" else "runwarn" in
         Printf.fprintf fout "# ERROR: %s\n" desc ;
-        Printf.fprintf fout "%s(\"%s\", %s)\n\n" tester (excptn_to_string excptn)
+        Printf.fprintf fout "%s(\"%s\", %s)\n\n" tester (Eval.excptn_to_string excptn)
           (Deparse.to_r expr) ) ) ;
   A.test_case desc `Quick run_eval
 
