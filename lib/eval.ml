@@ -37,6 +37,22 @@ exception Too_many_elements_supplied
 (* object not found *)
 exception Object_not_found
 
+let excptn_to_string excptn =
+  match excptn with
+  | Subscript_out_of_bounds -> "subscript out of bounds"
+  | Selecting_lt_one_element -> "attempt to select less than one element"
+  | Selecting_gt_one_element -> "attempt to select more than one element"
+  | Mixing_with_negative_subscripts -> "only 0's may be mixed with negative subscripts"
+  | No_NAs_in_subscripted_assignment -> "NAs are not allowed in subscripted assignments"
+  | Replacement_length_not_multiple ->
+      "number of items to replace is not a multiple of replacement length"
+  | Replacement_length_is_zero -> "replacement has length zero"
+  | Too_many_elements_supplied -> "more elements supplied than there are to replace"
+  | Object_not_found -> "not found"
+  | e ->
+      Stdlib.prerr_endline "Unrecognized exception" ;
+      raise e
+
 (* Gets a boolean value from a bool Literal.
    Wraps the result in an Option, so that NA is represented by None. *)
 let get_bool = function
@@ -308,3 +324,7 @@ let rec eval env = function
           (env, rhs) )
 
 let run exp = Stdlib.snd (eval Env.empty exp)
+
+let run_string str =
+  let result = run @@ Parse.parse str in
+  print_endline @@ show_val result
