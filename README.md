@@ -19,7 +19,7 @@ Getting Started
 Install [opam](https://opam.ocaml.org/). Then run the following:
 
 ```
-opam install ocaml.4.10.0
+opam switch create ocaml.4.10.0
 git clone https://github.com/reactorlabs/RhoVec.git
 cd RhoVec
 make deps # install dependencies
