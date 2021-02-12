@@ -14,6 +14,7 @@
         | <digit>+                                  # number
 
     lit ::=
+        | NULL                                      # null vector
         | bool                                      # boolean
         | int                                       # integer
 
@@ -22,6 +23,7 @@
   * R represents missing values with `NA` (not applicable). Each type has its
     own missing value. E.g., there are three boolean values: `T`, `F`, and
     `NA_b`.
+  * `NULL` is a vector of length 0, and the only value of type `T_Null`.
   * In R, numeric literals default to (double precision) floating point numbers.
     Integer literals must have an `l` or `L` suffix. For now, we only support
     integer literals, but do not require the suffix.
@@ -33,7 +35,7 @@
     e ::=
         | lit                                       # literal
         | x                                         # variable
-        | Combine(e_1, ... , e_n)                   # combine
+        | Combine(e_1, .. , e_n)                    # combine
         | -e                                        # negate
         | e_1[]                                     # subset1 (nothing)
         | e_1[e_2]                                  # subset1
@@ -62,6 +64,7 @@
 ### Types
 
     T ::=
+        | T_Null                                    # Null
         | T_Bool                                    # boolean
         | T_Int                                     # integer
 
@@ -126,11 +129,18 @@ Expression `e_1` in context `C` _reduces to_ expression `e_2` in context `C`,
 updating environment `E` to the new environment `E'`.
 
 
-    typeof(lit) = T
-    -------------------------  :: E_Lit
+
+    -------------------------------  :: E_Lit_Null
+    E C<NULL> --> E C<[],T_Null>
+
+The NULL literal represents a vector of length zero, with type T_Null.
+
+
+    typeof(lit) = T /\ T =/= T_Null
+    -------------------------------  :: E_Lit_NonNull
     E C<lit> --> E C<[lit],T>
 
-There are no scalars in R; literals are implicitly converted to
+There are no scalars in R; non-null literals are implicitly converted to
 one-element vectors.
 
 
@@ -145,21 +155,25 @@ one-element vectors.
 Looks up the value of `x` in the environment.
 
 
+
+    ---------------------------------  :: E_Combine_Empty
+    E C<Combine()> --> E C<[],T_Null>
+
+Passing zero arguments to `Combine` will return the NULL vector.
+
+
     (v_1 = [lit_1_1 .. lit_1_m1],T) ... (v_n = [lit_n_1 .. lit_n_mn],T)
-    -----------------------------------------------------------------------------------  :: E_Combine
+    -----------------------------------------------------------------------------------  :: E_Combine_NonEmpty
     E C<Combine(v_1, ..., v_n)> --> E C<[lit_1_1 .. lit_1_m1 .. lit_n_1 .. lit_n_mn],T>
 
     Error if:
-      - zero arguments provided
       - vectors have different types
 
 `Combine` takes vectors as arguments, and combines/flattens them into a single
-vector. At least one argument must be supplied; empty vectors cannot be
-constructed this way, since we need to provide a type.
+vector.
 
-_Note:_ In R, `c()` can construct the empty vector `NULL`, which has type
-`NULL`. Arguments may also have different types, as vectors will be coerced to
-a common type.
+_Note:_ In R, arguments may also have different types, as vectors will be
+coerced to a common type.
 
 
     v_1 = [lit_1 .. lit_n],T_Int
@@ -180,6 +194,17 @@ Negates every element of the vector.
 Does nothing; returns the original vector.
 
 
+    v_1 = [],T_Null
+    --------------------------  :: E_Subset1_Null
+    E C<v_1[v_2]> --> E C<v_1>
+
+    v_1 = [],T_Null
+    ----------------------------  :: E_Subset2_Null
+    E C<v_1[[v_2]]> --> E C<v_1>
+
+Indexing a NULL vector always returns NULL. No error checking is performed.
+
+
     v_1 = [lit_1 .. lit_n1],T
     v_2 = [bool_1 .. bool_n2],T_Bool
     l = max(n1, n2)
@@ -187,6 +212,7 @@ Does nothing; returns the original vector.
     v_2' = recycle(v_2, v_2, v_2, l-n2)
     v_2'' = bool_to_pos_vec(v_2', 1)
     v = get_at_pos(v_1', v_2'')
+    T =/= T_Null
     -----------------------------------  :: E_Subset1_Bool
     E C<v_1[v_2]> --> E C<v>
 
@@ -202,6 +228,7 @@ boolean vector is too short, we recycle it.
     v_2 = [int_1 .. int_n2],T_Int
     forall i in 1..n2 : int_i >= 0 \/ int_i == NA_i
     v = get_at_pos(v_1, v_2)
+    T =/= T_Null
     -----------------------------------------------  :: E_Subset1_Positive
     E C<v_1[v_2]> --> E C<v>
 
@@ -212,6 +239,7 @@ boolean vector is too short, we recycle it.
     v_2' = neg_to_bool_vec(v_2, v_1')
     v_2'' = bool_to_pos_vec(v_2', 1)
     v = get_at_pos(v_1, v_2'')
+    T =/= T_Null
     ------------------------------------------------  :: E_Subset1_Negative
     E C<v_1[v_2] --> E C<v>
 
@@ -230,7 +258,7 @@ are out of bounds or repeated are ignored. `NA`s are not allowed as indices.
 
     v_1 = [lit_1 ... lit_n1],T
     v_2 = [i],T_Int
-    i in 1...n1
+    i in 1...n1 /\ T =/= T_Null
     ----------------------------------  :: E_Subset2
     E C<v_1[[v_2]]> --> E C<[lit_i],T>
 
@@ -261,6 +289,7 @@ Assignment updates the environment and returns the value being assigned.
     n1 % n2 == 0
     v = recycle(v_2, v_2, v_2, n1-n2)
     E' = E{ x := v }
+    T =/= T_Null
     ---------------------------------  :: E_Subset1_Nothing_Assign
     E C<x[] <- v_2> --> E' C<v_2>
 
@@ -269,9 +298,11 @@ Assignment updates the environment and returns the value being assigned.
       - n2 == 0
       - n1 % n2 =/= 0
       - v_1 and v_2 have different types
+      - T == T_Null
 
 The entire vector is replaced by a new one, which is recycled if necessary. The
-replacement vector is returned.
+replacement vector is returned. Subset assignment to the NULL vector is not
+allowed, as there is no coercion here.
 
 _Note:_ In R, `n2` does not need to be a multiple of `n1`; however, a warning
 is issued. Additionally, the vectors may have different types, as coercion is
@@ -293,6 +324,7 @@ performed.
     v_3' = recycle(v_3, v_3, v_3, n2'-n3)
     v = update_at_pos(v_1, v_2'', v_3')
     E' = E{ x := v }
+    T =/= T_Null
     -------------------------------------  :: E_Subset1_Bool_Assign
     E C<x[v_2] <- v_3> --> E' C<v_3>
 
@@ -302,10 +334,12 @@ performed.
       - n3 == 0
       - n2' % n3 =/= 0
       - v_1 and v_3 have different types
+      - T == T_Null
 
 This follows similar rules to `E_Subset1_Bool`, where elements corresponding to
 `T` are replaced. The base vector may be extended, the index vector may be
-recycled, and the replacement vector may be recycled.
+recycled, and the replacement vector may be recycled. Subset assignment to the
+NULL vector is not allowed, as there is no coercion here.
 
 _Note:_ In R, `n3` does not need to be a multiple of `n_2'` (the length of `v_2`
 after recycling and conversion to a positional vector); however, a warning is
@@ -319,14 +353,17 @@ issued. `v_1` and `v_3` may have different types because of coercion. Finally,
     v_2 = [int_1 .. int_n2],T_Int
     v_3 = [lit'_1 .. lit'_n3],T
     forall i in 1..n2 : int_i == 0
+    T =/= T_Null
     --------------------------------  :: E_Subset1_Zero_Assign
     E C<x[v_2] <- v_3> --> E' C<v_3>
 
     Error if:
       - x not in E
+      - T == T_Null
 
 This is a special case of `Subset1_Assign` where all elements of `v_2` are `0`:
-nothing is updated and the value of the replacement vector is returned.
+nothing is updated and the value of the replacement vector is returned. Subset
+assignment to the NULL vector is not allowed, as there is no coercion here.
 
 
     x in E
@@ -341,6 +378,7 @@ nothing is updated and the value of the replacement vector is returned.
     v_3' = recycle(v_3, v_3, v_3, n2'-n3)
     v = update_at_pos(v_1, v_2', v_3')
     E' = E{ x := v }
+    T =/= T_Null
     -------------------------------------  :: E_Subset1_Positive_Assign
     E C<x[v_2] <- v_3> --> E' C<v_3>
 
@@ -358,6 +396,7 @@ nothing is updated and the value of the replacement vector is returned.
     v_3' = recycle(v_3, v_3, v_3, n2'-n3)
     v = update_at_pos(v_1, v_2'', v_3')
     E' = E{ x := v }
+    T =/= T_Null
     -------------------------------------  :: E_Subset1_Negative_Assign
     E C<x[v_2] <- v_3> --> E' C<v_3>
 
@@ -368,6 +407,7 @@ nothing is updated and the value of the replacement vector is returned.
       - n2' % n3 =/= 0
       - v_1 and v_3 have different types
       - v_2 mixes positive and negative subscripts
+      - T == T_Null
 
 These are similar to `E_Subset1_Positive` and `E_Subset1_Negative` where `v_2`
 specifies which elements to replace. The replacement vector may be recycled.
@@ -375,6 +415,9 @@ specifies which elements to replace. The replacement vector may be recycled.
 If the index vector has duplicate values, then the corresponding vector element
 will be overwritten, e.g. `v[c(1, 1)] <- c(10, 11)` replaces the first element
 with `11`.
+
+Subset assignment to the NULL vector is not allowed, as there is no coercion
+here.
 
 _Note:_ In R, `n3` does not need to be a multiple of `n_2'` (the length of `v_2`
 after dropping `0`s or conversion to a positional vector); however, a warning is
@@ -392,6 +435,7 @@ issued. `v_1` and `v_3` may have different types because of coercion. Finally,
     v_1' = [lit_1 .. lit_j lit_i lit_k .. lit_l],T
     v = [lit_1 .. lit_j lit lit_k .. lit_l],T
     E' = E{ x := v }
+    T =/= T_Null
     ---------------------------------------------  :: E_Subset2_Assign
     E C<x[[v_2]] <- v_3> --> E' C<v_3>
 
@@ -406,13 +450,21 @@ issued. `v_1` and `v_3` may have different types because of coercion. Finally,
       - i == NA_i
       - i == 0
       - i < 0
+      - T == T_Null
 
 Assignment with `[[` only updates a single element of the vector, i.e. the index
 vector must contain a single, non-NA element. If the index is out of bounds,
 then the base vector is extended with `NA`s.
 
+Subset assignment to the NULL vector is not allowed, as there is no coercion
+here.
+
 
 ### Auxiliary Functions
+
+    ---------------------  :: Aux_Typeof_Null
+    typeof(NULL) = T_Null
+
 
     ---------------------  :: Aux_Typeof_Bool
     typeof(bool) = T_Bool
@@ -683,10 +735,10 @@ necessary.
     * note that `x[-0.1]` is coerced to `x[-1]` while `x[0.1]` is coerced to
       `x[0]`!
   * dimensions
-    * matrices and arrays
+    * matrices
+    * arrays
   * lists
     * or treat them as "vectors" of some vector type
-  * NULL vector (e.g. default empty vector)
   * `$` operator
     * `x$y` is sugar for `x[["y"]]`, implies symbol-to-string coercion
   * promises and laziness
