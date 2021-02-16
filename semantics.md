@@ -23,7 +23,8 @@
   * R represents missing values with `NA` (not applicable). Each type has its
     own missing value. E.g., there are three boolean values: `T`, `F`, and
     `NA_b`.
-  * `NULL` is a vector of length 0, and the only value of type `T_Null`.
+  * `NULL` is the literal for the null vector, a vector of length 0 and type
+    `T_Null`.
   * In R, numeric literals default to (double precision) floating point numbers.
     Integer literals must have an `l` or `L` suffix. For now, we only support
     integer literals, but do not require the suffix.
@@ -72,13 +73,24 @@
 ### Values
 
     v ::=
-        | [lit_1 .. lit_n],T                        # vector (and its type)
+        | [lit_1 .. lit_n],T,v_d                    # vector, type, and dimensions
+
+    Vnull ::=
+        | [],T_Null,Vnull                           # null vector
 
 #### Notes
 
   * There are no scalar values, because scalars are actually one-element
     vectors.
   * Vectors are homogeneous; every element in a vector has the same type.
+  * `v_d` is the dimensions vector, and must have type `T_Int` or `T_Null`.
+    * The dimensions vector itself may have dimensions.
+    * In R, the dimensions vector is part of the attributes list.
+  * `Vnull` refers to the singleton null vector. Note that `Vnull` is a value
+    that cannot be referred to from the surface syntax, unlike the `NULL`
+    literal.
+  * `Vnull` is cyclic, as its dimensions vector is also null and therefore
+     refers to itself.
 
 
 ### Evaluation contexts
@@ -131,14 +143,14 @@ updating environment `E` to the new environment `E'`.
 
 
     -------------------------------  :: E_Lit_Null
-    E C<NULL> --> E C<[],T_Null>
+    E C<NULL> --> E C<Vnull>
 
 The NULL literal represents a vector of length zero, with type T_Null.
 
 
     typeof(lit) = T /\ T =/= T_Null
     -------------------------------  :: E_Lit_NonNull
-    E C<lit> --> E C<[lit],T>
+    E C<lit> --> E C<[lit],T,Vnull>
 
 There are no scalars in R; non-null literals are implicitly converted to
 one-element vectors.
@@ -157,28 +169,29 @@ Looks up the value of `x` in the environment.
 
 
     ---------------------------------  :: E_Combine_Empty
-    E C<Combine()> --> E C<[],T_Null>
+    E C<Combine()> --> E C<Vnull>
 
-Passing zero arguments to `Combine` will return the NULL vector.
+Passing zero arguments to `Combine` will return the null vector, `Vnull`.
 
 
-    (v_1 = [lit_1_1 .. lit_1_m1],T) ... (v_n = [lit_n_1 .. lit_n_mn],T)
-    -----------------------------------------------------------------------------------  :: E_Combine_NonEmpty
-    E C<Combine(v_1, ..., v_n)> --> E C<[lit_1_1 .. lit_1_m1 .. lit_n_1 .. lit_n_mn],T>
+    (v_1 = [lit_1_1 .. lit_1_m1],T,v_d1) ... (v_n = [lit_n_1 .. lit_n_mn],T,v_d2)
+    -----------------------------------------------------------------------------------------  :: E_Combine_NonEmpty
+    E C<Combine(v_1, ..., v_n)> --> E C<[lit_1_1 .. lit_1_m1 .. lit_n_1 .. lit_n_mn],T,Vnull>
 
     Error if:
       - vectors have different types
 
 `Combine` takes vectors as arguments, and combines/flattens them into a single
-vector.
+vector. The dimensions vectors are ignored, so the resulting vector as null
+dimensions.
 
 _Note:_ In R, arguments may also have different types, as vectors will be
 coerced to a common type.
 
 
-    v_1 = [lit_1 .. lit_n],T_Int
+    v_1 = [lit_1 .. lit_n],T_Int,v_d
     v = negate(v_1)
-    ----------------------------  :: E_Negate
+    --------------------------------  :: E_Negate
     E C<-v_1> --> E C<v>
 
     Error if:
@@ -187,58 +200,65 @@ coerced to a common type.
 Negates every element of the vector.
 
 
-    v = [lit_1 .. lit_n],T
-    ----------------------  :: E_Subset1_Nothing
+    v = [lit_1 .. lit_n],T,v_d
+    --------------------------  :: E_Subset1_Nothing
     E C<v[]> --> E C<v>
 
 Does nothing; returns the original vector.
 
 
-    v_1 = [],T_Null
+    v_1 = Vnull
     --------------------------  :: E_Subset1_Null
     E C<v_1[v_2]> --> E C<v_1>
 
-    v_1 = [],T_Null
+    v_1 = Vnull
     ----------------------------  :: E_Subset2_Null
     E C<v_1[[v_2]]> --> E C<v_1>
 
-Indexing a NULL vector always returns NULL. No error checking is performed.
+Indexing the null vector `Vnull` always returns `Vnull`. No error checking is performed.
 
 
-    v_1 = [lit_1 .. lit_n1],T
-    v_2 = [bool_1 .. bool_n2],T_Bool
+    v_1 = [lit_1 .. lit_n1],T,v_d1
+    v_2 = [bool_1 .. bool_n2],T_Bool,v_d2
     l = max(n1, n2)
-    v_1' = extend(v_1, l-n1)
-    v_2' = recycle(v_2, v_2, v_2, l-n2)
-    v_2'' = bool_to_pos_vec(v_2', 1)
-    v = get_at_pos(v_1', v_2'')
+    v_1' = strip_dim(v_1)
+    v_1'' = extend(v_1', l-n1)
+    v_2' = strip_dim(v_2)
+    v_2'' = recycle(v_2', v_2', v_2', l-n2)
+    v_2''' = bool_to_pos_vec(v_2'', 1)
+    v = get_at_pos(v_1'', v_2''')
     T =/= T_Null
-    -----------------------------------  :: E_Subset1_Bool
+    ---------------------------------------  :: E_Subset1_Bool
     E C<v_1[v_2]> --> E C<v>
 
 If the index vector contains `T`, then the element at the corresponding
 location is selected; if it contains `F` then the corresponding element is
 skipped; if it contains `NA_b`, then `NA` (of the appropriate type) is selected.
+The dimensions of both vectors are ignored.
 
 If the boolean vector is too long, we extend the base vector with `NA`s. If the
 boolean vector is too short, we recycle it.
 
 
-    v_1 = [lit_1 .. lit_n1],T
-    v_2 = [int_1 .. int_n2],T_Int
+    v_1 = [lit_1 .. lit_n1],T,v_d1
+    v_2 = [int_1 .. int_n2],T_Int,v_d2
+    v_1' = strip_dim(v_1)
+    v_2' = strip_dim(v_2)
     forall i in 1..n2 : int_i >= 0 \/ int_i == NA_i
-    v = get_at_pos(v_1, v_2)
+    v = get_at_pos(v_1', v_2')
     T =/= T_Null
     -----------------------------------------------  :: E_Subset1_Positive
     E C<v_1[v_2]> --> E C<v>
 
-    v_1 = [lit_1 .. lit_n1],T
-    v_2 = [int_1 .. int_n2],T_Int
+    v_1 = [lit_1 .. lit_n1],T,v_d1
+    v_2 = [int_1 .. int_n2],T_Int,v_d2
+    v_1' = strip_dim(v_1)
+    v_2' = strip_dim(v_2)
     forall i in 1..n2 : int_i <= 0 /\ int_i =/= NA_i
-    v_1' = gen_bool_vec(v_1)
-    v_2' = neg_to_bool_vec(v_2, v_1')
-    v_2'' = bool_to_pos_vec(v_2', 1)
-    v = get_at_pos(v_1, v_2'')
+    v_1'' = gen_bool_vec(v_1')
+    v_2'' = neg_to_bool_vec(v_2', v_1'')
+    v_2''' = bool_to_pos_vec(v_2'', 1)
+    v = get_at_pos(v_1', v_2''')
     T =/= T_Null
     ------------------------------------------------  :: E_Subset1_Negative
     E C<v_1[v_2] --> E C<v>
@@ -250,22 +270,24 @@ boolean vector is too short, we recycle it.
 Positive subsetting returns elements at the positions specified by the index
 vector. Indices that are out of bounds are denoted by `NA_i` select `NA` (of the
 appropriate type). Indices that are `0` do not select anything. (If the index
-vector contains only `0`s, then subsetting returns the empty vector.)
+vector contains only `0`s, then subsetting returns the empty vector.) The
+dimensions of both vectors are ignored.
 
 Negative subsetting returns elements excluded by the index vector. Indices that
 are out of bounds or repeated are ignored. `NA`s are not allowed as indices.
 
 
-    v_1 = [lit_1 ... lit_n1],T
-    v_2 = [i],T_Int
+    v_1 = [lit_1 ... lit_n1],T,v_d1
+    v_2 = [i],T_Int,Vnull
     i in 1...n1 /\ T =/= T_Null
-    ----------------------------------  :: E_Subset2
-    E C<v_1[[v_2]]> --> E C<[lit_i],T>
+    ----------------------------------------  :: E_Subset2
+    E C<v_1[[v_2]]> --> E C<[lit_i],T,Vnull>
 
     Error if:
       - v_2 has 0 elements
       - v_2 has more than 1 element
       - v_2 does not have type T_Int
+      - v_2 does not have null dimensions
       - i == NA_i
       - i == 0
       - i < 0
@@ -273,6 +295,9 @@ are out of bounds or repeated are ignored. `NA`s are not allowed as indices.
 
 Subsetting with `[[` returns a single-element vector. The index vector must
 contain a single, non-`NA` element that is within bounds.
+
+For now, the index vector must have null dimensions. **TODO**: support
+dimensions as long as the product of dimensions is 1.
 
 
     E' = E{ x := v }
@@ -284,13 +309,13 @@ Assignment updates the environment and returns the value being assigned.
 
     x in E
     E(x) = v_1
-    v_1 = [lit_1 .. lit_n1],T
-    v_2 = [lit'_1 ... lit'_n2],T
+    v_1 = [lit_1 .. lit_n1],T,Vnull
+    v_2 = [lit'_1 ... lit'_n2],T,Vnull
     n1 % n2 == 0
     v = recycle(v_2, v_2, v_2, n1-n2)
     E' = E{ x := v }
     T =/= T_Null
-    ---------------------------------  :: E_Subset1_Nothing_Assign
+    ----------------------------------  :: E_Subset1_Nothing_Assign
     E C<x[] <- v_2> --> E' C<v_2>
 
     Error if:
@@ -301,19 +326,21 @@ Assignment updates the environment and returns the value being assigned.
       - T == T_Null
 
 The entire vector is replaced by a new one, which is recycled if necessary. The
-replacement vector is returned. Subset assignment to the NULL vector is not
+replacement vector is returned. Subset assignment to the null vector is not
 allowed, as there is no coercion here.
 
 _Note:_ In R, `n2` does not need to be a multiple of `n1`; however, a warning
 is issued. Additionally, the vectors may have different types, as coercion is
 performed.
 
+**TODO:** Handle non-null dimensions.
+
 
     x in E
     E(x) = v_1
-    v_1 = [lit_1 .. lit_n1],T
-    v_2 = [bool_1 .. bool_n2],T_Bool
-    v_3 = [lit'_1 ... lit'_n3],T
+    v_1 = [lit_1 .. lit_n1],T,Vnull
+    v_2 = [bool_1 .. bool_n2],T_Bool,Vnull
+    v_3 = [lit'_1 ... lit'_n3],T,Vnull
     forall i in 1..n2 : bool_i =/= NA_b
     l = max(n1, n2)
     v_1' = extend(v_1, l-n1)
@@ -325,7 +352,7 @@ performed.
     v = update_at_pos(v_1, v_2'', v_3')
     E' = E{ x := v }
     T =/= T_Null
-    -------------------------------------  :: E_Subset1_Bool_Assign
+    --------------------------------------  :: E_Subset1_Bool_Assign
     E C<x[v_2] <- v_3> --> E' C<v_3>
 
     Error if:
@@ -339,22 +366,24 @@ performed.
 This follows similar rules to `E_Subset1_Bool`, where elements corresponding to
 `T` are replaced. The base vector may be extended, the index vector may be
 recycled, and the replacement vector may be recycled. Subset assignment to the
-NULL vector is not allowed, as there is no coercion here.
+null vector is not allowed, as there is no coercion here.
 
 _Note:_ In R, `n3` does not need to be a multiple of `n_2'` (the length of `v_2`
 after recycling and conversion to a positional vector); however, a warning is
 issued. `v_1` and `v_3` may have different types because of coercion. Finally,
 `v_2` may contain `NA`s, but only if `v_3` has length one.
 
+**TODO:** Handle non-null dimensions.
+
 
     x in E
     E(x) = v_1
-    v_1 = [lit_1 .. lit_n1],T
-    v_2 = [int_1 .. int_n2],T_Int
-    v_3 = [lit'_1 .. lit'_n3],T
+    v_1 = [lit_1 .. lit_n1],T,Vnull
+    v_2 = [int_1 .. int_n2],T_Int,Vnull
+    v_3 = [lit'_1 .. lit'_n3],T,Vnull
     forall i in 1..n2 : int_i == 0
     T =/= T_Null
-    --------------------------------  :: E_Subset1_Zero_Assign
+    -----------------------------------  :: E_Subset1_Zero_Assign
     E C<x[v_2] <- v_3> --> E' C<v_3>
 
     Error if:
@@ -363,14 +392,16 @@ issued. `v_1` and `v_3` may have different types because of coercion. Finally,
 
 This is a special case of `Subset1_Assign` where all elements of `v_2` are `0`:
 nothing is updated and the value of the replacement vector is returned. Subset
-assignment to the NULL vector is not allowed, as there is no coercion here.
+assignment to the null vector is not allowed, as there is no coercion here.
+
+**TODO:** Handle non-null dimensions.
 
 
     x in E
     E(x) = v_1
-    v_1 = [lit_1 .. lit_n1],T
-    v_2 = [int_1 .. int_n2],T_Int
-    v_3 = [lit'_1 ... lit'_n3],T
+    v_1 = [lit_1 .. lit_n1],T,Vnull
+    v_2 = [int_1 .. int_n2],T_Int,Vnull
+    v_3 = [lit'_1 ... lit'_n3],T,Vnull
     forall i in 1..n2 : int_i >= 0
     v_2' = drop_zeros(v_2)
     n2' = length(v_2')
@@ -384,9 +415,9 @@ assignment to the NULL vector is not allowed, as there is no coercion here.
 
     x in E
     E(x) = v_1
-    v_1 = [lit_1 .. lit_n1],T
-    v_2 = [int_1 .. int_n2],T_Int
-    v_3 = [lit'_1 ... lit'_n3],T
+    v_1 = [lit_1 .. lit_n1],T,Vnull
+    v_2 = [int_1 .. int_n2],T_Int,Vnull
+    v_3 = [lit'_1 ... lit'_n3],T,Vnull
     forall i in 1..n2 : int_i <= 0
     v_1' = gen_bool_vec(v_1)
     v_2' = neg_to_bool_vec(v_2, v_1')
@@ -416,7 +447,7 @@ If the index vector has duplicate values, then the corresponding vector element
 will be overwritten, e.g. `v[c(1, 1)] <- c(10, 11)` replaces the first element
 with `11`.
 
-Subset assignment to the NULL vector is not allowed, as there is no coercion
+Subset assignment to the null vector is not allowed, as there is no coercion
 here.
 
 _Note:_ In R, `n3` does not need to be a multiple of `n_2'` (the length of `v_2`
@@ -424,19 +455,21 @@ after dropping `0`s or conversion to a positional vector); however, a warning is
 issued. `v_1` and `v_3` may have different types because of coercion. Finally,
 `v_2` may contain `NA`s, but only if `v_3` has length one.
 
+**TODO:** Handle non-null dimensions.
+
 
     x in E
     E(x) = v_1
-    v_1 = [lit_1 .. lit_n1],T
-    v_2 = [i],T_Int
-    v_3 = [lit],T
+    v_1 = [lit_1 .. lit_n1],T,Vnull
+    v_2 = [i],T_Int,Vnull
+    v_3 = [lit],T,Vnull
     l = max(n1, i)
     extend(v_1, l-n1) = v_1'
-    v_1' = [lit_1 .. lit_j lit_i lit_k .. lit_l],T
-    v = [lit_1 .. lit_j lit lit_k .. lit_l],T
+    v_1' = [lit_1 .. lit_j lit_i lit_k .. lit_l],T,Vnull
+    v = [lit_1 .. lit_j lit lit_k .. lit_l],T,Vnull
     E' = E{ x := v }
     T =/= T_Null
-    ---------------------------------------------  :: E_Subset2_Assign
+    ----------------------------------------------------  :: E_Subset2_Assign
     E C<x[[v_2]] <- v_3> --> E' C<v_3>
 
     Error if:
@@ -456,8 +489,10 @@ Assignment with `[[` only updates a single element of the vector, i.e. the index
 vector must contain a single, non-NA element. If the index is out of bounds,
 then the base vector is extended with `NA`s.
 
-Subset assignment to the NULL vector is not allowed, as there is no coercion
+Subset assignment to the null vector is not allowed, as there is no coercion
 here.
+
+**TODO:** Handle non-null dimensions.
 
 
 ### Auxiliary Functions
@@ -483,114 +518,121 @@ here.
 
 
     typeof(lit) = T
-    v = [lit_1 .. lit_n],T
-    ----------------------------------------  :: Aux_Prepend
-    prepend(lit, v) = [lit lit_1 .. lit_n],T
+    v = [lit_1 .. lit_n],T,Vnull
+    ----------------------------------------------  :: Aux_Prepend
+    prepend(lit, v) = [lit lit_1 .. lit_n],T,Vnull
 
 
     typeof(lit) = T
-    v = [lit_1 .. lit_n],T
-    ---------------------------------------  :: Aux_Append
-    append(v, lit) = [lit_1 .. lit_n lit],T
+    v = [lit_1 .. lit_n],T,Vnull
+    ---------------------------------------------  :: Aux_Append
+    append(v, lit) = [lit_1 .. lit_n lit],T,Vnull
 
 
-    v = [lit_1 .. lit_n],T
-    ----------------------  :: Aux_Length
+    v = [lit_1 .. lit_n],T,Vnull
+    ----------------------------  :: Aux_Length
     length(v) = n
 
 
-    v_1 = [],T_Int
-    -----------------  :: Aux_Negate_BaseCase
+    v_1 = [lit_1 .. lit_n],T,v_d
+    v = [lit_1 .. lit_n]T,Vnull
+    ----------------------------  :: Aux_Strip_Dim
+    strip_dim(v_1) = v
+
+
+    v_1 = [],T_Int,v_d
+    ------------------  :: Aux_Negate_BaseCase
     negate(v_1) = v_1
 
 
-    v_1 = [NA_i int_1 .. int_n],T_Int
-    v_1' = [int_1 .. int_n],T_Int
+    v_1 = [NA_i int_1 .. int_n],T_Int,v_d
+    v_1' = [int_1 .. int_n],T_Int,v_d
     v_2 = negate(v_1')
     v = prepend(NA_i, v_2)
-    ---------------------------------  :: Aux_Negate_NACase
+    -------------------------------------  :: Aux_Negate_NACase
     negate(v_1) = v_1
 
 
-    v_1 = [int int_1 .. int_n],T_Int
-    v_1' = [int_1 .. int_n],T_Int
+    v_1 = [int int_1 .. int_n],T_Int,v_d
+    v_1' = [int_1 .. int_n],T_Int,v_d
     v_2 = negate(v_1')
     v = prepend(-int, v_2)
-    --------------------------------  :: Aux_Negate_RecurseCase
+    ------------------------------------  :: Aux_Negate_RecurseCase
     negate(v_1) = v_1
 
 
-    v_1 = [lit_1 .. lit_n],T
-    v_2 = [],T_Int
-    ---------------------------  :: Aux_GetAtPos_BaseCase
+    v_1 = [lit_1 .. lit_n],T,Vnull
+    v_2 = [],T_Int,Vnull
+    ------------------------------  :: Aux_GetAtPos_BaseCase
     get_at_pos(v_1, v_2) = [],T
 
 
-    v_1 = [lit_1 .. lit_n],T
-    v_2 = [0 int_1 .. int_m],T_Int
-    v_2' = [int_1 .. int_m],T_Int
+    v_1 = [lit_1 .. lit_n],T,Vnull
+    v_2 = [0 int_1 .. int_m],T_Int,Vnull
+    v_2' = [int_1 .. int_m],T_Int,Vnull
     v = get_at_pos(v_1, v_2')
-    ------------------------------  :: Aux_GetAtPos_ZeroCase
+    ------------------------------------  :: Aux_GetAtPos_ZeroCase
     get_at_pos(v_1, v_2) = v
 
 
-    v_1 = [lit_1 .. lit_n],T
-    v_2 = [i int_1 .. int_m],T_Int
+    v_1 = [lit_1 .. lit_n],T,Vnull
+    v_2 = [i int_1 .. int_m],T_Int,Vnull
     i in 1..n
-    v_2' = [int_1 .. int_m],T_Int
+    v_2' = [int_1 .. int_m],T_Int,Vnull
     v_3 = get_at_pos(v_1, v_2')
     v = prepend(lit_i, v_3)
-    ------------------------------  :: Aux_GetAtPos_InBoundsCase
+    ------------------------------------  :: Aux_GetAtPos_InBoundsCase
     get_at_pos(v_1, v_2) = v
 
 
-    v_1 = [lit_1 .. lit_n],T
-    v_2 = [i int_1 .. int_m],T_Int
+    v_1 = [lit_1 .. lit_n],T,Vnull
+    v_2 = [i int_1 .. int_m],T_Int,Vnull
     i not in 1..n \/ i = NA_i
-    v_2' = [int_1 .. int_m],T_Int
+    v_2' = [int_1 .. int_m],T_Int,Vnull
     v_3 = get_at_pos(v_1, v_2')
     v = prepend(NA(T), v_3)
-    ------------------------------  :: Aux_GetAtPos_OutBoundsCase
+    ------------------------------------  :: Aux_GetAtPos_OutBoundsCase
     get_at_pos(v_1, v_2) = v
 
 
-    v_1 = [],T_Bool
-    ----------------------------------  :: Aux_BoolToPosVec_BaseCase
-    bool_to_pos_vec(v_1, i) = [],T_Int
+    v_1 = [],T_Bool,Vnull
+    ----------------------------------------  :: Aux_BoolToPosVec_BaseCase
+    bool_to_pos_vec(v_1, i) = [],T_Int,Vnull
 
 
-    v_1 = [T bool_1 .. bool_n],T_Bool
-    v_1' = [bool_1 .. bool_n],T_Bool
+    v_1 = [T bool_1 .. bool_n],T_Bool,Vnull
+    v_1' = [bool_1 .. bool_n],T_Bool,Vnull
     v_2 = bool_to_pos_vec(v_1', i+1)
     v = prepend(i, v_2)
-    ------------------------------------   :: Aux_BoolToPosVec_TCase
+    ---------------------------------------   :: Aux_BoolToPosVec_TCase
     bool_to_pos_vec(v_1, i) = v
 
 
-    v_1 = [F bool_1 .. bool_n],T_Bool
-    v_1' = [bool_1 .. bool_n],T_Bool
+    v_1 = [F bool_1 .. bool_n],T_Bool,Vnull
+    v_1' = [bool_1 .. bool_n],T_Bool,Vnull
     v = bool_to_pos_vec(v_1', i+1)
-    -------------------------------------  :: Aux_BoolToPosVec_FCase
+    ---------------------------------------  :: Aux_BoolToPosVec_FCase
     bool_to_pos_vec(v_1, i) = v
 
 
-    v_1 = [NA_b bool_1 .. bool_n],T_Bool
-    v_1' = [bool_1 .. bool_n],T_Bool
+    v_1 = [NA_b bool_1 .. bool_n],T_Bool,Vnull
+    v_1' = [bool_1 .. bool_n],T_Bool,Vnull
     v_2 = bool_to_pos_vec(v_1', i+1)
     v = prepend(NA_i, v_2)
-    ------------------------------------   :: Aux_BoolToPosVec_NACase
+    ------------------------------------------   :: Aux_BoolToPosVec_NACase
     bool_to_pos_vec(v_1, i) = v
+
 
 
     --------------------  :: Aux_Extend_BaseCase
     extend(v_1, 0) = v_1
 
 
-    v_1 = [lit_1 .. lit_n],T
+    v_1 = [lit_1 .. lit_n],T,Vnull
     v_1' = append(v_1, NA(T))
     v = extend(v_1', m-1)
     m > 0
-    -------------------------  :: Aux_Extend_RecurseCase
+    ------------------------------  :: Aux_Extend_RecurseCase
     extend(v_1, m) = v
 
 
@@ -599,107 +641,107 @@ here.
     recycle(v_1, v_2, v_3, m) = v_1
 
 
-    v_1 = [lit_i .. lit_j],T
-    v_2 = [],T
+    v_1 = [lit_i .. lit_j],T,Vnull
+    v_2 = [],T,Vnull
     v = recycle(v_1, v_3, v_3, m)
     m > 0
-    -----------------------------  :: Aux_Recycle_CycleCase
+    ------------------------------  :: Aux_Recycle_CycleCase
     recycle(v_1, v_2, v_3, m) = v
 
 
-    v_1 = [lit_i .. lit_j],T
-    v_2 = [lit lit_1 .. lit_n],T
+    v_1 = [lit_i .. lit_j],T,Vnull
+    v_2 = [lit lit_1 .. lit_n],T,Vnull
     v_1' = append(v_1, lit)
-    v_2' = [lit_1 .. lit_n],T
+    v_2' = [lit_1 .. lit_n],T,Vnull
     v = recycle(v_1', v_2', v_3, m-1)
     m > 0
-    ---------------------------------  :: Aux_Recycle_RecurseCase
+    ----------------------------------  :: Aux_Recycle_RecurseCase
     recycle(v_1, v_2, v_3, m) = v
 
 
-    v_1 = [],T
+    v_1 = [],T,Vnull
     ---------------------------  :: Aux_GenBoolVec_BaseCase
     gen_bool_vec(v_1) = [],T_Bool
 
 
-    v_1 = [lit lit_1 .. lit_n],T
-    v_1' = [lit_1 .. lit_n],T
+    v_1 = [lit lit_1 .. lit_n],T,Vnull
+    v_1' = [lit_1 .. lit_n],T,Vnull
     v_2 = gen_bool_vec(v_1')
     v = prepend(T, v_2)
-    ----------------------------  :: Aux_GenBoolVec_RecurseCase
+    ----------------------------------  :: Aux_GenBoolVec_RecurseCase
     gen_bool_vec(v_1) = v
 
 
-    v_1 = [],T_Int
-    v_2 = [bool_1 .. bool_n],T_Bool
-    -------------------------------  :: Aux_NegToBoolVec_BaseCase
+    v_1 = [],T_Int,Vnull
+    v_2 = [bool_1 .. bool_n],T_Bool,Vnull
+    -------------------------------------  :: Aux_NegToBoolVec_BaseCase
     neg_to_bool_vec(v_1, v_2) = v_2
 
 
-    v_1 = [-j int_1 .. int_n],T_Int
-    v_1' = [int_1 .. int_n],T_Int
-    v_2 = [bool_1 .. bool_i bool_j bool_k .. bool_m],T_Bool
-    v_2' = [bool_1 .. bool_i F bool_k .. bool_m],T_Bool
+    v_1 = [-j int_1 .. int_n],T_Int,Vnull
+    v_1' = [int_1 .. int_n],T_Int,Vnull
+    v_2 = [bool_1 .. bool_i bool_j bool_k .. bool_m],T_Bool,Vnull
+    v_2' = [bool_1 .. bool_i F bool_k .. bool_m],T_Bool,Vnull
     v = neg_to_bool_vec(v_1', v_2')
-    -------------------------------------------------------  :: Aux_NegToBoolVec_InBoundsCase
+    -------------------------------------------------------------  :: Aux_NegToBoolVec_InBoundsCase
     neg_to_bool_vec(v_1, v_2) = v
 
 
-    v_1 = [-j int_1 .. int_n],T_Int
-    v_1' = [int_1 .. int_n],T_Int
-    v_2 = [bool_1 .. bool_m],T_Bool
+    v_1 = [-j int_1 .. int_n],T_Int,Vnull
+    v_1' = [int_1 .. int_n],T_Int,Vnull
+    v_2 = [bool_1 .. bool_m],T_Bool,Vnull
     j not in 1..m
     v = neg_to_bool_vec(v_1', v_2)
-    -------------------------------  :: Aux_NegToBoolVec_OutBoundsCase
+    -------------------------------------  :: Aux_NegToBoolVec_OutBoundsCase
     neg_to_bool_vec(v_1, v_2) = v
 
 
-    v_1 = [],T_Int
+    v_1 = [],T_Int,Vnull
     --------------------------  :: Aux_DropZeros_BaseCase
     drop_zeros(v_1) = [],T_Int
 
 
-    v_1 = [0 int_1 .. int_n],T_Int
-    v_1' = [int_1 .. int_n],T_Int
+    v_1 = [0 int_1 .. int_n],T_Int,Vnull
+    v_1' = [int_1 .. int_n],T_Int,Vnull
     v = drop_zeros(v_1')
-    ------------------------------  :: Aux_DropZeros_ZeroCase
+    ------------------------------------  :: Aux_DropZeros_ZeroCase
     drop_zeros(v_1) = v
 
 
-    v_1 = [int int_1 .. int_n],T_Int
-    v_1' = [int_1 .. int_n],T_Int
+    v_1 = [int int_1 .. int_n],T_Int,Vnull
+    v_1' = [int_1 .. int_n],T_Int,Vnull
     v_1'' = drop_zeros(v_1')
     v = prepend(int, v_1'')
     int =/= 0
-    --------------------------------  :: Aux_DropZeros_NonZeroCase
+    --------------------------------------  :: Aux_DropZeros_NonZeroCase
     drop_zeros(v_1) = v
 
 
-    v_1 = [lit_1 .. lit_n],T
-    v_2 = [],T_Int
-    v_3 = [],T
+    v_1 = [lit_1 .. lit_n],T,Vnull
+    v_2 = [],T_Int,Vnull
+    v_3 = [],T,Vnull
     ----------------------------------  :: Aux_UpdateAtPos_BaseCase
     update_at_pos(v_1, v_2, v_3) = v_1
 
 
-    v_1 = [lit_1 .. lit_i lit_j lit_k .. lit_n],T
-    v_2 = [j int_1 .. int_m],T_Int
-    v_3 = [lit' lit'_1 .. lit'_m],T
-    v_1' = [lit_1 .. lit_i lit' lit_k .. lit_n],T
-    v_2' = [int_1 .. int_m],T_Int
-    v_3' = [lit'_1 .. lit'_m],T
+    v_1 = [lit_1 .. lit_i lit_j lit_k .. lit_n],T,Vnull
+    v_2 = [j int_1 .. int_m],T_Int,Vnull
+    v_3 = [lit' lit'_1 .. lit'_m],T,Vnull
+    v_1' = [lit_1 .. lit_i lit' lit_k .. lit_n],T,Vnull
+    v_2' = [int_1 .. int_m],T_Int,Vnull
+    v_3' = [lit'_1 .. lit'_m],T,Vnull
     v = update_at_pos(v_1', v_2', v_3')
-    ---------------------------------------------  :: Aux_UpdateAtPos_InBoundsCase
+    ---------------------------------------------------  :: Aux_UpdateAtPos_InBoundsCase
     update_at_pos(v_1, v_2, v_3) = v
 
 
-    v_1 = [lit_1 .. lit_n],T
-    v_2 = [j int_1 .. int_m],T_Int
-    v_3 = [lit'_1 .. lit'_m],T
+    v_1 = [lit_1 .. lit_n],T,Vnull
+    v_2 = [j int_1 .. int_m],T_Int,Vnull
+    v_3 = [lit'_1 .. lit'_m],T,Vnull
     j not in 1..m /\ j =/= NA(T)
     v_1' = extend(v_1, j-m)
     v = update_at_pos(v_1', v_2, v_3)
-    ---------------------------------  :: Aux_UpdateAtPos_OutBoundsCase
+    ------------------------------------  :: Aux_UpdateAtPos_OutBoundsCase
     update_at_pos(v_1, v_2, v_3) = v
 
 
