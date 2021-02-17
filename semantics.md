@@ -37,12 +37,14 @@
         | lit                                       # literal
         | x                                         # variable
         | Combine(e_1, .. , e_n)                    # combine
+        | Dim(e)                                    # dimension getter
         | -e                                        # negate
         | e_1[]                                     # subset1 (nothing)
         | e_1[e_2]                                  # subset1
         | e_1[[e_2]]                                # subset2
         | e_1; ... ; e_2                            # sequencing
         | x <- e                                    # variable assignment
+        | Dim(x) <- e                               # dimension setter
         | x[] <- e_1                                # subset1 (nothing) assignment
         | x[e_1] <- e_2                             # subset1 assignment
         | x[[e_1]] <- e_2                           # subset2 assignment
@@ -98,6 +100,7 @@
     C ::=
         | <>                                        # hole
         | Combine(v_1, .., v_n, C, e_1, .., e_m)    # combine
+        | Dim(C)                                    # dimension getter
         | -C                                        # negate
         | C[]                                       # subset1 (nothing)
         | C[e]                                      # subset1
@@ -106,6 +109,7 @@
         | v[[C]]
         | v_1; .. ; v_n; C; e_1; .. ; e_m           # sequencing
         | x <- C                                    # variable assignment
+        | Dim(x) <- C                               # dimension setter
         | x[] <- C                                  # subset1 (nothing) assignment
         | x[C] <- e                                 # subset1 assignment
         | x[v] <- C
@@ -149,7 +153,7 @@ The NULL literal represents a vector of length zero, with type T_Null.
 
 
     typeof(lit) = T /\ T =/= T_Null
-    -------------------------------  :: E_Lit_NonNull
+    -------------------------------  :: E_Lit
     E C<lit> --> E C<[lit],T,Vnull>
 
 There are no scalars in R; non-null literals are implicitly converted to
@@ -187,6 +191,13 @@ dimensions.
 
 _Note:_ In R, arguments may also have different types, as vectors will be
 coerced to a common type.
+
+
+    v_1 = [lit_1 .. lit_n],T,v_d
+    ----------------------------  :: E_Dim
+    E C<Dim(v_1)> --> E C<v_d>
+
+Returns the dimension vector.
 
 
     v_1 = [lit_1 .. lit_n],T_Int,v_d
@@ -278,7 +289,8 @@ are out of bounds or repeated are ignored. `NA`s are not allowed as indices.
 
 
     v_1 = [lit_1 ... lit_n1],T,v_d1
-    v_2 = [i],T_Int,Vnull
+    v_2 = [i],T_Int,v_d2
+    product(v_d2) = 1
     i in 1...n1 /\ T =/= T_Null
     ----------------------------------------  :: E_Subset2
     E C<v_1[[v_2]]> --> E C<[lit_i],T,Vnull>
@@ -292,12 +304,13 @@ are out of bounds or repeated are ignored. `NA`s are not allowed as indices.
       - i == 0
       - i < 0
       - i > n1
+      - product of v_d2 is not 1
 
 Subsetting with `[[` returns a single-element vector. The index vector must
 contain a single, non-`NA` element that is within bounds.
 
-For now, the index vector must have null dimensions. **TODO**: support
-dimensions as long as the product of dimensions is 1.
+The index vector must either have null dimensions, or non-null dimensions whose
+product is 1.
 
 
     E' = E{ x := v }
@@ -305,6 +318,43 @@ dimensions as long as the product of dimensions is 1.
     E C<x <- v> --> E' C<v>
 
 Assignment updates the environment and returns the value being assigned.
+
+
+    x in E
+    E(x) = v_1
+    v_1 = [lit_1 .. lit_n1],T_1,v_d1
+    v = [lit_1 .. lit_n],T,Vnull
+    E' = E{ x := v }
+    ----------------------------------  :: E_Dim_Assign_Null
+    E C<Dim(x) <- Vnull> --> E' C<Vnull>
+
+    Error if:
+      - x not in E
+
+Assigning null dimensions to a vector removes its dimensions.
+
+
+    x in E
+    E(x) = v_1
+    v_1 = [lit_1 .. lit_n1],T_1,v_d1
+    v_2 = [lit'_1 .. lit'_n2],T_Int,v_d2
+    v = [lit_1 .. lit_n],T,v_2
+    E' = E{ x := v }
+    length(v_1) = product(v_2)
+    length(v_2) in 1...2
+    ----------------------------------  :: E_Dim_Assign
+    E C<Dim(x) <- v_2> --> E' C<v_2>
+
+    Error if:
+      - x not in E
+      - v_2 does not have type T_Int or T_Null
+      - length of v_1 is not equal to the product of v_2
+      - length of v_2 < 1
+      - length of v_2 > 2
+
+The entire vector is replaced by a new one, with updated dimensions. The
+length of the vector must be equal to the product of the supplied dimension
+vector. The dimension vector must be a non-null integer vector.
 
 
     x in E
@@ -532,6 +582,18 @@ here.
     v = [lit_1 .. lit_n],T,Vnull
     ----------------------------  :: Aux_Length
     length(v) = n
+
+
+    v = [],T,Vnull
+    --------------  :: Aux_Product
+    product(v) = 1
+
+
+    v = [int_1 int_2 .. int_m],T_Int,Vnull
+    v' = [int_2 .. int_m],T_Int,Vnull
+    n = int_1 * product(v')
+    --------------------------------------  :: Aux_Product
+    product(v) = n
 
 
     v_1 = [lit_1 .. lit_n],T,v_d
