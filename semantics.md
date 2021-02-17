@@ -37,6 +37,7 @@
         | lit                                       # literal
         | x                                         # variable
         | Combine(e_1, .. , e_n)                    # combine
+        | Matrix(e_1, e_2, e_3)                     # matrix
         | Dim(e)                                    # dimension getter
         | -e                                        # negate
         | e_1[]                                     # subset1 (nothing)
@@ -100,6 +101,9 @@
     C ::=
         | <>                                        # hole
         | Combine(v_1, .., v_n, C, e_1, .., e_m)    # combine
+        | Matrix(C, e_2, e_3)                       # matrix
+        | Matrix(v_1, C, e_3)
+        | Matrix(v_1, v_2, C)
         | Dim(C)                                    # dimension getter
         | -C                                        # negate
         | C[]                                       # subset1 (nothing)
@@ -179,7 +183,7 @@ Passing zero arguments to `Combine` will return the null vector, `Vnull`.
 
 
     (v_1 = [lit_1_1 .. lit_1_m1],T,v_d1) ... (v_n = [lit_n_1 .. lit_n_mn],T,v_d2)
-    -----------------------------------------------------------------------------------------  :: E_Combine_NonEmpty
+    -----------------------------------------------------------------------------------------  :: E_Combine
     E C<Combine(v_1, ..., v_n)> --> E C<[lit_1_1 .. lit_1_m1 .. lit_n_1 .. lit_n_mn],T,Vnull>
 
     Error if:
@@ -191,6 +195,55 @@ dimensions.
 
 _Note:_ In R, arguments may also have different types, as vectors will be
 coerced to a common type.
+
+
+    v_1 = [],T,Vnull
+    v_2 = [i],T_Int,v_d2
+    v_3 = [j],T_Int,v_d3
+    n2 = i*j
+    v_1' = NA(T)
+    v_1'' = extend(v_1', v_1', v_1', n2-1)
+          = [lit_1 .. lit_n2],T,Vnull
+    v_d2 = [i j],T_Int,Vnull
+    v = [lit_1 .. lit_n2],T,v_d2
+    --------------------------------------  :: E_Matrix_Empty
+    E C<Matrix(v_1, v_2, v_3)> --> E C<v>
+
+If the provided vector `v_1` is empty, then it is converted to an `NA` of the
+appropriate type, and extended to fill the required dimensions.
+
+
+    v_1 = [lit_1 .. lit_n1],T,v_d1
+    v_2 = [i],T_Int,v_d2
+    v_3 = [j],T_Int,v_d3
+    v_1' = strip_dim(v_1)
+    n2 = i*j
+    v_1'' = truncate(v_1', n1-n2)
+    n2 % n1 == 0
+    v_1''' = extend(v_1'', v_1'', v_1'', n2-n1)
+           = [lit_1 .. lit_n2],T,v_d1
+    v_d2 = [i j],T_Int,Vnull
+    v = [lit_1 .. lit_n2],T,v_d2
+    -------------------------------------------  :: E_Matrix
+    E C<Matrix(v_1, v_2, v_3)> --> E C<v>
+
+    Error if:
+      - v_2 does not have type T_Int
+      - v_3 does not have type T_Int
+      - v_2 does not have 1 element
+      - v_3 does not have 1 element
+      - n2 % n1 =/= 0
+
+A matrix is created from the elements of `v_1`, with `v_2` rows and `v_3`
+columns. If the length of `v_1` is less than the product of dimensions, then it
+must evenly divide the dimensions; otherwise `v_1` is truncated.
+
+`v_2` and `v_3` must both be integer vectors of length 1.
+
+_Note:_ In R, `v_2` and `v_3` may have length greater than 1; in that case,
+elements after the first one are ignored. Furthermore, if `v_2` has multiple
+elements and `v_3` is omitted, then `v_3` is taken to be the second element of
+`v_2`.
 
 
     v_1 = [lit_1 .. lit_n],T,v_d
@@ -684,6 +737,22 @@ here.
     ------------------------------------------   :: Aux_BoolToPosVec_NACase
     bool_to_pos_vec(v_1, i) = v
 
+
+    ------------------------------  :: Aux_Truncate_BaseCase1
+    truncate(v_1, 0) = v_1
+
+
+    v_1 = [],T,Vnull
+    ------------------------------  :: Aux_Truncate_BaseCase2
+    truncate(v_1, m) = v_1
+
+
+    v_1 = [lit_1 .. lit_i lit_j],T,Vnull
+    v_1' = [lit_1 .. lit_i],T,Vnull
+    v = truncate(v_1', m-1)
+    m > 0
+    ------------------------------------  :: Aux_Truncate_RecurseCase
+    truncate(v_1, m) = v_1
 
 
     --------------------  :: Aux_Extend_BaseCase
