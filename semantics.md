@@ -202,12 +202,17 @@ coerced to a common type.
     v_3 = [j],T_Int,v_d3
     n2 = i*j
     v_1' = NA(T)
-    v_1'' = extend(v_1', v_1', v_1', n2-1)
+    v_1'' = recycle(v_1', v_1', v_1', n2-1)
           = [lit_1 .. lit_n2],T,Vnull
     v_d2 = [i j],T_Int,Vnull
     v = [lit_1 .. lit_n2],T,v_d2
-    --------------------------------------  :: E_Matrix_Empty
+    i > 0 /\ j > 0
+    ---------------------------------------  :: E_Matrix_Empty
     E C<Matrix(v_1, v_2, v_3)> --> E C<v>
+
+    Error if:
+      - i is negative
+      - j is negative
 
 If the provided vector `v_1` is empty, then it is converted to an `NA` of the
 appropriate type, and extended to fill the required dimensions.
@@ -220,11 +225,12 @@ appropriate type, and extended to fill the required dimensions.
     n2 = i*j
     v_1'' = truncate(v_1', n1-n2)
     n2 % n1 == 0
-    v_1''' = extend(v_1'', v_1'', v_1'', n2-n1)
+    v_1''' = recycle(v_1'', v_1'', v_1'', n2-n1)
            = [lit_1 .. lit_n2],T,v_d1
     v_d2 = [i j],T_Int,Vnull
     v = [lit_1 .. lit_n2],T,v_d2
-    -------------------------------------------  :: E_Matrix
+    i > 0 /\ j > 0
+    --------------------------------------------  :: E_Matrix
     E C<Matrix(v_1, v_2, v_3)> --> E C<v>
 
     Error if:
@@ -233,6 +239,8 @@ appropriate type, and extended to fill the required dimensions.
       - v_2 does not have 1 element
       - v_3 does not have 1 element
       - n2 % n1 =/= 0
+      - i is negative
+      - j is negative
 
 A matrix is created from the elements of `v_1`, with `v_2` rows and `v_3`
 columns. If the length of `v_1` is less than the product of dimensions, then it
@@ -391,7 +399,8 @@ Assigning null dimensions to a vector removes its dimensions.
     E(x) = v_1
     v_1 = [lit_1 .. lit_n1],T_1,v_d1
     v_2 = [lit'_1 .. lit'_n2],T_Int,v_d2
-    v = [lit_1 .. lit_n],T,v_2
+    forall i in 1 .. n2 : lit'_i > 0
+    v = [lit_1 .. lit_n1],T,v_2
     E' = E{ x := v }
     length(v_1) = product(v_2)
     length(v_2) in 1...2
@@ -404,6 +413,7 @@ Assigning null dimensions to a vector removes its dimensions.
       - length of v_1 is not equal to the product of v_2
       - length of v_2 < 1
       - length of v_2 > 2
+      - dimensions vector contains negative values
 
 The entire vector is replaced by a new one, with updated dimensions. The
 length of the vector must be equal to the product of the supplied dimension
