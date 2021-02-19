@@ -351,27 +351,48 @@ are out of bounds or repeated are ignored. `NA`s are not allowed as indices.
 
     v_1 = [lit_1 ... lit_n1],T,v_d1
     v_2 = [i],T_Int,v_d2
-    product(v_d2) = 1
     i in 1...n1 /\ T =/= T_Null
-    ----------------------------------------  :: E_Subset2
+    ----------------------------------------  :: E_Subset2_Vector
     E C<v_1[[v_2]]> --> E C<[lit_i],T,Vnull>
 
     Error if:
+      - v_2 is omitted
       - v_2 has 0 elements
       - v_2 has more than 1 element
       - v_2 does not have type T_Int
-      - v_2 does not have null dimensions
       - i == NA_i
       - i == 0
       - i < 0
       - i > n1
-      - product of v_d2 is not 1
 
 Subsetting with `[[` returns a single-element vector. The index vector must
-contain a single, non-`NA` element that is within bounds.
+contain a single, non-`NA` integer that is within bounds.
 
-The index vector must either have null dimensions, or non-null dimensions whose
-product is 1.
+
+    v_1 = [lit_1 ... lit_n],T,v_d1
+    v_d1 = [r c],T_Int,v_d
+    v_2 = [i],T_Int,v_d2
+    v_3 = [j],T_Int,v_d3
+    i in 1...r /\ j in 1...c
+    k = (j - 1) * r + i
+    k in 1...n /\ T =/= T_Null
+    --------------------------------------------  :: E_Subset2_Matrix
+    E C<v_1[[v_2,v_3]]> --> E C<[lit_k],T,Vnull>
+
+    Error if:
+      - v_2 or v_3 are omitted
+      - v_2 or v_3 have 0 elements
+      - v_2 or v_3 have more than 1 element
+      - v_2 or v_3 do not have type T_Int
+      - i == NA_i or j == NA_i
+      - i == 0 or j == 0
+      - i < 0 or j < 0
+      - i > r or j > c
+
+Subsetting with `[[` returns a single-element vector. When subsetting a matrix,
+two index vectors must be provided, each containing a single, non-`NA` integer
+that is within bounds.
+
 
 
     E' = E{ x := v }
