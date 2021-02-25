@@ -220,7 +220,6 @@ let rec eval env = function
       match t2 with
       | T_Bool ->
           let len = Stdlib.max n1 n2 in
-          let a1 = extend len t1 a1 in
           let res =
             a2 |> recycle len t2 |> Array.map get_bool |> bool_to_pos_vec |> get_at_pos t1 a1 in
           (env, vector res t1)

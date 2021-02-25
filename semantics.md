@@ -215,7 +215,7 @@ coerced to a common type.
       - j is negative
 
 If the provided vector `v_1` is empty, then it is converted to an `NA` of the
-appropriate type, and extended to fill the required dimensions.
+appropriate type, and recycled to fill the required dimensions.
 
 
     v_1 = [lit_1 .. lit_n1],T,v_d1
@@ -294,13 +294,12 @@ Indexing the null vector `Vnull` always returns `Vnull`. No error checking is pe
     v_2 = [bool_1 .. bool_n2],T_Bool,v_d2
     l = max(n1, n2)
     v_1' = strip_dim(v_1)
-    v_1'' = extend(v_1', l-n1)
     v_2' = strip_dim(v_2)
     v_2'' = recycle(v_2', v_2', v_2', l-n2)
     v_2''' = bool_to_pos_vec(v_2'', 1)
-    v = get_at_pos(v_1'', v_2''')
+    v = get_at_pos(v_1', v_2''')
     T =/= T_Null
-    ---------------------------------------  :: E_Subset1_Bool
+    ---------------------------------------  :: E_Subset1_Bool_Vector
     E C<v_1[v_2]> --> E C<v>
 
 If the index vector contains `T`, then the element at the corresponding
@@ -308,31 +307,30 @@ location is selected; if it contains `F` then the corresponding element is
 skipped; if it contains `NA_b`, then `NA` (of the appropriate type) is selected.
 The dimensions of both vectors are ignored.
 
-If the boolean vector is too long, we extend the base vector with `NA`s. If the
-boolean vector is too short, we recycle it.
+If the boolean vector is too short, we recycle it.
 
 
     v_1 = [lit_1 .. lit_n1],T,v_d1
     v_2 = [int_1 .. int_n2],T_Int,v_d2
+    forall i in 1..n2 : int_i >= 0 \/ int_i == NA_i
     v_1' = strip_dim(v_1)
     v_2' = strip_dim(v_2)
-    forall i in 1..n2 : int_i >= 0 \/ int_i == NA_i
     v = get_at_pos(v_1', v_2')
     T =/= T_Null
-    -----------------------------------------------  :: E_Subset1_Positive
+    -----------------------------------------------  :: E_Subset1_Positive_Vector
     E C<v_1[v_2]> --> E C<v>
 
     v_1 = [lit_1 .. lit_n1],T,v_d1
     v_2 = [int_1 .. int_n2],T_Int,v_d2
+    forall i in 1..n2 : int_i <= 0 /\ int_i =/= NA_i
     v_1' = strip_dim(v_1)
     v_2' = strip_dim(v_2)
-    forall i in 1..n2 : int_i <= 0 /\ int_i =/= NA_i
-    v_1'' = gen_bool_vec(v_1')
+    v_1'' = gen_bool_vec(n1)
     v_2'' = neg_to_bool_vec(v_2', v_1'')
     v_2''' = bool_to_pos_vec(v_2'', 1)
     v = get_at_pos(v_1', v_2''')
     T =/= T_Null
-    ------------------------------------------------  :: E_Subset1_Negative
+    ------------------------------------------------  :: E_Subset1_Negative_Vector
     E C<v_1[v_2] --> E C<v>
 
     Error if:
@@ -347,6 +345,108 @@ dimensions of both vectors are ignored.
 
 Negative subsetting returns elements excluded by the index vector. Indices that
 are out of bounds or repeated are ignored. `NA`s are not allowed as indices.
+
+
+    v_1 = [lit_1 .. lit_n1],T,v_d1
+    v_d1 = [r c],T_Int,v_d
+    v_2 = [bool_1 .. bool_n2],T_Bool,v_d2
+    v_3 = [bool'_1 .. bool'_n3],T_Bool,v_d3
+    n2 <= r /\ n3 <= c
+    v_1' = strip_dim(v_1)
+    v_2' = strip_dim(v_2)
+    v_3' = strip_dim(v_3)
+    v_2'' = recycle(v_2', v_2', v_2', r-n2)
+    v_3'' = recycle(v_3', v_3', v_3', c-n3)
+    v_2''' = bool_to_pos_vec(v_2'', 1)
+    v_3''' = bool_to_pos_vec(v_3'', 1)
+    v_1'' = get_at_pos_matrix(v_1', v_2''', v_3''')
+          = [lit'_1 .. lit'_n],T,v_d1'
+    n2' = length(v_2''')
+    n3' = length(v_3''')
+    v_d' = [n2' n3'],T_Int,Vnull
+    v = [lit'_1 .. lit'_n],T,v_d'
+    T =/= T_Null
+    -----------------------------------------------  :: E_Subset1_Bool_Matrix
+    E C<v_1[v_2,v_3]> --> E C<v>
+
+    Error if:
+      - n2 > r
+      - n3 > c
+
+Two boolean vectors are provided as indexes, to select the rows and columns of
+the matrix, respectively. The dimensions of the boolean vectors are ignored. If
+a boolean vector is too short, we recycle it. It is an error if a boolean vector
+is too long.
+
+Otherwise, the same rules for boolean subsetting of vectors apply.
+
+
+    v_1 = [lit_1 .. lit_n1],T,v_d1
+    v_d1 = [r c],T_Int,v_d
+    v_2 = [int_1 .. int_n2],T_Int,v_d2
+    v_3 = [int'_1 .. int'_n3],T_Int,v_d3
+    forall i in 1..n2 : 0 <= int_i <= r \/ int_i == NA_i
+    forall i in 1..n3 : 0 <= int'_i <= c \/ int_i == NA_i
+    v_1' = strip_dim(v_1)
+    v_2' = strip_dim(v_2)
+    v_3' = strip_dim(v_3)
+    v_1'' = get_at_pos_matrix(v_1, v_2', v_3')
+          = [lit'_1 .. lit'_n],T,v_d1'
+    n2' = length(v_2')
+    n3' = length(v_3')
+    v_d' = [n2' n3'],T_Int,Vnull
+    v = [lit'_1 .. lit'_n],T,v_d'
+    T =/= T_Null
+    -----------------------------------------------------  :: E_Subset1_Positive_Matrix
+    E C<v_1[v_2,v_3]> --> E C<v>
+
+    v_1 = [lit_1 .. lit_n1],T,v_d1
+    v_d1 = [r c],T_Int,v_d
+    v_2 = [int_1 .. int_n2],T_Int,v_d2
+    v_3 = [int'_1 .. int'_n3],T_Int,v_d3
+    forall i in 1..n2 : int_i <= 0 /\ int_i =/= NA_i
+    forall i in 1..n3 : int'_i <= 0 /\ int'_i =/= NA_i
+    v_1' = strip_dim(v_1)
+    v_2' = strip_dim(v_2)
+    v_3' = strip_dim(v_3)
+    v_1r = gen_bool_vec(r)
+    v_1c = gen_bool_vec(c)
+    v_2'' = neg_to_bool_vec(v_2', v_1r)
+    v_3'' = neg_to_bool_vec(v_3', v_1c)
+    v_2''' = bool_to_pos_vec(v_2'', 1)
+    v_3''' = bool_to_pos_vec(v_3'', 1)
+    v_1'' = get_at_pos_matrix(v_1, v_2''', v_3''')
+          = [lit'_1 .. lit'_n],T,v_d1'
+    n2' = length(v_2''')
+    n3' = length(v_3''')
+    v_d' = [n2' n3'],T_Int,Vnull
+    v = [lit'_1 .. lit'_n],T,v_d'
+    T =/= T_Null
+    --------------------------------------------------  :: E_Subset1_Negative_Matrix
+    E C<v_1[v_2,v_3] --> E C<v>
+
+    Error if:
+      - v_2 or v_3 mix positive and negative subscripts
+      - v_2 or v_3 mix negative and NA subscripts
+      - v_2 or v_3 are out of bounds
+
+Two integer vectors are provided as indexes, to select the rows and columns of
+the matrix, respectively. The dimensions of the integer vectors are ignored. For
+positive subsetting, the elements of the vector must be within bounds of the
+matrix.
+
+Otherwise, the same rules for positive and negative subsetting of vectors apply.
+
+
+**TODO**: get_at_pos_matrix
+
+**TODO**:
+ - missing index / subset1_nothing
+ - maybe nothing converts to T which recycles and selects everything
+ - mixed subsetting modes, e.g. m[T,1]
+ - need to better unify subsetting modes
+
+**TODO**: E_Subset1_Matrix_Matrix
 
 
     v_1 = [lit_1 ... lit_n1],T,v_d1
@@ -366,7 +466,8 @@ are out of bounds or repeated are ignored. `NA`s are not allowed as indices.
       - i > n1
 
 Subsetting with `[[` returns a single-element vector. The index vector must
-contain a single, non-`NA` integer that is within bounds.
+contain a single, non-`NA` integer that is within bounds. The dimensions of both
+vectors are ignored.
 
 
     v_1 = [lit_1 ... lit_n],T,v_d1
@@ -553,7 +654,7 @@ assignment to the null vector is not allowed, as there is no coercion here.
     v_2 = [int_1 .. int_n2],T_Int,Vnull
     v_3 = [lit'_1 ... lit'_n3],T,Vnull
     forall i in 1..n2 : int_i <= 0
-    v_1' = gen_bool_vec(v_1)
+    v_1' = gen_bool_vec(n1)
     v_2' = neg_to_bool_vec(v_2, v_1')
     v_2'' = bool_to_pos_vec(v_2', 1)
     n2' = length(v_2'')
@@ -821,17 +922,16 @@ here.
     recycle(v_1, v_2, v_3, m) = v
 
 
-    v_1 = [],T,Vnull
+
     ---------------------------  :: Aux_GenBoolVec_BaseCase
-    gen_bool_vec(v_1) = [],T_Bool
+    gen_bool_vec(0) = [],T_Bool
 
 
-    v_1 = [lit lit_1 .. lit_n],T,Vnull
-    v_1' = [lit_1 .. lit_n],T,Vnull
-    v_2 = gen_bool_vec(v_1')
-    v = prepend(T, v_2)
+    v_1 = gen_bool_vec(n-1)
+    v = prepend(T, v_1)
+    n > 0
     ----------------------------------  :: Aux_GenBoolVec_RecurseCase
-    gen_bool_vec(v_1) = v
+    gen_bool_vec(n) = v
 
 
     v_1 = [],T_Int,Vnull
