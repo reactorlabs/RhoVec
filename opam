@@ -18,9 +18,6 @@ depends: [
  "ocaml"
  "ppx_deriving"
  "angstrom"
- "alcotest" {dev}
- "ocamlformat" {dev}
- "bisect_ppx" {dev}
 ]
 depopts: [
  "utop"

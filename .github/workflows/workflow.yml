@@ -28,7 +28,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.opam
-          key: ${{ matrix.os }}-ocaml.${{ matrix.ocaml }}-${{ hashFiles('opam') }}
+          key: ${{ matrix.os }}-ocaml.${{ matrix.ocaml }}-${{ hashFiles('**opam.lock') }}
           restore-keys: |
             ${{ matrix.os }}-ocaml.${{ matrix.ocaml }}-
             ${{ matrix.os }}-
