@@ -41,7 +41,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.cache-ocaml.cache-hit != 'true'
-        run: opam install . --deps-only --with-test
+        run: opam install . --deps-only --locked
 
       - name: Format code
         run: opam exec -- dune build @fmt

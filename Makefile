@@ -52,7 +52,7 @@ coverage: clean
 	bisect-ppx-report summary
 
 deps:
-	opam install . --deps-only --with-test
+	opam install . --deps-only --locked
 
 clean:
 	dune clean

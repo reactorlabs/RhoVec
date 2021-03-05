@@ -1,0 +1,10 @@
+opam-version: "2.0"
+authors: "Ming-Ho Yee <mh@mhyee.com>"
+maintainer: "Ming-Ho Yee <mh@mhyee.com>"
+homepage: "https://github.com/reactorlabs/RhoVec"
+bug-reports: "https://github.com/reactorlabs/RhoVec/issues"
+depends: [
+ "alcotest"
+ "ocamlformat"
+ "bisect_ppx"
+]
