@@ -23,7 +23,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Cache OCaml and deps
+      - name: Cache dependencies
         id: cache-ocaml
         uses: actions/cache@v2
         with:
@@ -34,13 +34,12 @@ jobs:
             ${{ matrix.os }}-
 
       - name: Setup OCaml
-        if: steps.cache-ocaml.cache-hit != 'true'
         uses: avsm/setup-ocaml@v1
         with:
           ocaml-version: ${{ matrix.ocaml }}
 
       - name: Install dependencies
-        if: steps.cache-ocaml.cache-hit != 'true'
+        if: steps.cache-ocaml.outputs.cache-hit != 'true'
         run: opam install . --deps-only --locked
 
       - name: Format code
@@ -54,3 +53,5 @@ jobs:
 
       - name: Run R test oracle
         run: opam exec -- make test-oracle
+
+# TODO: code coverage in a separate job
