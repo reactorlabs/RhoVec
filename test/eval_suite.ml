@@ -47,11 +47,11 @@ let test_eval desc (expected, input) =
     assert_vec_elt_types expected ;
     assert_vec_elt_types res ;
     A.(check testable_value) "same value" expected res in
-  ( match dump_file with
+  (match dump_file with
   | None -> ()
   | Some fout ->
       Printf.fprintf fout "# %s\n" desc ;
-      Printf.fprintf fout "runtest(%s, %s)\n\n" (Deparse.val_to_r res) (Deparse.to_r expr) ) ;
+      Printf.fprintf fout "runtest(%s, %s)\n\n" (Deparse.val_to_r res) (Deparse.to_r expr)) ;
   A.test_case desc `Quick check_res
 
 (* Create a test case that parses `input` and expects evaluating the expression to throw an
@@ -64,14 +64,14 @@ let test_eval desc (expected, input) =
 let test_eval_err desc ?(is_r = true) ?(is_r_warning = false) (excptn, input) =
   let expr = Parse.parse input in
   let run_eval () = A.check_raises "same exception" excptn (fun _ -> ignore (Eval.run expr)) in
-  ( match dump_file with
+  (match dump_file with
   | None -> ()
   | Some fout ->
       if is_r then (
         let tester = if not is_r_warning then "runerr" else "runwarn" in
         Printf.fprintf fout "# ERROR: %s\n" desc ;
         Printf.fprintf fout "%s(\"%s\", %s)\n\n" tester (Eval.excptn_to_string excptn)
-          (Deparse.to_r expr) ) ) ;
+          (Deparse.to_r expr))) ;
   A.test_case desc `Quick run_eval
 
 let () =

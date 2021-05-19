@@ -35,14 +35,14 @@ let run_once env =
       (* return the new environment *)
       env'
     with e ->
-      ( match e with
+      (match e with
       | Parse.Parse_error msg -> Printf.printf "Error%s\n" msg
       | Eval.Type_error { expected; received } ->
           Printf.printf "Error: expected type %s but received %s\n" (Expr.show_type expected)
             (Expr.show_type received)
       | e ->
           let msg = Eval.excptn_to_string e in
-          Printf.printf "Error: %s\n" msg ) ;
+          Printf.printf "Error: %s\n" msg) ;
       (* return the old environment *)
       env in
 
@@ -50,7 +50,7 @@ let run_once env =
   let input = Stdlib.read_line () in
   if String.prefix ~pre:"#" input then (
     handle_directive input ;
-    env )
+    env)
   else run input
 
 let repl () =
