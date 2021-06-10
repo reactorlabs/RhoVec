@@ -359,14 +359,14 @@ are out of bounds or repeated are ignored. `NA`s are not allowed as indices.
     v_3'' = recycle(v_3', v_3', v_3', c-n3)
     v_2''' = bool_to_pos_vec(v_2'', 1)
     v_3''' = bool_to_pos_vec(v_3'', 1)
-    v_1'' = get_at_pos_matrix(v_1', v_2''', v_3''')
+    v_1'' = get_at_pos_matrix(v_1', v_2''', v_3''', v_2''')
           = [lit'_1 .. lit'_n],T,v_d1'
     n2' = length(v_2''')
     n3' = length(v_3''')
     v_d' = [n2' n3'],T_Int,Vnull
     v = [lit'_1 .. lit'_n],T,v_d'
     T =/= T_Null
-    -----------------------------------------------  :: E_Subset1_Bool_Matrix
+    -------------------------------------------------------  :: E_Subset1_Bool_Matrix
     E C<v_1[v_2,v_3]> --> E C<v>
 
     Error if:
@@ -390,10 +390,12 @@ Otherwise, the same rules for boolean subsetting of vectors apply.
     v_1' = strip_dim(v_1)
     v_2' = strip_dim(v_2)
     v_3' = strip_dim(v_3)
-    v_1'' = get_at_pos_matrix(v_1, v_2', v_3')
+    v_2'' = drop_zeros(v_2')
+    v_3'' = drop_zeros(v_3')
+    v_1'' = get_at_pos_matrix(v_1', v_2'', v_3'', v_2'')
           = [lit'_1 .. lit'_n],T,v_d1'
-    n2' = length(v_2')
-    n3' = length(v_3')
+    n2' = length(v_2'')
+    n3' = length(v_3'')
     v_d' = [n2' n3'],T_Int,Vnull
     v = [lit'_1 .. lit'_n],T,v_d'
     T =/= T_Null
@@ -415,14 +417,14 @@ Otherwise, the same rules for boolean subsetting of vectors apply.
     v_3'' = neg_to_bool_vec(v_3', v_1c)
     v_2''' = bool_to_pos_vec(v_2'', 1)
     v_3''' = bool_to_pos_vec(v_3'', 1)
-    v_1'' = get_at_pos_matrix(v_1, v_2''', v_3''')
+    v_1'' = get_at_pos_matrix(v_1, v_2''', v_3''', v_2''')
           = [lit'_1 .. lit'_n],T,v_d1'
     n2' = length(v_2''')
     n3' = length(v_3''')
     v_d' = [n2' n3'],T_Int,Vnull
     v = [lit'_1 .. lit'_n],T,v_d'
     T =/= T_Null
-    --------------------------------------------------  :: E_Subset1_Negative_Matrix
+    ------------------------------------------------------  :: E_Subset1_Negative_Matrix
     E C<v_1[v_2,v_3] --> E C<v>
 
     Error if:
@@ -437,16 +439,15 @@ matrix.
 
 Otherwise, the same rules for positive and negative subsetting of vectors apply.
 
-
-**TODO**: get_at_pos_matrix
-
 **TODO**:
- - missing index / subset1_nothing
- - maybe nothing converts to T which recycles and selects everything
- - mixed subsetting modes, e.g. m[T,1]
- - need to better unify subsetting modes
+- need to better unify subsetting modes
+    - missing index / subset1_nothing
+        - maybe nothing converts to T which recycles and selects everything
+    - mixed subsetting modes, e.g. m[T,1]
 
 **TODO**: E_Subset1_Matrix_Matrix
+
+**TODO**: After assignment, figure out where we don't need to strip dims
 
 
     v_1 = [lit_1 ... lit_n1],T,v_d1
@@ -840,6 +841,46 @@ here.
     v = prepend(NA(T), v_3)
     ------------------------------------  :: Aux_GetAtPos_OutBoundsCase
     get_at_pos(v_1, v_2) = v
+
+
+    v_1 = [lit_1 .. lit_n],T,Vnull
+    v_2 = [],T_Int,Vnull
+    v_3 = [],T_Int,Vnull
+    ----------------------------------------------  :: Aux_GetAtPosMatrix_BaseCase
+    get_at_pos_matrix(v_1, v_2, v_3, v_4) = [],T
+
+
+    v_1 = [lit_1 .. lit_n],T,Vnull
+    v_2 = [],T_Int,Vnull
+    v_3 = [j int'_1 .. int'_n3],T_Int,Vnull
+    v_3' = [int'_1 .. int'_n3],T_Int,Vnull
+    v = get_at_pos_matrix(v_1, v_4, v_3', v_4)
+    ------------------------------------------  :: Aux_GetAtPosMatrix_NextColCase
+    get_at_pos_matrix(v_1, v_2, v_3, v_4) = v
+
+
+    v_1 = [lit_1 .. lit_n],T,Vnull
+    v_2 = [i int_1 .. int_n2],T_Int,Vnull
+    v_3 = [j int'_1 .. int'_n3],T_Int,Vnull
+    i =/= NA_i /\ j =/= NA_i
+    v_2' = [int_1 .. int_n2],T_Int,Vnull
+    r = length(v_4)
+    k = i + (j-1)*r
+    v_5 = get_at_pos_matrix(v_1, v_2', v_3, v_4)
+    v = prepend(lit_k, v_5)
+    --------------------------------------------  :: Aux_GetAtPosMatrix_InBoundsCase
+    get_at_pos_matrix(v_1, v_2, v_3, v_4) = v
+
+
+    v_1 = [lit_1 .. lit_n],T,Vnull
+    v_2 = [i int_1 .. int_n2],T_Int,Vnull
+    v_3 = [j int'_1 .. int'_n3],T_Int,Vnull
+    i = NA_i \/ j = NA_i
+    v_2' = [int_1 .. int_n2],T_Int,Vnull
+    v_5 = get_at_pos_matrix(v_1, v_2', v_3, v_4)
+    v = prepend(NA(T), v_5)
+    ----------------------------------------------  :: Aux_GetAtPosMatrix_NACase
+    get_at_pos_matrix(v_1, v_2, v_3, v_4) = v
 
 
     v_1 = [],T_Bool,Vnull
