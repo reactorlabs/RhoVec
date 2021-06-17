@@ -195,10 +195,12 @@ Looks up the value of `x` in the environment.
     ---------------------------------  :: E_Combine_Empty
     E C<Combine()> --> E C<Vnull>
 
-Passing zero arguments to `Combine` will return the null vector, `Vnull`.
-
+    (v_1 = Vnull ... v_n = Vnull)
+    ------------------------------------------  :: E_Combine_Null
+    E C<Combine(v_1, ..., v_n)> --> E C<Vnull>
 
     (v_1 = [lit_1_1 .. lit_1_m1],T,v_d1) ... (v_n = [lit_n_1 .. lit_n_mn],T,v_d2)
+    T =/= T_Null
     -----------------------------------------------------------------------------------------  :: E_Combine
     E C<Combine(v_1, ..., v_n)> --> E C<[lit_1_1 .. lit_1_m1 .. lit_n_1 .. lit_n_mn],T,Vnull>
 
@@ -208,6 +210,9 @@ Passing zero arguments to `Combine` will return the null vector, `Vnull`.
 `Combine` takes vectors as arguments, and combines/flattens them into a single
 vector. The dimensions vectors are ignored, so the resulting vector as null
 dimensions.
+
+Passing zero arguments to `Combine` will return the null vector, `Vnull`.
+Combining multiple null vectors will return the null vector.
 
 _Note:_ In R, arguments may also have different types, as vectors will be
 coerced to a common type.
@@ -296,22 +301,44 @@ Does nothing; returns the original vector.
 
 
     v_1 = Vnull
-    --------------------------  :: E_Subset1_Null_Vector
+    --------------------------  :: E_Subset1_Vector_Null
     E C<v_1[v_2]> --> E C<v_1>
 
     v_1 = Vnull
-    ----------------------------  :: E_Subset2_Null_Vector
+    ----------------------------  :: E_Subset2_Vector_Null
     E C<v_1[[v_2]]> --> E C<v_1>
 
     v_1 = Vnull
-    ------------------------------  :: E_Subset1_Null_Matrix
+    ------------------------------  :: E_Subset1_Matrix_Null
     E C<v_1[v_2,v_3]> --> E C<v_1>
 
     v_1 = Vnull
-    --------------------------------  :: E_Subset2_Null_Matrix
+    --------------------------------  :: E_Subset2_Matrix_Null
     E C<v_1[[v_2,v_3]]> --> E C<v_1>
 
-Indexing the null vector `Vnull` always returns `Vnull`. No error checking is performed.
+Indexing the null vector `Vnull` always returns `Vnull`. No error checking is
+performed.
+
+
+    v_1 = [lit_1 .. lit_n],T,v_d
+    v_2 = Vnull
+    v = [],T,Vnull
+    ----------------------------  :: E_Subset1_Null_Vector
+    E C<v_1[v_2]> --> E C<v>
+
+    v_1 = [lit_1 .. lit_n],T,v_d
+    v_2 = Vnull \/ v_3 = Vnull
+    v_2' = strip_dim(v_2)
+    v_3' = strip_dim(v_3)
+    n2 = length(v_2')
+    n3 = length(v_3')
+    v_d' = [n2 n3],T_Int,Vnull
+    v = [],T,v_d'
+    ----------------------------  :: E_Subset1_Null_Matrix
+    E C<v_1[v_2,v_3]> --> E C<v>
+
+Subsetting with the null vector as an index is equivalent to subsetting with
+a 0 index.
 
 
     v_1 = [lit_1 .. lit_n1],T,v_d1
@@ -852,8 +879,8 @@ here.
 
     v_1 = [lit_1 .. lit_n],T,Vnull
     v_2 = [],T_Int,Vnull
-    ------------------------------  :: Aux_GetAtPos_BaseCase
-    get_at_pos(v_1, v_2) = [],T
+    ---------------------------------  :: Aux_GetAtPos_BaseCase
+    get_at_pos(v_1, v_2) = [],T,Vnull
 
 
     v_1 = [lit_1 .. lit_n],T,Vnull
@@ -912,8 +939,9 @@ here.
     bool_to_pos_vec(v_1, i) = v
 
 
-    v_1 = [],T_Int,Vnull
+    v_1 = [int_1 .. int_n1],T_Int,Vnull
     v_2 = [],T_Int,Vnull
+    v = [],T_Int,Vnull
     -------------------------------------  :: Aux_VectorsToPosVec_BaseCase
     vectors_to_pos_vec(v_1, v_2, v_3) = v
 
@@ -948,8 +976,8 @@ here.
     vectors_to_pos_vec(v_1, v_2, v_3) = v
 
 
-    ----------------------------------------  :: Aux_MatrixToPosVec_BaseCase
-    matrix_to_pos_vec(v_1, r, r', r'+1) = []
+    ----------------------------------------------------  :: Aux_MatrixToPosVec_BaseCase
+    matrix_to_pos_vec(v_1, r, r', r'+1) = [],T_Int,Vnull
 
 
     v_1 = [int_1 .. int_n],T_Int,Vnull
@@ -1022,9 +1050,8 @@ here.
     recycle(v_1, v_2, v_3, m) = v
 
 
-
-    ---------------------------  :: Aux_GenBoolVec_BaseCase
-    gen_bool_vec(0) = [],T_Bool
+    ---------------------------------  :: Aux_GenBoolVec_BaseCase
+    gen_bool_vec(0) = [],T_Bool,Vnull
 
 
     v_1 = gen_bool_vec(n-1)
@@ -1058,9 +1085,9 @@ here.
     neg_to_bool_vec(v_1, v_2) = v
 
 
-    v_1 = [],T_Int,Vnull
-    --------------------------  :: Aux_DropZeros_BaseCase
-    drop_zeros(v_1) = [],T_Int
+    v = [],T_Int,Vnull
+    ------------------  :: Aux_DropZeros_BaseCase
+    drop_zeros(v) = v
 
 
     v_1 = [0 int_1 .. int_n],T_Int,Vnull
