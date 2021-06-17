@@ -383,7 +383,8 @@ are out of bounds or repeated are ignored. `NA`s are not allowed as indices.
     v_3'' = recycle(v_3', v_3', v_3', c-n3)
     v_2''' = bool_to_pos_vec(v_2'', 1)
     v_3''' = bool_to_pos_vec(v_3'', 1)
-    v_1'' = get_at_pos_matrix(v_1', v_2''', v_3''', v_2''')
+    v_4 = vectors_to_pos_vec(v_2''', v_3''', v_2''')
+    v_1'' = get_at_pos(v_1', v_4)
           = [lit'_1 .. lit'_n],T,v_d1'
     n2' = length(v_2''')
     n3' = length(v_3''')
@@ -416,7 +417,8 @@ Otherwise, the same rules for boolean subsetting of vectors apply.
     v_3' = strip_dim(v_3)
     v_2'' = drop_zeros(v_2')
     v_3'' = drop_zeros(v_3')
-    v_1'' = get_at_pos_matrix(v_1', v_2'', v_3'', v_2'')
+    v_4 = vectors_to_pos_vec(v_2'', v_3'', v_2'')
+    v_1'' = get_at_pos(v_1', v_4)
           = [lit'_1 .. lit'_n],T,v_d1'
     n2' = length(v_2'')
     n3' = length(v_3'')
@@ -441,7 +443,8 @@ Otherwise, the same rules for boolean subsetting of vectors apply.
     v_3'' = neg_to_bool_vec(v_3', v_1c)
     v_2''' = bool_to_pos_vec(v_2'', 1)
     v_3''' = bool_to_pos_vec(v_3'', 1)
-    v_1'' = get_at_pos_matrix(v_1, v_2''', v_3''', v_2''')
+    v_4 = vectors_to_pos_vec(v_2''', v_3''', v_2''')
+    v_1'' = get_at_pos(v_1', v_4)
           = [lit'_1 .. lit'_n],T,v_d1'
     n2' = length(v_2''')
     n3' = length(v_3''')
@@ -472,7 +475,7 @@ Otherwise, the same rules for positive and negative subsetting of vectors apply.
     forall i in r'+1..n2 : 0 <= int_i <= c \/ int_i == NA_i
     v_1' = strip_dim(v_1)
     v_2' = strip_dim(v_2)
-    v_2'' = matrix_to_vector_index(v_2', r, r', 1)
+    v_2'' = matrix_to_pos_vec(v_2', r, r', 1)
     v = get_at_pos(v_1', v_2'')
     T =/= T_Null
     -------------------------------------------------------  :: E_Subset1_Matrix_Matrix
@@ -484,8 +487,6 @@ Otherwise, the same rules for positive and negative subsetting of vectors apply.
     - missing index / subset1_nothing
         - maybe nothing converts to T which recycles and selects everything
     - mixed subsetting modes, e.g. m[T,1]
-- unify vector and matrix subsetting
-    - convert matrix indexing to vector indexing
 
 **TODO**: After assignment, figure out where we don't need to strip dims
 
@@ -883,46 +884,6 @@ here.
     get_at_pos(v_1, v_2) = v
 
 
-    v_1 = [lit_1 .. lit_n],T,Vnull
-    v_2 = [],T_Int,Vnull
-    v_3 = [],T_Int,Vnull
-    ----------------------------------------------  :: Aux_GetAtPosMatrix_BaseCase
-    get_at_pos_matrix(v_1, v_2, v_3, v_4) = [],T
-
-
-    v_1 = [lit_1 .. lit_n],T,Vnull
-    v_2 = [],T_Int,Vnull
-    v_3 = [j int'_1 .. int'_n3],T_Int,Vnull
-    v_3' = [int'_1 .. int'_n3],T_Int,Vnull
-    v = get_at_pos_matrix(v_1, v_4, v_3', v_4)
-    ------------------------------------------  :: Aux_GetAtPosMatrix_NextColCase
-    get_at_pos_matrix(v_1, v_2, v_3, v_4) = v
-
-
-    v_1 = [lit_1 .. lit_n],T,Vnull
-    v_2 = [i int_1 .. int_n2],T_Int,Vnull
-    v_3 = [j int'_1 .. int'_n3],T_Int,Vnull
-    i =/= NA_i /\ j =/= NA_i
-    v_2' = [int_1 .. int_n2],T_Int,Vnull
-    r = length(v_4)
-    k = i + (j-1)*r
-    v_5 = get_at_pos_matrix(v_1, v_2', v_3, v_4)
-    v = prepend(lit_k, v_5)
-    --------------------------------------------  :: Aux_GetAtPosMatrix_InBoundsCase
-    get_at_pos_matrix(v_1, v_2, v_3, v_4) = v
-
-
-    v_1 = [lit_1 .. lit_n],T,Vnull
-    v_2 = [i int_1 .. int_n2],T_Int,Vnull
-    v_3 = [j int'_1 .. int'_n3],T_Int,Vnull
-    i = NA_i \/ j = NA_i
-    v_2' = [int_1 .. int_n2],T_Int,Vnull
-    v_5 = get_at_pos_matrix(v_1, v_2', v_3, v_4)
-    v = prepend(NA(T), v_5)
-    ----------------------------------------------  :: Aux_GetAtPosMatrix_NACase
-    get_at_pos_matrix(v_1, v_2, v_3, v_4) = v
-
-
     v_1 = [],T_Bool,Vnull
     ----------------------------------------  :: Aux_BoolToPosVec_BaseCase
     bool_to_pos_vec(v_1, i) = [],T_Int,Vnull
@@ -951,26 +912,62 @@ here.
     bool_to_pos_vec(v_1, i) = v
 
 
-    ---------------------------------------------  :: Aux_MatrixToVectorIndex_BaseCase
-    matrix_to_vector_index(v_1, r, r', r'+1) = []
+    v_1 = [],T_Int,Vnull
+    v_2 = [],T_Int,Vnull
+    -------------------------------------  :: Aux_VectorsToPosVec_BaseCase
+    vectors_to_pos_vec(v_1, v_2, v_3) = v
+
+
+    v_1 = [],T_Int,Vnull
+    v_2 = [j int'_1 .. int'_n2],T_Int,Vnull
+    v_2' = [int'_1 .. int'_n2],T_Int,Vnull
+    v = vectors_to_pos_vec(v_3, v_2', v_3)
+    ----------------------------------------  :: Aux_VectorsToPosVec_NextColCase
+    vectors_to_pos_vec(v_1, v_2, v_3) = v
+
+
+    v_1 = [i int_1 .. int_n1],T_Int,Vnull
+    v_2 = [j int'_1 .. int'_n2],T_Int,Vnull
+    i = NA_i \/ j = NA_i
+    v_1' = [int_1 .. int_n1],T_Int,Vnull
+    v_4 = vectors_to_pos_vec(v_1', v_2, v_3)
+    v = prepend(NA_i, v_4)
+    ----------------------------------------  :: Aux_VectorsToPosVec_NACase
+    vectors_to_pos_vec(v_1, v_2, v_3) = v
+
+
+    v_1 = [i int_1 .. int_n1],T_Int,Vnull
+    v_2 = [j int'_1 .. int'_n2],T_Int,Vnull
+    i =/= NA_i /\ j =/= NA_i
+    v_1' = [int_1 .. int_n2],T_Int,Vnull
+    r = length(v_3)
+    k = i + (j-1)*r
+    v_4 = vectors_to_pos_vec(v_1', v_2, v_3)
+    v = prepend(k, v_4)
+    ----------------------------------------  :: Aux_VectorsToPosVec_InBoundsCase
+    vectors_to_pos_vec(v_1, v_2, v_3) = v
+
+
+    ----------------------------------------  :: Aux_MatrixToPosVec_BaseCase
+    matrix_to_pos_vec(v_1, r, r', r'+1) = []
 
 
     v_1 = [int_1 .. int_n],T_Int,Vnull
     int_k = NA_i \/ int_(k+r') = NA_i
-    v_1' = matrix_to_vector_index(v_1, r, r', k+1)
+    v_1' = matrix_to_pos_vec(v_1, r, r', k+1)
     v = prepend(NA_i, v_1')
-    ----------------------------------------------  :: Aux_MatrixToVectorIndex_NACase
-    matrix_to_vector_index(v_1, r, r', k) = v
+    -----------------------------------------  :: Aux_MatrixToPosVec_NACase
+    matrix_to_pos_vec(v_1, r, r', k) = v
 
 
     v_1 = [int_1 .. int_n],T_Int,Vnull
     i = int_k
     j = int_(k+r')
     l = i + (j-1)*r
-    v_1' = matrix_to_vector_index(v_1, r, r', k+1)
+    v_1' = matrix_to_pos_vec(v_1, r, r', k+1)
     v = prepend(l, v_1')
-    ----------------------------------------------  :: Aux_MatrixToVectorIndex_RecurseCase
-    matrix_to_vector_index(v_1, r, r', k) = v
+    -----------------------------------------  :: Aux_MatrixToPosVec_RecurseCase
+    matrix_to_pos_vec(v_1, r, r', k) = v
 
 
     ------------------------------  :: Aux_Truncate_BaseCase1
