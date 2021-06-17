@@ -43,12 +43,16 @@
         | e_1[]                                     # subset1 (nothing)
         | e_1[e_2]                                  # subset1
         | e_1[[e_2]]                                # subset2
+        | e_1[e_2,e_3]                              # subset1 matrix
+        | e_1[[e_2,e_3]]                            # subset2 matrix
         | e_1; ... ; e_2                            # sequencing
         | x <- e                                    # variable assignment
         | Dim(x) <- e                               # dimension setter
         | x[] <- e_1                                # subset1 (nothing) assignment
         | x[e_1] <- e_2                             # subset1 assignment
         | x[[e_1]] <- e_2                           # subset2 assignment
+        | x[e_1,e_2] <- e_3                         # subset1 matrix assignment
+        | x[[e_1,e_2]] <- e_3                       # subset2 matrix assignment
         | v                                         # value (vector)
 
 #### Notes
@@ -109,8 +113,14 @@
         | C[]                                       # subset1 (nothing)
         | C[e]                                      # subset1
         | v[C]
-        | C[[e]]                                    # subset2
+        | C[[e]]                                    # subset2 vector
         | v[[C]]
+        | C[e,e]                                    # subset1 matrix
+        | v[C,e]
+        | v[v,C]
+        | C[[e,e]]                                  # subset2 matrix
+        | v[[C,e]]
+        | v[[v,C]]
         | v_1; .. ; v_n; C; e_1; .. ; e_m           # sequencing
         | x <- C                                    # variable assignment
         | Dim(x) <- C                               # dimension setter
@@ -119,6 +129,12 @@
         | x[v] <- C
         | x[[C]] <- e                               # subset2 assignment
         | x[[v]] <- C
+        | x[C,e] <- e                               # subset1 matrix assignment
+        | x[v,C] <- e
+        | x[v,v] <- C
+        | x[[C,e]] <- e                             # subset2 matrix assignment
+        | x[[v,C]] <- e
+        | x[[v,v]] <- C
 
 #### Notes
 
@@ -280,12 +296,20 @@ Does nothing; returns the original vector.
 
 
     v_1 = Vnull
-    --------------------------  :: E_Subset1_Null
+    --------------------------  :: E_Subset1_Null_Vector
     E C<v_1[v_2]> --> E C<v_1>
 
     v_1 = Vnull
-    ----------------------------  :: E_Subset2_Null
+    ----------------------------  :: E_Subset2_Null_Vector
     E C<v_1[[v_2]]> --> E C<v_1>
+
+    v_1 = Vnull
+    ------------------------------  :: E_Subset1_Null_Matrix
+    E C<v_1[v_2,v_3]> --> E C<v_1>
+
+    v_1 = Vnull
+    --------------------------------  :: E_Subset2_Null_Matrix
+    E C<v_1[[v_2,v_3]]> --> E C<v_1>
 
 Indexing the null vector `Vnull` always returns `Vnull`. No error checking is performed.
 
@@ -476,7 +500,7 @@ vectors are ignored.
     v_2 = [i],T_Int,v_d2
     v_3 = [j],T_Int,v_d3
     i in 1...r /\ j in 1...c
-    k = (j - 1) * r + i
+    k = i + (j-1)*r
     k in 1...n /\ T =/= T_Null
     --------------------------------------------  :: E_Subset2_Matrix
     E C<v_1[[v_2,v_3]]> --> E C<[lit_k],T,Vnull>
