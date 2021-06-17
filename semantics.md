@@ -463,13 +463,29 @@ matrix.
 
 Otherwise, the same rules for positive and negative subsetting of vectors apply.
 
+
+    v_1 = [lit_1 .. lit_n1],T,v_d1
+    v_d1 = [r c],T_Int,v_d
+    v_2 = [int_1 .. int_n2],T_Int,v_d2
+    v_d2 = [r' 2],T_Int,v_d'
+    forall i in    1..r' : 0 <= int_i <= r \/ int_i == NA_i
+    forall i in r'+1..n2 : 0 <= int_i <= c \/ int_i == NA_i
+    v_1' = strip_dim(v_1)
+    v_2' = strip_dim(v_2)
+    v_2'' = matrix_to_vector_index(v_2', r, r', 1)
+    v = get_at_pos(v_1', v_2'')
+    T =/= T_Null
+    -------------------------------------------------------  :: E_Subset1_Matrix_Matrix
+    E C<v_1[v_2]> --> E C<v>
+
+
 **TODO**:
 - need to better unify subsetting modes
     - missing index / subset1_nothing
         - maybe nothing converts to T which recycles and selects everything
     - mixed subsetting modes, e.g. m[T,1]
-
-**TODO**: E_Subset1_Matrix_Matrix
+- unify vector and matrix subsetting
+    - convert matrix indexing to vector indexing
 
 **TODO**: After assignment, figure out where we don't need to strip dims
 
@@ -931,8 +947,30 @@ here.
     v_1' = [bool_1 .. bool_n],T_Bool,Vnull
     v_2 = bool_to_pos_vec(v_1', i+1)
     v = prepend(NA_i, v_2)
-    ------------------------------------------   :: Aux_BoolToPosVec_NACase
+    ------------------------------------------  :: Aux_BoolToPosVec_NACase
     bool_to_pos_vec(v_1, i) = v
+
+
+    ---------------------------------------------  :: Aux_MatrixToVectorIndex_BaseCase
+    matrix_to_vector_index(v_1, r, r', r'+1) = []
+
+
+    v_1 = [int_1 .. int_n],T_Int,Vnull
+    int_k = NA_i \/ int_(k+r') = NA_i
+    v_1' = matrix_to_vector_index(v_1, r, r', k+1)
+    v = prepend(NA_i, v_1')
+    ----------------------------------------------  :: Aux_MatrixToVectorIndex_NACase
+    matrix_to_vector_index(v_1, r, r', k) = v
+
+
+    v_1 = [int_1 .. int_n],T_Int,Vnull
+    i = int_k
+    j = int_(k+r')
+    l = i + (j-1)*r
+    v_1' = matrix_to_vector_index(v_1, r, r', k+1)
+    v = prepend(l, v_1')
+    ----------------------------------------------  :: Aux_MatrixToVectorIndex_RecurseCase
+    matrix_to_vector_index(v_1, r, r', k) = v
 
 
     ------------------------------  :: Aux_Truncate_BaseCase1
