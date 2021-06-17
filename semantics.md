@@ -473,10 +473,11 @@ Otherwise, the same rules for positive and negative subsetting of vectors apply.
 
 
 **TODO**:
-- need to better unify subsetting modes
-    - missing index / subset1_nothing
-        - maybe nothing converts to T which recycles and selects everything
+- unify subsetting modes for matrices
     - mixed subsetting modes, e.g. m[T,1]
+- unify subset1_assign for vectors
+- subset2 should use get_at_pos
+- subset1_assign_matrix
 
 **TODO**: After assignment, figure out where we don't need to strip dims
 
