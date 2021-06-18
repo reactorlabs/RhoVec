@@ -38,20 +38,20 @@
         | x                                         # variable
         | Combine(e_1, .. , e_n)                    # combine
         | Matrix(e_1, e_2, e_3)                     # matrix
-        | Dim(e)                                    # dimension getter
+        | Dim(e)                                    # dimension get
         | -e                                        # negate
         | e_1[ne_2]                                 # subset1 vector
         | e_1[[e_2]]                                # subset2 vector
         | e_1[ne_2,ne_3]                            # subset1 matrix
         | e_1[[e_2,e_3]]                            # subset2 matrix
         | e_1; ... ; e_2                            # sequencing
-        | x <- e                                    # variable assignment
-        | Dim(x) <- e                               # dimension setter
-        | x[] <- e_1                                # subset1 (nothing) assignment
-        | x[e_1] <- e_2                             # subset1 assignment
-        | x[[e_1]] <- e_2                           # subset2 assignment
-        | x[e_1,e_2] <- e_3                         # subset1 matrix assignment
-        | x[[e_1,e_2]] <- e_3                       # subset2 matrix assignment
+        | x <- e                                    # assign
+        | Dim(x) <- e                               # dimension set
+        | x[] <- e_1                                # subset1 (nothing) assign
+        | x[e_1] <- e_2                             # subset1 vector assign
+        | x[[e_1]] <- e_2                           # subset2 vector assign
+        | x[e_1,e_2] <- e_3                         # subset1 matrix assign
+        | x[[e_1,e_2]] <- e_3                       # subset2 matrix assign
         | v                                         # value (vector)
 
     ne ::=                                          # optional expression
@@ -457,7 +457,7 @@ vectors are ignored.
     v_3 = [j],T_Int,v_d3
     i in 1...r /\ j in 1...c
     k = i + (j-1)*r
-    k in 1...n /\ T =/= T_Null
+    T =/= T_Null
     --------------------------------------------  :: E_Subset2_Matrix
     E C<v_1[[v_2,v_3]]> --> E C<[lit_k],T,Vnull>
 
@@ -684,7 +684,7 @@ issued. `v_1` and `v_3` may have different types because of coercion. Finally,
     v = [lit_1 .. lit_j lit lit_k .. lit_l],T,Vnull
     E' = E{ x := v }
     T =/= T_Null
-    ----------------------------------------------------  :: E_Subset2_Assign
+    ----------------------------------------------------  :: E_Subset2_Vector_Assign
     E C<x[[v_2]] <- v_3> --> E' C<v_3>
 
     Error if:
@@ -701,8 +701,48 @@ issued. `v_1` and `v_3` may have different types because of coercion. Finally,
       - T == T_Null
 
 Assignment with `[[` only updates a single element of the vector, i.e. the index
-vector must contain a single, non-NA element. If the index is out of bounds,
+vector must contain a single, non-NA integer. If the index is out of bounds,
 then the base vector is extended with `NA`s.
+
+Subset assignment to the null vector is not allowed, as there is no coercion
+here.
+
+**TODO:** Handle non-null dimensions.
+
+
+    x in E
+    E(x) = v_1
+    v_1 = [lit_1 .. lit'_k lit_k lit''_k .. lit_n1],T,v_d1
+    v_d1 = [r c],T_Int,v_d
+    v_2 = [i],T_Int,v_d2
+    v_3 = [j],T_Int,v_d3
+    i in 1...r /\ j in 1...c
+    v_4 = [lit],T,Vnull
+    k = i + (j-1)*r
+    v = [lit_1 .. lit'_k lit lit''_k .. lit_n1],T,v_d1
+    E' = E{ x := v }
+    T =/= T_Null
+    ----------------------------------------------------  :: E_Subset2_Matrix_Assign
+    E C<x[[v_2,v_3]] <- v_4> --> E' C<v_4>
+
+    Error if:
+      - x not in E
+      - v_2 or v_3 are omitted
+      - v_2 or v_3 have 0 elements
+      - v_2 or v_3 have more than 1 element
+      - v_2 or v_3 do not have type T_Int
+      - i == NA_i or j == NA_i
+      - i == 0 or j == 0
+      - i < 0 or j < 0
+      - i > r or j > c
+      - v_4 has 0 elements
+      - v_4 has more than 1 element
+      - v_3 has more than 1 element
+      - v_1 and v_4 have different types
+      - T == T_Null
+
+Assignment with `[[` only updates a single element of the matrix, i.e. the two
+index vectors must each contain a single, non-NA integer, that is within bounds.
 
 Subset assignment to the null vector is not allowed, as there is no coercion
 here.
