@@ -47,11 +47,10 @@
         | e_1; ... ; e_2                            # sequencing
         | x <- e                                    # assign
         | Dim(x) <- e                               # dimension set
-        | x[] <- e_1                                # subset1 (nothing) assign
-        | x[e_1] <- e_2                             # subset1 vector assign
-        | x[[e_1]] <- e_2                           # subset2 vector assign
-        | x[e_1,e_2] <- e_3                         # subset1 matrix assign
-        | x[[e_1,e_2]] <- e_3                       # subset2 matrix assign
+        | x[ne_2] <- e_3                            # subset1 vector assign
+        | x[[e_2]] <- e_3                           # subset2 vector assign
+        | x[ne_2,ne_3] <- e_4                       # subset1 matrix assign
+        | x[[e_2,e_3]] <- e_4                       # subset2 matrix assign
         | v                                         # value (vector)
 
     ne ::=                                          # optional expression
@@ -117,7 +116,7 @@
         | Matrix(C, e_2, e_3)                       # matrix
         | Matrix(v_1, C, e_3)
         | Matrix(v_1, v_2, C)
-        | Dim(C)                                    # dimension getter
+        | Dim(C)                                    # dimension get
         | -C                                        # negate
         | C[ne]                                     # subset1 vector
         | v[C]
@@ -130,17 +129,16 @@
         | v[[C,e]]
         | v[[v,C]]
         | v_1; .. ; v_n; C; e_1; .. ; e_m           # sequencing
-        | x <- C                                    # variable assignment
-        | Dim(x) <- C                               # dimension setter
-        | x[] <- C                                  # subset1 (nothing) assignment
-        | x[C] <- e                                 # subset1 assignment
+        | x <- C                                    # assign
+        | Dim(x) <- C                               # dimension set
+        | x[C] <- e                                 # subset1 vector assign
         | x[v] <- C
-        | x[[C]] <- e                               # subset2 assignment
+        | x[[C]] <- e                               # subset2 vector assign
         | x[[v]] <- C
-        | x[C,e] <- e                               # subset1 matrix assignment
-        | x[v,C] <- e
-        | x[v,v] <- C
-        | x[[C,e]] <- e                             # subset2 matrix assignment
+        | x[C,ne] <- e                              # subset1 matrix assign
+        | x[nv,C] <- e
+        | x[nv,nv] <- C
+        | x[[C,e]] <- e                             # subset2 matrix assign
         | x[[v,C]] <- e
         | x[[v,v]] <- C
 
@@ -171,7 +169,6 @@
 
 Expression `e_1` in context `C` _reduces to_ expression `e_2` in context `C`,
 updating environment `E` to the new environment `E'`.
-
 
 
     -------------------------------  :: E_Lit_Null
@@ -336,7 +333,7 @@ performed.
 
 If `nv_2` is missing, then subsetting returns the original vector.
 
-If `nv_2` is null, then subsetting is equivalent to subsetting with a 0 index,
+If `nv_2` is null, then subsetting is equivalent to subsetting with a `0` index,
 i.e., the empty vector is returned.
 
 If `nv_2` is a vector of positive integers, then elements at the positions
@@ -347,7 +344,7 @@ Indices that are `NA_i` or out of bounds select `NA` (of the appropriate type).
 If `nv_2` is a vector of negative integers, then elements excluded by those
 indices are returned. Indices that are out of bounds or repeated are ignored.
 
-If `nv_2` is a boolean vector, then the positions where `nv_2` is `T` are
+If `nv_2` is a boolean vector, then the positions where `nv_2` are `T` are
 selected, positions that are `F` are dropped, and positions that are `NA_b`
 select `NA` (of the appropriate type). If `nv_2` is too short, it is recycled.
 
@@ -417,7 +414,6 @@ an error if the index vector is too long.
 
 **TODO**:
 subset 1/2   extract/assign     vector/matrix
-1               assign              vector
 1               assign              matrix
 
 Tempting to have subset2 go through get_at_pos / update_at_pos but there's a
@@ -525,152 +521,63 @@ vector. The dimension vector must be a non-null integer vector.
     x in E
     E(x) = v_1
     v_1 = [lit_1 .. lit_n1],T,Vnull
-    v_2 = [lit'_1 ... lit'_n2],T,Vnull
-    n1 % n2 == 0
-    v = recycle(v_2, v_2, v_2, n1-n2)
-    E' = E{ x := v }
-    T =/= T_Null
-    ----------------------------------  :: E_Subset1_Nothing_Assign
-    E C<x[] <- v_2> --> E' C<v_2>
-
-    Error if:
-      - x not in E
-      - n2 == 0
-      - n1 % n2 =/= 0
-      - v_1 and v_2 have different types
-      - T == T_Null
-
-The entire vector is replaced by a new one, which is recycled if necessary. The
-replacement vector is returned. Subset assignment to the null vector is not
-allowed, as there is no coercion here.
-
-_Note:_ In R, `n2` does not need to be a multiple of `n1`; however, a warning
-is issued. Additionally, the vectors may have different types, as coercion is
-performed.
-
-**TODO:** Handle non-null dimensions.
-
-
-    x in E
-    E(x) = v_1
-    v_1 = [lit_1 .. lit_n1],T,Vnull
-    v_2 = [bool_1 .. bool_n2],T_Bool,Vnull
+    v_2' = make_subscript(nv_2, n1)
+         = [int_1 .. int_n2],T_Int,Vnull
+    forall i in 1..n2 : int_i =/= NA_i
     v_3 = [lit'_1 ... lit'_n3],T,Vnull
-    forall i in 1..n2 : bool_i =/= NA_b
-    l = max(n1, n2)
-    v_1' = extend(v_1, l-n1)
-    v_2' = recycle(v_2, v_2, v_2, l-n2)
-    v_2'' = bool_to_pos_vec(v_2', 1)
-    n2' = length(v_2'')
-    n2' % n3 == 0
-    v_3' = recycle(v_3, v_3, v_3, n2'-n3)
-    v = update_at_pos(v_1, v_2'', v_3')
+    n2 % n3 == 0
+    v = update_at_pos(v_1, v_2', v_3, v_3)
     E' = E{ x := v }
     T =/= T_Null
-    --------------------------------------  :: E_Subset1_Bool_Assign
-    E C<x[v_2] <- v_3> --> E' C<v_3>
+    -------------------------------------- :: E_Subset1_Vector_Assign
+    E C<x[nv_2] <- v_3> --> E' C<v_3>
 
     Error if:
       - x not in E
       - v_2 contains NAs
       - n3 == 0
-      - n2' % n3 =/= 0
-      - v_1 and v_3 have different types
-      - T == T_Null
-
-This follows similar rules to `E_Subset1_Bool`, where elements corresponding to
-`T` are replaced. The base vector may be extended, the index vector may be
-recycled, and the replacement vector may be recycled. Subset assignment to the
-null vector is not allowed, as there is no coercion here.
-
-_Note:_ In R, `n3` does not need to be a multiple of `n_2'` (the length of `v_2`
-after recycling and conversion to a positional vector); however, a warning is
-issued. `v_1` and `v_3` may have different types because of coercion. Finally,
-`v_2` may contain `NA`s, but only if `v_3` has length one.
-
-**TODO:** Handle non-null dimensions.
-
-
-    x in E
-    E(x) = v_1
-    v_1 = [lit_1 .. lit_n1],T,Vnull
-    v_2 = [int_1 .. int_n2],T_Int,Vnull
-    v_3 = [lit'_1 .. lit'_n3],T,Vnull
-    forall i in 1..n2 : int_i == 0
-    T =/= T_Null
-    -----------------------------------  :: E_Subset1_Zero_Assign
-    E C<x[v_2] <- v_3> --> E' C<v_3>
-
-    Error if:
-      - x not in E
-      - T == T_Null
-
-This is a special case of `Subset1_Assign` where all elements of `v_2` are `0`:
-nothing is updated and the value of the replacement vector is returned. Subset
-assignment to the null vector is not allowed, as there is no coercion here.
-
-**TODO:** Handle non-null dimensions.
-
-
-    x in E
-    E(x) = v_1
-    v_1 = [lit_1 .. lit_n1],T,Vnull
-    v_2 = [int_1 .. int_n2],T_Int,Vnull
-    v_3 = [lit'_1 ... lit'_n3],T,Vnull
-    forall i in 1..n2 : int_i >= 0
-    v_2' = drop_zeros(v_2)
-    n2' = length(v_2')
-    n2' % n3 == 0
-    v_3' = recycle(v_3, v_3, v_3, n2'-n3)
-    v = update_at_pos(v_1, v_2', v_3')
-    E' = E{ x := v }
-    T =/= T_Null
-    -------------------------------------  :: E_Subset1_Positive_Assign
-    E C<x[v_2] <- v_3> --> E' C<v_3>
-
-    x in E
-    E(x) = v_1
-    v_1 = [lit_1 .. lit_n1],T,Vnull
-    v_2 = [int_1 .. int_n2],T_Int,Vnull
-    v_3 = [lit'_1 ... lit'_n3],T,Vnull
-    forall i in 1..n2 : int_i <= 0
-    v_1' = gen_bool_vec(n1)
-    v_2' = neg_to_bool_vec(v_2, v_1')
-    v_2'' = bool_to_pos_vec(v_2', 1)
-    n2' = length(v_2'')
-    n2' % n3 == 0
-    v_3' = recycle(v_3, v_3, v_3, n2'-n3)
-    v = update_at_pos(v_1, v_2'', v_3')
-    E' = E{ x := v }
-    T =/= T_Null
-    -------------------------------------  :: E_Subset1_Negative_Assign
-    E C<x[v_2] <- v_3> --> E' C<v_3>
-
-    Error if:
-      - x not in E
-      - v_2 contains NAs
-      - n3 == 0
-      - n2' % n3 =/= 0
+      - n2 % n3 =/= 0
       - v_1 and v_3 have different types
       - v_2 mixes positive and negative subscripts
       - T == T_Null
 
-These are similar to `E_Subset1_Positive` and `E_Subset1_Negative` where `v_2`
-specifies which elements to replace. The replacement vector may be recycled.
+Similar to `E_Subset1_Vector`, the index vector can be missing, null, positive
+integers, negative integers, or booleans. The index vector may not contain
+`NA`s. The replacement vector `v_3` is returned. For the purposes of assignment,
+`v_3` may be recycled so that it has enough elements to update the vector, but
+only if the number of elements to update is a multiple of the length of `v_3`.
+Subset assignment to the null vector is not allowed, as we do not support
+coercion.
 
-If the index vector has duplicate values, then the corresponding vector element
-will be overwritten, e.g. `v[c(1, 1)] <- c(10, 11)` replaces the first element
-with `11`.
+If `nv_2` is missing, the entire vector is replaced by the `v_3`, which is
+recycled if necessary.
 
-Subset assignment to the null vector is not allowed, as there is no coercion
-here.
+If `nv_2` is null, then this is the equivalent of assigning to the `0` index,
+i.e. the vector is not updated.
 
-_Note:_ In R, `n3` does not need to be a multiple of `n_2'` (the length of `v_2`
-after dropping `0`s or conversion to a positional vector); however, a warning is
-issued. `v_1` and `v_3` may have different types because of coercion. Finally,
-`v_2` may contain `NA`s, but only if `v_3` has length one.
+If `nv_2` is a vector of positive integers, then elements at the positions
+specified by `nv_2` are updated with the elements of `v_3`. Indices that are `0`
+are dropped. If the index vector has duplicate values, then the corresponding
+vector element will be overwritten, e.g. `v[c(1, 1)] <- c(10, 11)` replaces the
+first element with `11`.
+
+If `nv_2` is a vector of negative integers, then elements excluded by those
+indices are updated with the elements of `v_3`. Indices that are out of bounds
+or repeated are ignored.
+
+If `nv_2` is a boolean vector, then the positions where `nv_2` are `T` are
+updated with the elements of `v_3`.
+
+_Note:_ In R, `v_3` can always be recycled, but may issue a warning if the
+number of elements to update is not a multiple of the length of `v_3`. The index
+vector may contain `NA`s, but only if `v_3` has length one. `v_1` and `v_3` may
+have different types because of coercion.
 
 **TODO:** Handle non-null dimensions.
+
+
+**TODO**: E_Subset1_Matrix_Assign
+**TODO**: E_Subset1_Matrix_Matrix_Assign ???
 
 
     x in E
@@ -845,8 +752,8 @@ here.
 
 
     v_1 = [int_1 .. int_n1],T_Int,Vnull
-    v_1' = drop_zeros(v_1)
     forall i in 1..n1 : int_i >= 0 \/ int_i == NA_i
+    v_1' = drop_zeros(v_1)
     -----------------------------------------------  :: Aux_MakeSubscript_Positive
     make_subscript(v_1, n) = v_1'
 
@@ -1112,9 +1019,17 @@ here.
 
     v_1 = [lit_1 .. lit_n],T,Vnull
     v_2 = [],T_Int,Vnull
+    v_3 = [lit'_1 .. lit'_m],T,Vnull
+    ---------------------------------------  :: Aux_UpdateAtPos_BaseCase
+    update_at_pos(v_1, v_2, v_3, v_4) = v_1
+
+
+    v_1 = [lit_1 .. lit_n],T,Vnull
+    v_2 = [int_1 ... int_m],T_Int,Vnull
     v_3 = [],T,Vnull
-    ----------------------------------  :: Aux_UpdateAtPos_BaseCase
-    update_at_pos(v_1, v_2, v_3) = v_1
+    v = update_at_pos(v_1, v_2, v_4, v_4)
+    -------------------------------------  :: Aux_UpdateAtPos_RecycleCase
+    update_at_pos(v_1, v_2, v_3, v_4) = v
 
 
     v_1 = [lit_1 .. lit_i lit_j lit_k .. lit_n],T,Vnull
@@ -1123,9 +1038,9 @@ here.
     v_1' = [lit_1 .. lit_i lit' lit_k .. lit_n],T,Vnull
     v_2' = [int_1 .. int_m],T_Int,Vnull
     v_3' = [lit'_1 .. lit'_m],T,Vnull
-    v = update_at_pos(v_1', v_2', v_3')
+    v = update_at_pos(v_1', v_2', v_3', v_4)
     ---------------------------------------------------  :: Aux_UpdateAtPos_InBoundsCase
-    update_at_pos(v_1, v_2, v_3) = v
+    update_at_pos(v_1, v_2, v_3, v_4) = v
 
 
     v_1 = [lit_1 .. lit_n],T,Vnull
@@ -1133,9 +1048,9 @@ here.
     v_3 = [lit'_1 .. lit'_m],T,Vnull
     j not in 1..m /\ j =/= NA(T)
     v_1' = extend(v_1, j-m)
-    v = update_at_pos(v_1', v_2, v_3)
-    ------------------------------------  :: Aux_UpdateAtPos_OutBoundsCase
-    update_at_pos(v_1, v_2, v_3) = v
+    v = update_at_pos(v_1', v_2, v_3, v_4)
+    --------------------------------------  :: Aux_UpdateAtPos_OutBoundsCase
+    update_at_pos(v_1, v_2, v_3, v_4) = v
 
 
 ## TODO
