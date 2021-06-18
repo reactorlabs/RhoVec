@@ -361,8 +361,8 @@ select `NA` (of the appropriate type). If `nv_2` is too short, it is recycled.
           = [int_1 .. int_n2],T_Int,v_d2
     v_3'' = make_matrix_subscript(nv_3', c)
           = [int'_1 .. int'_n3],T_Int,v_d3
-    forall i in 1..n2 : 1 <= int_i  <= r \/ int_i == NA_i
-    forall i in 1..n3 : 1 <= int'_i <= c \/ int_i == NA_i
+    forall i in 1..n2 : int_i  in 1..r \/ int_i  == NA_i
+    forall i in 1..n3 : int'_i in 1..c \/ int'_i == NA_i
     v_4 = vectors_to_pos_vec(v_2'', v_3'', v_2'')
     v_1'' = get_at_pos(v_1', v_4)
           = [lit'_1 .. lit'_n],T,v_d1'
@@ -404,8 +404,8 @@ an error if the index vector is too long.
     v_d1 = [r c],T_Int,v_d
     v_2 = [int_1 .. int_n2],T_Int,v_d2
     v_d2 = [r' 2],T_Int,v_d'
-    forall i in    1..r' : 0 <= int_i <= r \/ int_i == NA_i
-    forall i in r'+1..n2 : 0 <= int_i <= c \/ int_i == NA_i
+    forall i in    1..r' : int_i in 0..r \/ int_i == NA_i
+    forall i in r'+1..n2 : int_i in 0..c \/ int_i == NA_i
     v_1' = strip_dim(v_1)
     v_2' = strip_dim(v_2)
     v_2'' = matrix_to_pos_vec(v_2', r, r', 1)
@@ -419,6 +419,9 @@ an error if the index vector is too long.
 subset 1/2   extract/assign     vector/matrix
 1               assign              vector
 1               assign              matrix
+
+Tempting to have subset2 go through get_at_pos / update_at_pos but there's a
+lot of extra checks that subset2 needs, so it might not be simpler
 2               extract             vector
 2               extract             matrix
 2               assign              vector
@@ -471,7 +474,6 @@ vectors are ignored.
 Subsetting with `[[` returns a single-element vector. When subsetting a matrix,
 two index vectors must be provided, each containing a single, non-`NA` integer
 that is within bounds.
-
 
 
     E' = E{ x := v }
@@ -804,8 +806,8 @@ here.
 
     v_1 = [int_1 .. int_n1],T_Int,Vnull
     v_1' = drop_zeros(v_1)
-    forall i in 1..n1 : int_i >= 0 \/ int_i = NA_i
-    ----------------------------------------------  :: Aux_MakeSubscript_Positive
+    forall i in 1..n1 : int_i >= 0 \/ int_i == NA_i
+    -----------------------------------------------  :: Aux_MakeSubscript_Positive
     make_subscript(v_1, n) = v_1'
 
 
@@ -865,7 +867,7 @@ here.
 
     v_1 = [lit_1 .. lit_n],T,Vnull
     v_2 = [i int_1 .. int_m],T_Int,Vnull
-    i not in 1..n \/ i = NA_i
+    i not in 1..n \/ i == NA_i
     v_2' = [int_1 .. int_m],T_Int,Vnull
     v_3 = get_at_pos(v_1, v_2')
     v = prepend(NA(T), v_3)
@@ -918,7 +920,7 @@ here.
 
     v_1 = [i int_1 .. int_n1],T_Int,Vnull
     v_2 = [j int'_1 .. int'_n2],T_Int,Vnull
-    i = NA_i \/ j = NA_i
+    i == NA_i \/ j == NA_i
     v_1' = [int_1 .. int_n1],T_Int,Vnull
     v_4 = vectors_to_pos_vec(v_1', v_2, v_3)
     v = prepend(NA_i, v_4)
@@ -943,7 +945,7 @@ here.
 
 
     v_1 = [int_1 .. int_n],T_Int,Vnull
-    int_k = NA_i \/ int_(k+r') = NA_i
+    int_k == NA_i \/ int_(k+r') == NA_i
     v_1' = matrix_to_pos_vec(v_1, r, r', k+1)
     v = prepend(NA_i, v_1')
     -----------------------------------------  :: Aux_MatrixToPosVec_NACase
@@ -1098,6 +1100,8 @@ here.
 
 ## TODO
 
+  * matrices
+
 ### Medium priority
 
 These might not be necessary, but are nice to have, or will be implemented
@@ -1109,6 +1113,7 @@ because other features depend on them.
     * recycling
   * symbols
     * named vectors and subsetting
+  * arrays
   * data frames and/or tibbles
   * attributes
   * core syntax and sugar?
@@ -1127,9 +1132,6 @@ necessary.
     * testing and coercions
     * note that `x[-0.1]` is coerced to `x[-1]` while `x[0.1]` is coerced to
       `x[0]`!
-  * dimensions
-    * matrices
-    * arrays
   * lists
     * or treat them as "vectors" of some vector type
   * `$` operator
