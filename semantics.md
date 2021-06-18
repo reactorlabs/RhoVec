@@ -42,7 +42,7 @@
         | -e                                        # negate
         | e_1[ne_2]                                 # subset1 vector
         | e_1[[e_2]]                                # subset2 vector
-        | e_1[e_2,e_3]                              # subset1 matrix
+        | e_1[ne_2,ne_3]                            # subset1 matrix
         | e_1[[e_2,e_3]]                            # subset2 matrix
         | e_1; ... ; e_2                            # sequencing
         | x <- e                                    # variable assignment
@@ -58,6 +58,10 @@
          | e                                        # expression
          | ε                                        # empty
 
+    nv ::=                                          # optional value
+         | v                                        # value
+         | ε                                        # empty
+
 #### Notes
 
   * An identifier `x` is a token that matches the regex
@@ -70,6 +74,8 @@
     that "a single element" may be a one-element vector.
   * Bare values `v` are not available in the surface syntax; they are required
     here for evaluation.
+  * `ε` denotes an empty expression or value, i.e. syntactically nothing should
+    appear
 
 
 ### Types
@@ -117,9 +123,9 @@
         | v[C]
         | C[[e]]                                    # subset2 vector
         | v[[C]]
-        | C[e,e]                                    # subset1 matrix
-        | v[C,e]
-        | v[v,C]
+        | C[ne,ne]                                  # subset1 matrix
+        | v[C,ne]
+        | v[nv,C]
         | C[[e,e]]                                  # subset2 matrix
         | v[[C,e]]
         | v[[v,C]]
@@ -296,19 +302,19 @@ Negates every element of the vector.
 
 
     v_1 = Vnull
-    --------------------------  :: E_Subset1_Vector_Null
-    E C<v_1[v_2]> --> E C<v_1>
+    ---------------------------  :: E_Subset1_Null_Vector
+    E C<v_1[nv_2]> --> E C<v_1>
 
     v_1 = Vnull
-    ----------------------------  :: E_Subset2_Vector_Null
+    ----------------------------  :: E_Subset2_Null_Vector
     E C<v_1[[v_2]]> --> E C<v_1>
 
     v_1 = Vnull
-    ------------------------------  :: E_Subset1_Matrix_Null
-    E C<v_1[v_2,v_3]> --> E C<v_1>
+    --------------------------------  :: E_Subset1_Null_Matrix
+    E C<v_1[nv_2,nv_3]> --> E C<v_1>
 
     v_1 = Vnull
-    --------------------------------  :: E_Subset2_Matrix_Null
+    --------------------------------  :: E_Subset2_Null_Matrix
     E C<v_1[[v_2,v_3]]> --> E C<v_1>
 
 Indexing the null vector `Vnull` always returns `Vnull`. No error checking is
@@ -316,145 +322,82 @@ performed.
 
 
     v_1 = [lit_1 .. lit_n],T,v_d
-    v_2 = Vnull \/ v_3 = Vnull
-    v_2' = strip_dim(v_2)
-    v_3' = strip_dim(v_3)
-    n2 = length(v_2')
-    n3 = length(v_3')
-    v_d' = [n2 n3],T_Int,Vnull
-    v = [],T,v_d'
-    ----------------------------  :: E_Subset1_Null_Matrix
-    E C<v_1[v_2,v_3]> --> E C<v>
-
-Subsetting with the null vector as an index is equivalent to subsetting with
-a 0 index.
-
-
-    v_1 = [lit_1 .. lit_n],T,v_d
-    v_1' = strip_dims(v_1)
-    v_2' = strip_dims(v_2)
-    v_2'' = make_subscript(v_2', n)
+    v_1' = strip_dim(v_1)
+    nv_2' = strip_dim(nv_2)
+    v_2'' = make_subscript(nv_2', n)
     v = get_at_pos(v_1', v_2'')
     T =/= T_Null
-    -------------------------------  :: E_Subset1_Vector
-    E C<v_1[v_2]> --> E C<v>
+    --------------------------------  :: E_Subset1_Vector
+    E C<v_1[nv_2]> --> E C<v>
 
     Error if:
-      - v_2 mixes positive and negative subscripts
-      - v_2 mixes negative and NA subscripts
+      - nv_2 mixes positive and negative subscripts
+      - nv_2 mixes negative and NA subscripts
 
-If `v_2` is missing, then subsetting returns the original vector.
+If `nv_2` is missing, then subsetting returns the original vector.
 
-If `v_2` is null, then subsetting is equivalent to subsetting with a 0 index,
+If `nv_2` is null, then subsetting is equivalent to subsetting with a 0 index,
 i.e., the empty vector is returned.
 
-If `v_2` is a vector of positive integers, then elements at the positions
-specified by `v_2` are selected. Indices that are `0` are dropped (and if the
+If `nv_2` is a vector of positive integers, then elements at the positions
+specified by `nv_2` are selected. Indices that are `0` are dropped (and if the
 index vector contains only `0`s, then subsetting returns the empty vector).
 Indices that are `NA_i` or out of bounds select `NA` (of the appropriate type).
 
-If `v_2` is a vector of negative integers, then elements excluded by those
+If `nv_2` is a vector of negative integers, then elements excluded by those
 indices are returned. Indices that are out of bounds or repeated are ignored.
 
-If `v_2` is a boolean vector, then the positions where `v_2` is `T` are
+If `nv_2` is a boolean vector, then the positions where `nv_2` is `T` are
 selected, positions that are `F` are dropped, and positions that are `NA_b`
-select `NA` (of the appropriate type). If `v_2` is too short, it is recycled.
+select `NA` (of the appropriate type). If `nv_2` is too short, it is recycled.
 
 
     v_1 = [lit_1 .. lit_n1],T,v_d1
     v_d1 = [r c],T_Int,v_d
-    v_2 = [bool_1 .. bool_n2],T_Bool,v_d2
-    v_3 = [bool'_1 .. bool'_n3],T_Bool,v_d3
-    n2 <= r /\ n3 <= c
     v_1' = strip_dim(v_1)
-    v_2' = strip_dim(v_2)
-    v_3' = strip_dim(v_3)
-    v_2'' = recycle(v_2', v_2', v_2', r-n2)
-    v_3'' = recycle(v_3', v_3', v_3', c-n3)
-    v_2''' = bool_to_pos_vec(v_2'', 1)
-    v_3''' = bool_to_pos_vec(v_3'', 1)
-    v_4 = vectors_to_pos_vec(v_2''', v_3''', v_2''')
-    v_1'' = get_at_pos(v_1', v_4)
-          = [lit'_1 .. lit'_n],T,v_d1'
-    n2' = length(v_2''')
-    n3' = length(v_3''')
-    v_d' = [n2' n3'],T_Int,Vnull
-    v = [lit'_1 .. lit'_n],T,v_d'
-    T =/= T_Null
-    -------------------------------------------------------  :: E_Subset1_Bool_Matrix
-    E C<v_1[v_2,v_3]> --> E C<v>
-
-    Error if:
-      - n2 > r
-      - n3 > c
-
-Two boolean vectors are provided as indexes, to select the rows and columns of
-the matrix, respectively. The dimensions of the boolean vectors are ignored. If
-a boolean vector is too short, we recycle it. It is an error if a boolean vector
-is too long.
-
-Otherwise, the same rules for boolean subsetting of vectors apply.
-
-
-    v_1 = [lit_1 .. lit_n1],T,v_d1
-    v_d1 = [r c],T_Int,v_d
-    v_2 = [int_1 .. int_n2],T_Int,v_d2
-    v_3 = [int'_1 .. int'_n3],T_Int,v_d3
-    forall i in 1..n2 : 0 <= int_i <= r \/ int_i == NA_i
-    forall i in 1..n3 : 0 <= int'_i <= c \/ int_i == NA_i
-    v_1' = strip_dim(v_1)
-    v_2' = strip_dim(v_2)
-    v_3' = strip_dim(v_3)
-    v_2'' = drop_zeros(v_2')
-    v_3'' = drop_zeros(v_3')
+    nv_2' = strip_dim(nv_2)
+    nv_3' = strip_dim(nv_3)
+    v_2'' = make_matrix_subscript(nv_2', r)
+          = [int_1 .. int_n2],T_Int,v_d2
+    v_3'' = make_matrix_subscript(nv_3', c)
+          = [int'_1 .. int'_n3],T_Int,v_d3
+    forall i in 1..n2 : 1 <= int_i  <= r \/ int_i == NA_i
+    forall i in 1..n3 : 1 <= int'_i <= c \/ int_i == NA_i
     v_4 = vectors_to_pos_vec(v_2'', v_3'', v_2'')
     v_1'' = get_at_pos(v_1', v_4)
           = [lit'_1 .. lit'_n],T,v_d1'
-    n2' = length(v_2'')
-    n3' = length(v_3'')
-    v_d' = [n2' n3'],T_Int,Vnull
+    v_d' = [n2 n3],T_Int,Vnull
     v = [lit'_1 .. lit'_n],T,v_d'
     T =/= T_Null
-    -----------------------------------------------------  :: E_Subset1_Positive_Matrix
-    E C<v_1[v_2,v_3]> --> E C<v>
-
-    v_1 = [lit_1 .. lit_n1],T,v_d1
-    v_d1 = [r c],T_Int,v_d
-    v_2 = [int_1 .. int_n2],T_Int,v_d2
-    v_3 = [int'_1 .. int'_n3],T_Int,v_d3
-    forall i in 1..n2 : int_i <= 0 /\ int_i =/= NA_i
-    forall i in 1..n3 : int'_i <= 0 /\ int'_i =/= NA_i
-    v_1' = strip_dim(v_1)
-    v_2' = strip_dim(v_2)
-    v_3' = strip_dim(v_3)
-    v_1r = gen_bool_vec(r)
-    v_1c = gen_bool_vec(c)
-    v_2'' = neg_to_bool_vec(v_2', v_1r)
-    v_3'' = neg_to_bool_vec(v_3', v_1c)
-    v_2''' = bool_to_pos_vec(v_2'', 1)
-    v_3''' = bool_to_pos_vec(v_3'', 1)
-    v_4 = vectors_to_pos_vec(v_2''', v_3''', v_2''')
-    v_1'' = get_at_pos(v_1', v_4)
-          = [lit'_1 .. lit'_n],T,v_d1'
-    n2' = length(v_2''')
-    n3' = length(v_3''')
-    v_d' = [n2' n3'],T_Int,Vnull
-    v = [lit'_1 .. lit'_n],T,v_d'
-    T =/= T_Null
-    ------------------------------------------------------  :: E_Subset1_Negative_Matrix
-    E C<v_1[v_2,v_3] --> E C<v>
+    -----------------------------------------------------  E_Subset1_Matrix
+    E C<v_1[nv_2,nv_3]> --> E C<v>
 
     Error if:
-      - v_2 or v_3 mix positive and negative subscripts
-      - v_2 or v_3 mix negative and NA subscripts
-      - v_2 or v_3 are out of bounds
+      - nv_2 or nv_3 mix positive and negative indices
+      - nv_2 or nv_3 mix negative and NA indices
+      - nv_2 or nv_3 have positive out-of-bounds indices
+      - nv_2 is a boolean vector and longer than r
+      - nv_3 is a boolean vector and longer than c
 
-Two integer vectors are provided as indexes, to select the rows and columns of
-the matrix, respectively. The dimensions of the integer vectors are ignored. For
-positive subsetting, the elements of the vector must be within bounds of the
-matrix.
+`nv_2` is an index vector that selects rows. `nv_3` is an index vector that
+selects columns. The dimensions of `nv_2` and `nv_3` are ignored.
 
-Otherwise, the same rules for positive and negative subsetting of vectors apply.
+A missing index vector selects everything.
+
+A null index vector is equivalent to an index of `0`, i.e. it selects nothing.
+
+A vector of positive integers selects the specified rows (for `nv_2`) or columns
+(for `nv_3`). Indices that are `0` are dropped (and if the index vector contains
+only `0`s then nothing is selected). Indices that are `NA_i` select `NA` (of the
+appropriate type). Indices must be within bounds of the matrix.
+
+A vector of negative integers excludes the specified rows (for `nv_2`) or
+columns (for `nv_3`). Indices that are out of bounds or repeated are ignored.
+
+A vector of booleans selects the rows (for `nv_2`) or columns (for `nv_3`) that
+are `T` and drops those that are `F`. Indices that are `NA_b` select `NA` (of
+the appropriate type). If the index vector is too short, it is recycled. It is
+an error if the index vector is too long.
 
 
     v_1 = [lit_1 .. lit_n1],T,v_d1
@@ -473,11 +416,13 @@ Otherwise, the same rules for positive and negative subsetting of vectors apply.
 
 
 **TODO**:
-- unify subsetting modes for matrices
-    - mixed subsetting modes, e.g. m[T,1]
-- unify subset1_assign for vectors
-- subset2 should use get_at_pos
-- subset1_assign_matrix
+subset 1/2   extract/assign     vector/matrix
+1               assign              vector
+1               assign              matrix
+2               extract             vector
+2               extract             matrix
+2               assign              vector
+2               assign              matrix
 
 **TODO**: After assignment, figure out where we don't need to strip dims
 
@@ -814,6 +759,10 @@ here.
     product(v) = n
 
 
+    ----------------------------  :: Aux_Strip_Dim_Missing
+    strip_dim(ε) = ε
+
+
     v_1 = [lit_1 .. lit_n],T,v_d
     v = [lit_1 .. lit_n]T,Vnull
     ----------------------------  :: Aux_Strip_Dim
@@ -844,19 +793,20 @@ here.
     v_1 = gen_bool_vec(n)
     v = bool_to_pos_vec(v_1, 1)
     ---------------------------  :: Aux_MakeSubscript_Nothing
-    make_subscript(, n) = v
+    make_subscript(ε, n) = v
 
 
     v_1 = Vnull
-    v = [0],T_Int,Vnull
+    v = [],T_Int,Vnull
     --------------------------  :: Aux_MakeSubscript_Null
     make_subscript(v_1, n) = v
 
 
     v_1 = [int_1 .. int_n1],T_Int,Vnull
+    v_1' = drop_zeros(v_1)
     forall i in 1..n1 : int_i >= 0 \/ int_i = NA_i
     ----------------------------------------------  :: Aux_MakeSubscript_Positive
-    make_subscript(v_1, n) = v_1
+    make_subscript(v_1, n) = v_1'
 
 
     v_1 = [int_1 .. int_n1],T_Int,Vnull
@@ -865,7 +815,7 @@ here.
     v_1' = neg_to_bool_vec(v_1, v_2)
     v_1'' = bool_to_pos_vec(v_1', 1)
     ------------------------------------------------ :: Aux_MakeSubscript_Negative
-    make_subscript(v_1, n) = v
+    make_subscript(v_1, n) = v_1''
 
 
     v_1 = [bool_1 .. bool_n1],T_Bool,Vnull
@@ -873,7 +823,20 @@ here.
     v_1' = recycle(v_1, v_1, v_1, l-n1)
     v_1'' = bool_to_pos_vec(v_1', 1)
     --------------------------------------  :: Aux_MakeSubscript_Bool
-    make_subscript(v_1, n) = v
+    make_subscript(v_1, n) = v_1''
+
+
+    v_1 = [bool_1 .. bool_n1],T_Bool,Vnull
+    n1 <= n
+    v_1' = recycle(v_1, v_1, v_1, n-n1)
+    v_1'' = bool_to_pos_vec(v_1', 1)
+    --------------------------------------  :: Aux_MakeMatrixSubscript_Bool
+    make_matrix_subscript(v_1, n) = v_1''
+
+
+    v = make_subscript(v_1, n)
+    --------------------------------------  :: Aux_MakeMatrixSubscript
+    make_matrix_subscript(v_1, n) = v
 
 
     v_1 = [lit_1 .. lit_n],T,Vnull
