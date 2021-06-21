@@ -407,7 +407,7 @@ an error if the index vector is too long.
     v_2'' = matrix_to_pos_vec(v_2', r, r', 1)
     v = get_at_pos(v_1', v_2'')
     T =/= T_Null
-    -------------------------------------------------------  :: E_Subset1_Matrix_Matrix
+    -----------------------------------------------------  :: E_Subset1_Matrix_Matrix
     E C<v_1[v_2]> --> E C<v>
 
     Error if:
@@ -415,7 +415,7 @@ an error if the index vector is too long.
 
 The provided index is an integer matrix, where each row specifies an element to
 select, while each column species a dimension. I.e., a two-column matrix is used
-to subset a matrix. The subscripts must be within bounds.
+to subset a matrix. The indices must be within bounds.
 
 
     v_1 = [lit_1 ... lit_n1],T,v_d1
@@ -572,7 +572,7 @@ have different types because of coercion.
     n4 % n5 == 0
     v_1'' = update_at_pos(v_1', v_4, v_5, v_5)
           = [lit''_1 .. lit''_n],T,v_d1'
-    v_d' = [n2 n3],T_Int,Vnull
+    v_d' = [r c],T_Int,Vnull
     v = [lit''_1 .. lit''_n],T,v_d'
     T =/= T_Null
     -----------------------------------------------------  :: E_Subset1_Matrix_Assign
@@ -595,10 +595,10 @@ index vector `nv_3` selects columns. The index vector can be missing, null,
 positive integers, negative integers, or booleans. The dimensions of `nv_2` and
 `nv_3` are ignored.
 
-Similar to `E_Subset1_Vector`, the index vector may not contain `NA`s. The
-replacement vector `v_5` is returned. For the purposes of assignment, `v_5` may
-be recycled so that it has enough elements to update the vector, but only if the
-number of elements to update is a multiple of the length of `v_5`. Subset
+Similar to `E_Subset1_Vector_Assign`, the index vector may not contain `NA`s.
+The replacement vector `v_5` is returned. For the purposes of assignment, `v_5`
+may be recycled so that it has enough elements to update the vector, but only if
+the number of elements to update is a multiple of the length of `v_5`. Subset
 assignment to the null matrix is not allowed, as we do not support coercion.
 
 _Note:_ In R, `v_5` can always be recycled, but may issue a warning if the
@@ -607,14 +607,48 @@ vector may contain `NA`s, but only if `v_5` has length one. `v_1` and `v_5` may
 have different types because of coercion.
 
 
+    x in E
+    E(x) = v_1
+    v_1 = [lit_1 .. lit_n1],T,v_d1
+    v_d1 = [r c],T_Int,v_d
+    v_1' = strip_dim(v_1)
+    v_2 = [int_1 .. int_n2],T_Int,v_d2
+    v_2' = strip_dim(v_2)
+    v_d2 = [r' 2],T_Int,v_d'
+    forall i in    1..r' : int_i in 0..r /\ int_i =/= NA_i
+    forall i in r'+1..n2 : int_i in 0..c /\ int_i =/= NA_i
+    v_2'' = matrix_to_pos_vec(v_2', r, r', 1)
+    v_3 = [lit'_1 .. lit'_n3],T,v_d3
+    n2' = length(v_2'')
+    n2' % n3 == 0
+    v_1'' = update_at_pos(v_1', v_2'', v_3, v_3)
+          = [lit''_1 .. lit''_n],T,v_d1'
+    v_d' = [r c],T_Int,Vnull
+    v = [lit''_1 .. lit''_n],T,v_d'
+    T =/= T_Null
+    ------------------------------------------------------  :: E_Subset1_Matrix_Matrix_Assign
+    E C<x[v_2] <- v_3> --> E' C<v_3>
 
-**TODO**: E_Subset1_Matrix_Matrix_Assign ???
+    Error if:
+      - v_2 specifies indices that are out of bounds
+      - v_2 contains NAs
+
+Similar to `E_Subset1_Matrix_Matrix`, the provided index is an integer matrix
+where each row specifies an element to select, whiel each column specifies
+a dimension. The indices must be within bounds and cannot contain `NA`s.
+
+The replacement vector `v_3` is returned. For the purposes of assignment, `v_3`
+may be recycled so that it has enough elements to update the vector, but only if
+the number of elements to update is a multiple of the length of `v_3`. Subset
+assignment to the null matrix is not allowed, as we do not support coercion.
+
+_Note:_ In R, `v_3` can always be recycled, but may issue a warning if the
+number of elements to update is not a multiple of the length of `v_3`. The index
+vector may contain `NA`s, but only if `v_3` has length one. `v_1` and `v_3` may
+have different types because of coercion.
 
 
 **TODO**:
-subset 1/2   extract/assign     vector/matrix
-1               assign              matrix
-
 Tempting to have subset2 go through get_at_pos / update_at_pos but there's a
 lot of extra checks that subset2 needs, so it might not be simpler
 2               extract             vector
