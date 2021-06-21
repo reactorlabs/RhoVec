@@ -365,7 +365,7 @@ select `NA` (of the appropriate type). If `nv_2` is too short, it is recycled.
     v_d' = [n2 n3],T_Int,Vnull
     v = [lit'_1 .. lit'_n],T,v_d'
     T =/= T_Null
-    -----------------------------------------------------  E_Subset1_Matrix
+    ----------------------------------------------------  :: E_Subset1_Matrix
     E C<v_1[nv_2,nv_3]> --> E C<v>
 
     Error if:
@@ -526,39 +526,26 @@ vector. The dimension vector must be a non-null integer vector.
 
     Error if:
       - x not in E
-      - v_2 contains NAs
+      - nv_2 contains NAs
       - n3 == 0
       - n2 % n3 =/= 0
       - v_1 and v_3 have different types
-      - v_2 mixes positive and negative subscripts
+      - nv_2 mixes positive and negative indices
       - T == T_Null
 
 Similar to `E_Subset1_Vector`, the index vector can be missing, null, positive
-integers, negative integers, or booleans. The index vector may not contain
-`NA`s. The replacement vector `v_3` is returned. For the purposes of assignment,
+integers, negative integers, or booleans.
+
+The index vector `nv_2` may not contain `NA`s. If `nv_2` is a vector of positive
+integers, duplicate values imply overwriting, e.g. `v[c(1, 1)] <- c(10, 11)`
+replaces the first element with `11`. If `nv_2` is a vector of negative
+integers, indices that are out of bounds or repeated are ignored.
+
+The replacement vector `v_3` is returned. For the purposes of assignment,
 `v_3` may be recycled so that it has enough elements to update the vector, but
 only if the number of elements to update is a multiple of the length of `v_3`.
 Subset assignment to the null vector is not allowed, as we do not support
 coercion.
-
-If `nv_2` is missing, the entire vector is replaced by the `v_3`, which is
-recycled if necessary.
-
-If `nv_2` is null, then this is the equivalent of assigning to the `0` index,
-i.e. the vector is not updated.
-
-If `nv_2` is a vector of positive integers, then elements at the positions
-specified by `nv_2` are updated with the elements of `v_3`. Indices that are `0`
-are dropped. If the index vector has duplicate values, then the corresponding
-vector element will be overwritten, e.g. `v[c(1, 1)] <- c(10, 11)` replaces the
-first element with `11`.
-
-If `nv_2` is a vector of negative integers, then elements excluded by those
-indices are updated with the elements of `v_3`. Indices that are out of bounds
-or repeated are ignored.
-
-If `nv_2` is a boolean vector, then the positions where `nv_2` are `T` are
-updated with the elements of `v_3`.
 
 _Note:_ In R, `v_3` can always be recycled, but may issue a warning if the
 number of elements to update is not a multiple of the length of `v_3`. The index
@@ -566,7 +553,61 @@ vector may contain `NA`s, but only if `v_3` has length one. `v_1` and `v_3` may
 have different types because of coercion.
 
 
-**TODO**: E_Subset1_Matrix_Assign
+    x in E
+    E(x) = v_1
+    v_1 = [lit_1 .. lit_n1],T,v_d1
+    v_d1 = [r c],T_Int,v_d
+    v_1' = strip_dim(v_1)
+    nv_2' = strip_dim(nv_2)
+    nv_3' = strip_dim(nv_3)
+    v_2'' = make_matrix_subscript(nv_2', r)
+          = [int_1 .. int_n2],T_Int,v_d2
+    v_3'' = make_matrix_subscript(nv_3', c)
+          = [int'_1 .. int'_n3],T_Int,v_d3
+    forall i in 1..n2 : int_i  in 1..r /\ int_i  =/= NA_i
+    forall i in 1..n3 : int'_i in 1..c /\ int'_i =/= NA_i
+    v_4 = vectors_to_pos_vec(v_2'', v_3'', v_2'')
+    n4 = length(v_4)
+    v_5 = [lit'_1 .. lit'_n5],T,v_d5
+    n4 % n5 == 0
+    v_1'' = update_at_pos(v_1', v_4, v_5, v_5)
+          = [lit''_1 .. lit''_n],T,v_d1'
+    v_d' = [n2 n3],T_Int,Vnull
+    v = [lit''_1 .. lit''_n],T,v_d'
+    T =/= T_Null
+    -----------------------------------------------------  :: E_Subset1_Matrix_Assign
+    E C<x[nv_2,nv_3] <- v_5> --> E' C<v_5>
+
+    Error if:
+      - x not in E
+      - nv_2 or nv_3 contain NAs
+      - n5 == 0
+      - n4 % n5 =/= 0
+      - v_1 and v_5 have different types
+      - nv_2 or nv_3 mix positive and negative indices
+      - nv_2 or nv_3 have positive out-of-bounds indices
+      - nv_2 is a boolean vector and longer than r
+      - nv_3 is a boolean vector and longer than c
+      - T == T_Null
+
+Similar to `E_Subset1_Matrix`, the index vector `nv_2` selects rows and the
+index vector `nv_3` selects columns. The index vector can be missing, null,
+positive integers, negative integers, or booleans. The dimensions of `nv_2` and
+`nv_3` are ignored.
+
+Similar to `E_Subset1_Vector`, the index vector may not contain `NA`s. The
+replacement vector `v_5` is returned. For the purposes of assignment, `v_5` may
+be recycled so that it has enough elements to update the vector, but only if the
+number of elements to update is a multiple of the length of `v_5`. Subset
+assignment to the null matrix is not allowed, as we do not support coercion.
+
+_Note:_ In R, `v_5` can always be recycled, but may issue a warning if the
+number of elements to update is not a multiple of the length of `v_5`. The index
+vector may contain `NA`s, but only if `v_5` has length one. `v_1` and `v_5` may
+have different types because of coercion.
+
+
+
 **TODO**: E_Subset1_Matrix_Matrix_Assign ???
 
 
