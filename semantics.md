@@ -196,7 +196,6 @@ one-element vectors.
 Looks up the value of `x` in the environment.
 
 
-
     ---------------------------------  :: E_Combine_Empty
     E C<Combine()> --> E C<Vnull>
 
@@ -328,8 +327,8 @@ performed.
     E C<v_1[nv_2]> --> E C<v>
 
     Error if:
-      - nv_2 mixes positive and negative subscripts
-      - nv_2 mixes negative and NA subscripts
+      - nv_2 mixes positive and negative indices
+      - nv_2 mixes negative and NA indices
 
 If `nv_2` is missing, then subsetting returns the original vector.
 
@@ -411,19 +410,12 @@ an error if the index vector is too long.
     -------------------------------------------------------  :: E_Subset1_Matrix_Matrix
     E C<v_1[v_2]> --> E C<v>
 
+    Error if:
+      - v_2 specifies indices that are out of bounds
 
-**TODO**:
-subset 1/2   extract/assign     vector/matrix
-1               assign              matrix
-
-Tempting to have subset2 go through get_at_pos / update_at_pos but there's a
-lot of extra checks that subset2 needs, so it might not be simpler
-2               extract             vector
-2               extract             matrix
-2               assign              vector
-2               assign              matrix
-
-**TODO**: After assignment, figure out where we don't need to strip dims
+The provided index is an integer matrix, where each row specifies an element to
+select, while each column species a dimension. I.e., a two-column matrix is used
+to subset a matrix. The subscripts must be within bounds.
 
 
     v_1 = [lit_1 ... lit_n1],T,v_d1
@@ -573,11 +565,24 @@ number of elements to update is not a multiple of the length of `v_3`. The index
 vector may contain `NA`s, but only if `v_3` has length one. `v_1` and `v_3` may
 have different types because of coercion.
 
-**TODO:** Handle non-null dimensions.
-
 
 **TODO**: E_Subset1_Matrix_Assign
 **TODO**: E_Subset1_Matrix_Matrix_Assign ???
+
+
+**TODO**:
+subset 1/2   extract/assign     vector/matrix
+1               assign              matrix
+
+Tempting to have subset2 go through get_at_pos / update_at_pos but there's a
+lot of extra checks that subset2 needs, so it might not be simpler
+2               extract             vector
+2               extract             matrix
+2               assign              vector
+2               assign              matrix
+
+**TODO**: After assignment, figure out where we don't need to strip dims / how
+to handle non-null dimensions
 
 
     x in E
@@ -613,8 +618,6 @@ then the base vector is extended with `NA`s.
 
 Subset assignment to the null vector is not allowed, as there is no coercion
 here.
-
-**TODO:** Handle non-null dimensions.
 
 
     x in E
@@ -654,7 +657,6 @@ index vectors must each contain a single, non-NA integer, that is within bounds.
 Subset assignment to the null vector is not allowed, as there is no coercion
 here.
 
-**TODO:** Handle non-null dimensions.
 
 
 ### Auxiliary Functions
