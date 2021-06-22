@@ -421,8 +421,9 @@ to subset a matrix. The indices must be within bounds.
     v_1 = [lit_1 ... lit_n1],T,v_d1
     v_2 = [i],T_Int,v_d2
     i in 1...n1 /\ T =/= T_Null
-    ----------------------------------------  :: E_Subset2_Vector
-    E C<v_1[[v_2]]> --> E C<[lit_i],T,Vnull>
+    v = get_at_pos(v_1, v_2)
+    -------------------------------  :: E_Subset2_Vector
+    E C<v_1[[v_2]]> --> E C<v>
 
     Error if:
       - v_2 is omitted
@@ -443,11 +444,13 @@ vectors are ignored.
     v_d1 = [r c],T_Int,v_d
     v_2 = [i],T_Int,v_d2
     v_3 = [j],T_Int,v_d3
-    i in 1...r /\ j in 1...c
-    k = i + (j-1)*r
+    i in 1...r /\ i =/= NA_i
+    j in 1...c /\ j =/= NA_i
+    v_4 = vectors_to_pos_vec(v_2, v_3, v_2)
+    v = get_at_pos(v1, v_4)
     T =/= T_Null
-    --------------------------------------------  :: E_Subset2_Matrix
-    E C<v_1[[v_2,v_3]]> --> E C<[lit_k],T,Vnull>
+    ---------------------------------------  :: E_Subset2_Matrix
+    E C<v_1[[v_2,v_3]]> --> E C<v>
 
     Error if:
       - v_2 or v_3 are omitted
@@ -648,14 +651,6 @@ vector may contain `NA`s, but only if `v_3` has length one. `v_1` and `v_3` may
 have different types because of coercion.
 
 
-**TODO**:
-Tempting to have subset2 go through get_at_pos / update_at_pos but there's a
-lot of extra checks that subset2 needs, so it might not be simpler
-2               extract             vector
-2               extract             matrix
-2               assign              vector
-2               assign              matrix
-
 **TODO**: After assignment, figure out where we don't need to strip dims / how
 to handle non-null dimensions
 
@@ -664,14 +659,12 @@ to handle non-null dimensions
     E(x) = v_1
     v_1 = [lit_1 .. lit_n1],T,Vnull
     v_2 = [i],T_Int,Vnull
+    i > 0 /\ i >=/= NA_i
     v_3 = [lit],T,Vnull
-    l = max(n1, i)
-    extend(v_1, l-n1) = v_1'
-    v_1' = [lit_1 .. lit_j lit_i lit_k .. lit_l],T,Vnull
-    v = [lit_1 .. lit_j lit lit_k .. lit_l],T,Vnull
+    v = update_at_pos(v_1, v_2, v_3, v_3)
     E' = E{ x := v }
     T =/= T_Null
-    ----------------------------------------------------  :: E_Subset2_Vector_Assign
+    -------------------------------------  :: E_Subset2_Vector_Assign
     E C<x[[v_2]] <- v_3> --> E' C<v_3>
 
     Error if:
@@ -701,14 +694,15 @@ here.
     v_d1 = [r c],T_Int,v_d
     v_2 = [i],T_Int,v_d2
     v_3 = [j],T_Int,v_d3
-    i in 1...r /\ j in 1...c
-    v_4 = [lit],T,Vnull
-    k = i + (j-1)*r
-    v = [lit_1 .. lit'_k lit lit''_k .. lit_n1],T,v_d1
+    i in 1...r /\ i =/= NA_i
+    j in 1...c /\ j =/= NA_i
+    v_4 = vectors_to_pos_vec(v_2, v_3, v_2)
+    v_5 = [lit],T,Vnull
+    v = update_at_pos(v_1, v_4, v_5, v_5)
     E' = E{ x := v }
     T =/= T_Null
-    ----------------------------------------------------  :: E_Subset2_Matrix_Assign
-    E C<x[[v_2,v_3]] <- v_4> --> E' C<v_4>
+    ------------------------------------------------------  :: E_Subset2_Matrix_Assign
+    E C<x[[v_2,v_3]] <- v_5> --> E' C<v_5>
 
     Error if:
       - x not in E
@@ -1123,8 +1117,8 @@ here.
     v_1 = [lit_1 .. lit_n],T,Vnull
     v_2 = [j int_1 .. int_m],T_Int,Vnull
     v_3 = [lit'_1 .. lit'_m],T,Vnull
-    j not in 1..m /\ j =/= NA(T)
-    v_1' = extend(v_1, j-m)
+    j not in 1..n /\ j > 1 /\ j =/= NA(T)
+    v_1' = extend(v_1, j-n)
     v = update_at_pos(v_1', v_2, v_3, v_4)
     --------------------------------------  :: Aux_UpdateAtPos_OutBoundsCase
     update_at_pos(v_1, v_2, v_3, v_4) = v
