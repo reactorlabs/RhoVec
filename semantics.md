@@ -203,7 +203,7 @@ Looks up the value of `x` in the environment.
     ------------------------------------------  :: E_Combine_Null
     E C<Combine(v_1, ..., v_n)> --> E C<Vnull>
 
-    (v_1 = [lit_1_1 .. lit_1_m1],T,v_d1) ... (v_n = [lit_n_1 .. lit_n_mn],T,v_d2)
+    (v_1 = [lit_1_1 .. lit_1_m1],T,v_d1) ... (v_n = [lit_n_1 .. lit_n_mn],T,v_dn)
     T =/= T_Null
     -----------------------------------------------------------------------------------------  :: E_Combine
     E C<Combine(v_1, ..., v_n)> --> E C<[lit_1_1 .. lit_1_m1 .. lit_n_1 .. lit_n_mn],T,Vnull>
@@ -222,61 +222,37 @@ _Note:_ In R, arguments may also have different types, as vectors will be
 coerced to a common type.
 
 
-    v_1 = [],T,Vnull
-    v_2 = [i],T_Int,v_d2
-    v_3 = [j],T_Int,v_d3
-    n2 = i*j
-    v_1' = NA(T)
-    v_1'' = recycle(v_1', v_1', v_1', n2-1)
-          = [lit_1 .. lit_n2],T,Vnull
-    v_d2 = [i j],T_Int,Vnull
-    v = [lit_1 .. lit_n2],T,v_d2
+    v_2 = [i int_1 .. int_m1],T_Int,v_d2
+    v_3 = [j int'_1 .. int'_m2],T_Int,v_d3
+    n = i*j
+    v_1' = make_matrix_data(v_1, n)
+    v = set_dim(v_1', i, j)
     i > 0 /\ j > 0
-    ---------------------------------------  :: E_Matrix_Empty
-    E C<Matrix(v_1, v_2, v_3)> --> E C<v>
-
-    Error if:
-      - i is negative
-      - j is negative
-
-If the provided vector `v_1` is empty, then it is converted to an `NA` of the
-appropriate type, and recycled to fill the required dimensions.
-
-
-    v_1 = [lit_1 .. lit_n1],T,v_d1
-    v_2 = [i],T_Int,v_d2
-    v_3 = [j],T_Int,v_d3
-    v_1' = strip_dim(v_1)
-    n2 = i*j
-    v_1'' = truncate(v_1', n1-n2)
-    n2 % n1 == 0
-    v_1''' = recycle(v_1'', v_1'', v_1'', n2-n1)
-           = [lit_1 .. lit_n2],T,v_d1
-    v_d2 = [i j],T_Int,Vnull
-    v = [lit_1 .. lit_n2],T,v_d2
-    i > 0 /\ j > 0
-    --------------------------------------------  :: E_Matrix
+    ---------------------------------------  :: E_Matrix
     E C<Matrix(v_1, v_2, v_3)> --> E C<v>
 
     Error if:
       - v_2 does not have type T_Int
       - v_3 does not have type T_Int
-      - v_2 does not have 1 element
-      - v_3 does not have 1 element
-      - n2 % n1 =/= 0
+      - n1 == 0 and n2 % n1 =/= 0 and n1 % n2 =/= 0
       - i is negative
       - j is negative
 
 A matrix is created from the elements of `v_1`, with `v_2` rows and `v_3`
-columns. If the length of `v_1` is less than the product of dimensions, then it
-must evenly divide the dimensions; otherwise `v_1` is truncated.
+columns; anything after the first elements of `v_2` and `v_3` are ignored.
 
-`v_2` and `v_3` must both be integer vectors of length 1.
+If the provided vector `v_1` is empty, then it is converted to an `NA` of the
+appropriate type, and recycled to fill the required dimensions.
 
-_Note:_ In R, `v_2` and `v_3` may have length greater than 1; in that case,
-elements after the first one are ignored. Furthermore, if `v_2` has multiple
-elements and `v_3` is omitted, then `v_3` is taken to be the second element of
-`v_2`.
+If the length of `v_1` is less than the product of dimensions, and it evenly
+divides the product of dimensions, then it is recycled. If the length of `v_1`
+is greater than the product of dimensions, and it is a multiple of the product
+of dimensions, then it is truncated.
+
+_Note:_ In R, `v_2` and `v_3` can be passed by name. If both `v_2` and `v_3` are
+missing, then a one-column matrix is created. If either `v_2` or `v_3` (but not
+both) are missing, then R will try to infer it from the length of `v_1` and the
+non-missing parameter.
 
 
     v_1 = [lit_1 .. lit_n],T,v_d
@@ -317,18 +293,19 @@ Indexing the null vector `Vnull` always returns `Vnull`. No error checking is
 performed.
 
 
-    v_1 = [lit_1 .. lit_n],T,v_d
-    v_1' = strip_dim(v_1)
-    nv_2' = strip_dim(nv_2)
-    v_2'' = make_subscript(nv_2', n)
-    v = get_at_pos(v_1', v_2'')
+    v_1 = [lit_1 .. lit_n],T,Vnull
+    v_2' = make_subscript(nv_2, n)
+    v = get_at_pos(v_1, v_2')
     T =/= T_Null
-    --------------------------------  :: E_Subset1_Vector
+    ------------------------------  :: E_Subset1_Vector
     E C<v_1[nv_2]> --> E C<v>
 
     Error if:
       - nv_2 mixes positive and negative indices
       - nv_2 mixes negative and NA indices
+
+The difference between `E_Subset1_Vector` and `E_Subset1_Matrix` is that in the
+former, `v_1` has null dimensions.
 
 If `nv_2` is missing, then subsetting returns the original vector.
 
@@ -350,20 +327,15 @@ select `NA` (of the appropriate type). If `nv_2` is too short, it is recycled.
 
     v_1 = [lit_1 .. lit_n1],T,v_d1
     v_d1 = [r c],T_Int,v_d
-    v_1' = strip_dim(v_1)
-    nv_2' = strip_dim(nv_2)
-    nv_3' = strip_dim(nv_3)
-    v_2'' = make_matrix_subscript(nv_2', r)
-          = [int_1 .. int_n2],T_Int,v_d2
-    v_3'' = make_matrix_subscript(nv_3', c)
-          = [int'_1 .. int'_n3],T_Int,v_d3
+    v_2' = make_matrix_subscript(nv_2, r)
+         = [int_1 .. int_n2],T_Int,v_d2
+    v_3' = make_matrix_subscript(nv_3, c)
+         = [int'_1 .. int'_n3],T_Int,v_d3
     forall i in 1..n2 : int_i  in 1..r \/ int_i  == NA_i
     forall i in 1..n3 : int'_i in 1..c \/ int'_i == NA_i
-    v_4 = vectors_to_pos_vec(v_2'', v_3'', v_2'')
-    v_1'' = get_at_pos(v_1', v_4)
-          = [lit'_1 .. lit'_n],T,v_d1'
-    v_d' = [n2 n3],T_Int,Vnull
-    v = [lit'_1 .. lit'_n],T,v_d'
+    v_4 = vectors_to_pos_vec(v_2', v_3', v_2')
+    v_1' = get_at_pos(v_1, v_4)
+    v = set_dim(v_1', n2, n3)
     T =/= T_Null
     ----------------------------------------------------  :: E_Subset1_Matrix
     E C<v_1[nv_2,nv_3]> --> E C<v>
@@ -374,6 +346,9 @@ select `NA` (of the appropriate type). If `nv_2` is too short, it is recycled.
       - nv_2 or nv_3 have positive out-of-bounds indices
       - nv_2 is a boolean vector and longer than r
       - nv_3 is a boolean vector and longer than c
+
+The difference between `E_Subset1_Vector` and `E_Subset1_Matrix` is that in the
+former, `v_1` has null dimensions.
 
 `nv_2` is an index vector that selects rows. `nv_3` is an index vector that
 selects columns. The dimensions of `nv_2` and `nv_3` are ignored.
@@ -402,10 +377,8 @@ an error if the index vector is too long.
     v_d2 = [r' 2],T_Int,v_d'
     forall i in    1..r' : int_i in 0..r \/ int_i == NA_i
     forall i in r'+1..n2 : int_i in 0..c \/ int_i == NA_i
-    v_1' = strip_dim(v_1)
-    v_2' = strip_dim(v_2)
-    v_2'' = matrix_to_pos_vec(v_2', r, r', 1)
-    v = get_at_pos(v_1', v_2'')
+    v_2' = matrix_to_pos_vec(v_2, r, r', 1)
+    v = get_at_pos(v_1, v_2')
     T =/= T_Null
     -----------------------------------------------------  :: E_Subset1_Matrix_Matrix
     E C<v_1[v_2]> --> E C<v>
@@ -418,7 +391,7 @@ select, while each column species a dimension. I.e., a two-column matrix is used
 to subset a matrix. The indices must be within bounds.
 
 
-    v_1 = [lit_1 ... lit_n1],T,v_d1
+    v_1 = [lit_1 ... lit_n1],T,Vnull
     v_2 = [i],T_Int,v_d2
     i in 1...n1 /\ T =/= T_Null
     v = get_at_pos(v_1, v_2)
@@ -434,6 +407,9 @@ to subset a matrix. The indices must be within bounds.
       - i == 0
       - i < 0
       - i > n1
+
+The difference between `E_Subset2_Vector` and `E_Subset2_Matrix` is that in the
+former, `v_1` has null dimensions.
 
 Subsetting with `[[` returns a single-element vector. The index vector must
 contain a single, non-`NA` integer that is within bounds. The dimensions of both
@@ -476,10 +452,9 @@ Assignment updates the environment and returns the value being assigned.
 
     x in E
     E(x) = v_1
-    v_1 = [lit_1 .. lit_n1],T_1,v_d1
-    v = [lit_1 .. lit_n],T,Vnull
+    v = strip_dim(v_1)
     E' = E{ x := v }
-    ----------------------------------  :: E_Dim_Assign_Null
+    ------------------------------------  :: E_Dim_Assign_Null
     E C<Dim(x) <- Vnull> --> E' C<Vnull>
 
     Error if:
@@ -490,14 +465,14 @@ Assigning null dimensions to a vector removes its dimensions.
 
     x in E
     E(x) = v_1
-    v_1 = [lit_1 .. lit_n1],T_1,v_d1
+    v_1 = [lit_1 .. lit_n1],T,v_d1
     v_2 = [lit'_1 .. lit'_n2],T_Int,v_d2
     forall i in 1 .. n2 : lit'_i > 0
+    length(v_1) = product(v_2)
+    length(v_2) == 1 \/ length(v_2) == 2
     v = [lit_1 .. lit_n1],T,v_2
     E' = E{ x := v }
-    length(v_1) = product(v_2)
-    length(v_2) in 1...2
-    ----------------------------------  :: E_Dim_Assign
+    ------------------------------------  :: E_Dim_Assign
     E C<Dim(x) <- v_2> --> E' C<v_2>
 
     Error if:
@@ -519,7 +494,7 @@ vector. The dimension vector must be a non-null integer vector.
     v_2' = make_subscript(nv_2, n1)
          = [int_1 .. int_n2],T_Int,Vnull
     forall i in 1..n2 : int_i =/= NA_i
-    v_3 = [lit'_1 ... lit'_n3],T,Vnull
+    v_3 = [lit'_1 ... lit'_n3],T,v_d3
     n2 % n3 == 0
     v = update_at_pos(v_1, v_2', v_3, v_3)
     E' = E{ x := v }
@@ -560,23 +535,18 @@ have different types because of coercion.
     E(x) = v_1
     v_1 = [lit_1 .. lit_n1],T,v_d1
     v_d1 = [r c],T_Int,v_d
-    v_1' = strip_dim(v_1)
-    nv_2' = strip_dim(nv_2)
-    nv_3' = strip_dim(nv_3)
-    v_2'' = make_matrix_subscript(nv_2', r)
-          = [int_1 .. int_n2],T_Int,v_d2
-    v_3'' = make_matrix_subscript(nv_3', c)
-          = [int'_1 .. int'_n3],T_Int,v_d3
+    v_2' = make_matrix_subscript(nv_2, r)
+         = [int_1 .. int_n2],T_Int,v_d2
+    v_3' = make_matrix_subscript(nv_3, c)
+         = [int'_1 .. int'_n3],T_Int,v_d3
     forall i in 1..n2 : int_i  in 1..r /\ int_i  =/= NA_i
     forall i in 1..n3 : int'_i in 1..c /\ int'_i =/= NA_i
-    v_4 = vectors_to_pos_vec(v_2'', v_3'', v_2'')
+    v_4 = vectors_to_pos_vec(v_2', v_3', v_2')
     n4 = length(v_4)
     v_5 = [lit'_1 .. lit'_n5],T,v_d5
     n4 % n5 == 0
-    v_1'' = update_at_pos(v_1', v_4, v_5, v_5)
-          = [lit''_1 .. lit''_n],T,v_d1'
-    v_d' = [r c],T_Int,Vnull
-    v = [lit''_1 .. lit''_n],T,v_d'
+    v_1' = update_at_pos(v_1, v_4, v_5, v_5)
+    v = set_dim(v_1', r, c)
     T =/= T_Null
     -----------------------------------------------------  :: E_Subset1_Matrix_Assign
     E C<x[nv_2,nv_3] <- v_5> --> E' C<v_5>
@@ -592,6 +562,9 @@ have different types because of coercion.
       - nv_2 is a boolean vector and longer than r
       - nv_3 is a boolean vector and longer than c
       - T == T_Null
+
+The difference between `E_Subset1_Vector_Assign` and `E_Subset1_Matrix_Assign`
+is that in the former, `v_1` has null dimensions.
 
 Similar to `E_Subset1_Matrix`, the index vector `nv_2` selects rows and the
 index vector `nv_3` selects columns. The index vector can be missing, null,
@@ -614,20 +587,16 @@ have different types because of coercion.
     E(x) = v_1
     v_1 = [lit_1 .. lit_n1],T,v_d1
     v_d1 = [r c],T_Int,v_d
-    v_1' = strip_dim(v_1)
     v_2 = [int_1 .. int_n2],T_Int,v_d2
-    v_2' = strip_dim(v_2)
     v_d2 = [r' 2],T_Int,v_d'
     forall i in    1..r' : int_i in 0..r /\ int_i =/= NA_i
     forall i in r'+1..n2 : int_i in 0..c /\ int_i =/= NA_i
-    v_2'' = matrix_to_pos_vec(v_2', r, r', 1)
+    v_2' = matrix_to_pos_vec(v_2, r, r', 1)
     v_3 = [lit'_1 .. lit'_n3],T,v_d3
-    n2' = length(v_2'')
+    n2' = length(v_2')
     n2' % n3 == 0
-    v_1'' = update_at_pos(v_1', v_2'', v_3, v_3)
-          = [lit''_1 .. lit''_n],T,v_d1'
-    v_d' = [r c],T_Int,Vnull
-    v = [lit''_1 .. lit''_n],T,v_d'
+    v_1' = update_at_pos(v_1, v_2', v_3, v_3)
+    v = set_dim(v_1', r, c)
     T =/= T_Null
     ------------------------------------------------------  :: E_Subset1_Matrix_Matrix_Assign
     E C<x[v_2] <- v_3> --> E' C<v_3>
@@ -651,16 +620,12 @@ vector may contain `NA`s, but only if `v_3` has length one. `v_1` and `v_3` may
 have different types because of coercion.
 
 
-**TODO**: After assignment, figure out where we don't need to strip dims / how
-to handle non-null dimensions
-
-
     x in E
     E(x) = v_1
     v_1 = [lit_1 .. lit_n1],T,Vnull
-    v_2 = [i],T_Int,Vnull
+    v_2 = [i],T_Int,v_d2
     i > 0 /\ i >=/= NA_i
-    v_3 = [lit],T,Vnull
+    v_3 = [lit],T,v_d3
     v = update_at_pos(v_1, v_2, v_3, v_3)
     E' = E{ x := v }
     T =/= T_Null
@@ -680,6 +645,9 @@ to handle non-null dimensions
       - i < 0
       - T == T_Null
 
+The difference between `E_Subset2_Vector_Assign` and `E_Subset2_Matrix_Assign`
+is that in the former, `v_1` has null dimensions.
+
 Assignment with `[[` only updates a single element of the vector, i.e. the index
 vector must contain a single, non-NA integer. If the index is out of bounds,
 then the base vector is extended with `NA`s.
@@ -697,7 +665,7 @@ here.
     i in 1...r /\ i =/= NA_i
     j in 1...c /\ j =/= NA_i
     v_4 = vectors_to_pos_vec(v_2, v_3, v_2)
-    v_5 = [lit],T,Vnull
+    v_5 = [lit],T,v_d5
     v = update_at_pos(v_1, v_4, v_5, v_5)
     E' = E{ x := v }
     T =/= T_Null
@@ -751,31 +719,31 @@ here.
 
 
     typeof(lit) = T
-    v = [lit_1 .. lit_n],T,Vnull
+    v = [lit_1 .. lit_n],T,v_d
     ----------------------------------------------  :: Aux_Prepend
     prepend(lit, v) = [lit lit_1 .. lit_n],T,Vnull
 
 
     typeof(lit) = T
-    v = [lit_1 .. lit_n],T,Vnull
+    v = [lit_1 .. lit_n],T,v_d
     ---------------------------------------------  :: Aux_Append
     append(v, lit) = [lit_1 .. lit_n lit],T,Vnull
 
 
-    v = [lit_1 .. lit_n],T,Vnull
-    ----------------------------  :: Aux_Length
+    v = [lit_1 .. lit_n],T,v_d
+    --------------------------  :: Aux_Length
     length(v) = n
 
 
-    v = [],T,Vnull
+    v = [],T,v_d
     --------------  :: Aux_Product
     product(v) = 1
 
 
-    v = [int_1 int_2 .. int_m],T_Int,Vnull
-    v' = [int_2 .. int_m],T_Int,Vnull
+    v = [int_1 int_2 .. int_m],T_Int,v_d
+    v' = [int_2 .. int_m],T_Int,v_d
     n = int_1 * product(v')
-    --------------------------------------  :: Aux_Product
+    ------------------------------------  :: Aux_Product
     product(v) = n
 
 
@@ -787,6 +755,13 @@ here.
     v = [lit_1 .. lit_n]T,Vnull
     ----------------------------  :: Aux_Strip_Dim
     strip_dim(v_1) = v
+
+
+    v_1 = [lit_1 .. lit_n],T,v_d1
+    v_d = [d1 ... dm],T_Int,Vnull
+    v = [lit_1 .. lit_n],T,v_d
+    -----------------------------  :: Aux_Set_Dim
+    set_dim(v_1, d1, ..., dm) = v
 
 
     v_1 = [],T_Int,v_d
@@ -822,36 +797,40 @@ here.
     make_subscript(v_1, n) = v
 
 
-    v_1 = [int_1 .. int_n1],T_Int,Vnull
+    v_1 = [int_1 .. int_n1],T_Int,v_d
     forall i in 1..n1 : int_i >= 0 \/ int_i == NA_i
-    v_1' = drop_zeros(v_1)
+    v_1' = strip_dim(v_1)
+    v_1'' = drop_zeros(v_1')
     -----------------------------------------------  :: Aux_MakeSubscript_Positive
-    make_subscript(v_1, n) = v_1'
+    make_subscript(v_1, n) = v_1''
 
 
-    v_1 = [int_1 .. int_n1],T_Int,Vnull
+    v_1 = [int_1 .. int_n1],T_Int,v_d1
     forall i in 1..n1 : int_i <= 0 /\ int_i =/= NA_i
     v_2 = gen_bool_vec(n)
-    v_1' = neg_to_bool_vec(v_1, v_2)
-    v_1'' = bool_to_pos_vec(v_1', 1)
+    v_1' = strip_dim(v_1)
+    v_1'' = neg_to_bool_vec(v_1', v_2)
+    v_1''' = bool_to_pos_vec(v_1'', 1)
     ------------------------------------------------ :: Aux_MakeSubscript_Negative
-    make_subscript(v_1, n) = v_1''
+    make_subscript(v_1, n) = v_1'''
 
 
-    v_1 = [bool_1 .. bool_n1],T_Bool,Vnull
+    v_1 = [bool_1 .. bool_n1],T_Bool,v_d1
     l = max(n, n1)
-    v_1' = recycle(v_1, v_1, v_1, l-n1)
-    v_1'' = bool_to_pos_vec(v_1', 1)
-    --------------------------------------  :: Aux_MakeSubscript_Bool
-    make_subscript(v_1, n) = v_1''
+    v_1' = strip_dim(v_1)
+    v_1'' = recycle(v_1', v_1', v_1', l-n1)
+    v_1''' = bool_to_pos_vec(v_1'', 1)
+    -------------------------------------  :: Aux_MakeSubscript_Bool
+    make_subscript(v_1, n) = v_1'''
 
 
-    v_1 = [bool_1 .. bool_n1],T_Bool,Vnull
+    v_1 = [bool_1 .. bool_n1],T_Bool,v_d1
+    v_1' = strip_dim(v_1)
     n1 <= n
-    v_1' = recycle(v_1, v_1, v_1, n-n1)
-    v_1'' = bool_to_pos_vec(v_1', 1)
-    --------------------------------------  :: Aux_MakeMatrixSubscript_Bool
-    make_matrix_subscript(v_1, n) = v_1''
+    v_1'' = recycle(v_1', v_1', v_1', n-n1)
+    v_1''' = bool_to_pos_vec(v_1'', 1)
+    ---------------------------------------  :: Aux_MakeMatrixSubscript_Bool
+    make_matrix_subscript(v_1, n) = v_1'''
 
 
     v = make_subscript(v_1, n)
@@ -859,13 +838,13 @@ here.
     make_matrix_subscript(v_1, n) = v
 
 
-    v_1 = [lit_1 .. lit_n],T,Vnull
+    v_1 = [lit_1 .. lit_n],T,v_d
     v_2 = [],T_Int,Vnull
     ---------------------------------  :: Aux_GetAtPos_BaseCase
     get_at_pos(v_1, v_2) = [],T,Vnull
 
 
-    v_1 = [lit_1 .. lit_n],T,Vnull
+    v_1 = [lit_1 .. lit_n],T,v_d
     v_2 = [0 int_1 .. int_m],T_Int,Vnull
     v_2' = [int_1 .. int_m],T_Int,Vnull
     v = get_at_pos(v_1, v_2')
@@ -873,7 +852,7 @@ here.
     get_at_pos(v_1, v_2) = v
 
 
-    v_1 = [lit_1 .. lit_n],T,Vnull
+    v_1 = [lit_1 .. lit_n],T,v_d
     v_2 = [i int_1 .. int_m],T_Int,Vnull
     i in 1..n
     v_2' = [int_1 .. int_m],T_Int,Vnull
@@ -883,7 +862,7 @@ here.
     get_at_pos(v_1, v_2) = v
 
 
-    v_1 = [lit_1 .. lit_n],T,Vnull
+    v_1 = [lit_1 .. lit_n],T,v_d
     v_2 = [i int_1 .. int_m],T_Int,Vnull
     i not in 1..n \/ i == NA_i
     v_2' = [int_1 .. int_m],T_Int,Vnull
@@ -921,7 +900,7 @@ here.
     bool_to_pos_vec(v_1, i) = v
 
 
-    v_1 = [int_1 .. int_n1],T_Int,Vnull
+    v_1 = [int_1 .. int_n1],T_Int,v_d1
     v_2 = [],T_Int,Vnull
     v = [],T_Int,Vnull
     -------------------------------------  :: Aux_VectorsToPosVec_BaseCase
@@ -929,32 +908,34 @@ here.
 
 
     v_1 = [],T_Int,Vnull
-    v_2 = [j int'_1 .. int'_n2],T_Int,Vnull
+    v_2 = [j int'_1 .. int'_n2],T_Int,v_d2
     v_2' = [int'_1 .. int'_n2],T_Int,Vnull
     v = vectors_to_pos_vec(v_3, v_2', v_3)
-    ----------------------------------------  :: Aux_VectorsToPosVec_NextColCase
+    --------------------------------------  :: Aux_VectorsToPosVec_NextColCase
     vectors_to_pos_vec(v_1, v_2, v_3) = v
 
 
-    v_1 = [i int_1 .. int_n1],T_Int,Vnull
-    v_2 = [j int'_1 .. int'_n2],T_Int,Vnull
+    v_1 = [i int_1 .. int_n1],T_Int,v_d1
+    v_2 = [j int'_1 .. int'_n2],T_Int,v_d2
     i == NA_i \/ j == NA_i
     v_1' = [int_1 .. int_n1],T_Int,Vnull
-    v_4 = vectors_to_pos_vec(v_1', v_2, v_3)
+    v_2' = strip_dim(v_2)
+    v_4 = vectors_to_pos_vec(v_1', v_2', v_3)
     v = prepend(NA_i, v_4)
-    ----------------------------------------  :: Aux_VectorsToPosVec_NACase
+    -----------------------------------------  :: Aux_VectorsToPosVec_NACase
     vectors_to_pos_vec(v_1, v_2, v_3) = v
 
 
-    v_1 = [i int_1 .. int_n1],T_Int,Vnull
-    v_2 = [j int'_1 .. int'_n2],T_Int,Vnull
+    v_1 = [i int_1 .. int_n1],T_Int,v_d1
+    v_2 = [j int'_1 .. int'_n2],T_Int,v_d2
     i =/= NA_i /\ j =/= NA_i
     v_1' = [int_1 .. int_n2],T_Int,Vnull
+    v_2' = strip_dim(v_2)
     r = length(v_3)
     k = i + (j-1)*r
-    v_4 = vectors_to_pos_vec(v_1', v_2, v_3)
+    v_4 = vectors_to_pos_vec(v_1', v_2', v_3)
     v = prepend(k, v_4)
-    ----------------------------------------  :: Aux_VectorsToPosVec_InBoundsCase
+    -----------------------------------------  :: Aux_VectorsToPosVec_InBoundsCase
     vectors_to_pos_vec(v_1, v_2, v_3) = v
 
 
@@ -962,7 +943,7 @@ here.
     matrix_to_pos_vec(v_1, r, r', r'+1) = [],T_Int,Vnull
 
 
-    v_1 = [int_1 .. int_n],T_Int,Vnull
+    v_1 = [int_1 .. int_n],T_Int,v_d
     int_k == NA_i \/ int_(k+r') == NA_i
     v_1' = matrix_to_pos_vec(v_1, r, r', k+1)
     v = prepend(NA_i, v_1')
@@ -970,7 +951,7 @@ here.
     matrix_to_pos_vec(v_1, r, r', k) = v
 
 
-    v_1 = [int_1 .. int_n],T_Int,Vnull
+    v_1 = [int_1 .. int_n],T_Int,v_d
     i = int_k
     j = int_(k+r')
     l = i + (j-1)*r
@@ -980,20 +961,21 @@ here.
     matrix_to_pos_vec(v_1, r, r', k) = v
 
 
-    ------------------------------  :: Aux_Truncate_BaseCase1
-    truncate(v_1, 0) = v_1
-
-
-    v_1 = [],T,Vnull
-    ------------------------------  :: Aux_Truncate_BaseCase2
+    m <= 0
+    ----------------------  :: Aux_Truncate_BaseCase1
     truncate(v_1, m) = v_1
 
 
-    v_1 = [lit_1 .. lit_i lit_j],T,Vnull
+    v_1 = [],T,Vnull
+    ----------------------  :: Aux_Truncate_BaseCase2
+    truncate(v_1, m) = v_1
+
+
+    v_1 = [lit_1 .. lit_i lit_j],T,v_d
     v_1' = [lit_1 .. lit_i],T,Vnull
     v = truncate(v_1', m-1)
     m > 0
-    ------------------------------------  :: Aux_Truncate_RecurseCase
+    ----------------------------------  :: Aux_Truncate_RecurseCase
     truncate(v_1, m) = v_1
 
 
@@ -1088,24 +1070,24 @@ here.
     drop_zeros(v_1) = v
 
 
-    v_1 = [lit_1 .. lit_n],T,Vnull
+    v_1 = [lit_1 .. lit_n],T,v_d1
     v_2 = [],T_Int,Vnull
-    v_3 = [lit'_1 .. lit'_m],T,Vnull
+    v_3 = [lit'_1 .. lit'_m],T,v_d3
     ---------------------------------------  :: Aux_UpdateAtPos_BaseCase
     update_at_pos(v_1, v_2, v_3, v_4) = v_1
 
 
-    v_1 = [lit_1 .. lit_n],T,Vnull
-    v_2 = [int_1 ... int_m],T_Int,Vnull
+    v_1 = [lit_1 .. lit_n],T,v_d1
+    v_2 = [int_1 ... int_m],T_Int,v_d2
     v_3 = [],T,Vnull
     v = update_at_pos(v_1, v_2, v_4, v_4)
     -------------------------------------  :: Aux_UpdateAtPos_RecycleCase
     update_at_pos(v_1, v_2, v_3, v_4) = v
 
 
-    v_1 = [lit_1 .. lit_i lit_j lit_k .. lit_n],T,Vnull
-    v_2 = [j int_1 .. int_m],T_Int,Vnull
-    v_3 = [lit' lit'_1 .. lit'_m],T,Vnull
+    v_1 = [lit_1 .. lit_i lit_j lit_k .. lit_n],T,v_d1
+    v_2 = [j int_1 .. int_m],T_Int,v_d2
+    v_3 = [lit' lit'_1 .. lit'_m],T,v_d3
     v_1' = [lit_1 .. lit_i lit' lit_k .. lit_n],T,Vnull
     v_2' = [int_1 .. int_m],T_Int,Vnull
     v_3' = [lit'_1 .. lit'_m],T,Vnull
@@ -1114,14 +1096,30 @@ here.
     update_at_pos(v_1, v_2, v_3, v_4) = v
 
 
-    v_1 = [lit_1 .. lit_n],T,Vnull
-    v_2 = [j int_1 .. int_m],T_Int,Vnull
-    v_3 = [lit'_1 .. lit'_m],T,Vnull
+    v_1 = [lit_1 .. lit_n],T,v_d1
+    v_2 = [j int_1 .. int_m],T_Int,v_d2
+    v_3 = [lit'_1 .. lit'_m],T,v_d3
     j not in 1..n /\ j > 1 /\ j =/= NA(T)
-    v_1' = extend(v_1, j-n)
-    v = update_at_pos(v_1', v_2, v_3, v_4)
-    --------------------------------------  :: Aux_UpdateAtPos_OutBoundsCase
+    v_1' = strip_dim(v_1)
+    v_1'' = extend(v_1', j-n)
+    v = update_at_pos(v_1'', v_2, v_3, v_4)
+    ---------------------------------------  :: Aux_UpdateAtPos_OutBoundsCase
     update_at_pos(v_1, v_2, v_3, v_4) = v
+
+
+    v_1 = [],T,v_d1
+    v_1' = [NA(T)],T,Vnull
+    v_1'' = recycle(v_1', v_1', v_1', n-1)
+    --------------------------------------  :: Aux_MakeMatrixData_Empty
+    make_matrix_data(v_1, n) = v
+
+
+    v_1 = [lit_1 ... lit_m],T,v_d1
+    n % m == 0 \/ m % n == 0
+    v_1' = truncate(v_1, m-n)
+    v_1'' = recycle(v_1', v_1', v_1', n-m)
+    --------------------------------------  :: Aux_MakeMatrixData_NonEmpty
+    make_matrix_data(v_1, n) = v
 
 
 ## TODO
